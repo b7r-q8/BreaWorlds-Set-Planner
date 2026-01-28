@@ -888,7 +888,11 @@ window.randomizeSet = function () {
     const submenu = document.getElementById(catId);
     if (!submenu) return;
 
-    const items = Array.from(submenu.querySelectorAll('li'));
+    const items = Array.from(submenu.querySelectorAll('li')).filter(item => {
+      // Exclude Rocker Makeup from randomizer
+      if (item.dataset.src && item.dataset.src.includes('rocker.png')) return false;
+      return true;
+    });
     if (items.length === 0) return;
 
     // Weighting: 40% chance to skip a category for more "varied" random looks
@@ -1175,6 +1179,10 @@ function syncBodyParts() {
   const isInvis = isInvisSkinActive();
   const isGhost = isGhostOutfitActive();
 
+  // Reset eyes layer opacity by default (overridden by syncHeadSprite if needed)
+  const eyesLayer = document.getElementById('eyes');
+  if (eyesLayer) eyesLayer.style.opacity = '1';
+
   // Check if skate car is equipped
   const carsLayer = document.getElementById('cars');
   const isSkate = carsLayer && carsLayer.style.display === 'block' && carsLayer.src && (carsLayer.src.includes('skate.png') || carsLayer.src.includes('dcirc.png') || carsLayer.src.includes('circ.png'));
@@ -1227,11 +1235,7 @@ function syncBodyParts() {
         }
       }
 
-      if (isRocker) {
-        el.style.opacity = '1';
-      } else {
-        el.style.opacity = isInvis ? '0' : '1';
-      }
+      el.style.opacity = isInvis ? '0' : '1';
     }
   });
 
@@ -1289,15 +1293,36 @@ function syncHeadSprite() {
 
   // Priority 2: Mechanical Bunny Helmet (facemech.png)
   if (faces29Equipped) {
-    headLayer.src = "facemech.png";
+    if (isInvisSkinActive()) {
+      headLayer.src = "specials/invisibleskin.png";
+      // Ensure opacity logic matches standard invis skin (show if eye exception like Rocker is active)
+      const equippedEye = document.querySelector('#eyesMenu li.equipped');
+      const eyeSrc = equippedEye ? (equippedEye.dataset.src || equippedEye.dataset.frames) : '';
+      headLayer.style.opacity = (equippedEye && !isEyeException(eyeSrc)) ? '0' : '1';
+
+      // Explicitly hide Rocker Makeup layer (eyes) to avoid white pixels, but keep pupil visible (handled above)
+      const eyesLayer = document.getElementById('eyes');
+      if (eyesLayer) eyesLayer.style.opacity = '0';
+    } else {
+      // Normal Character + Mech Helmet Logic:
+      if (isRocker) {
+        headLayer.src = "rockerbody/rockermech.png";
+        // Also hide Rocker Makeup pixels (white pixels) for this combination
+        const eyesLayer = document.getElementById('eyes');
+        if (eyesLayer) eyesLayer.style.opacity = '0';
+      } else {
+        headLayer.src = "facemech.png";
+        // Eyes opacity is reset to '1' by syncBodyParts default, so we don't need to force it here
+      }
+      headLayer.style.opacity = "1";
+    }
     headLayer.style.display = "block";
-    headLayer.style.opacity = "1";
     return;
   }
 
   // Priority 3: Rocker or Normal
   if (isRocker) {
-    headLayer.src = "rockerbody/head.png";
+    headLayer.src = isInvisSkinActive() ? "rockerbody/invisrocker.png" : "rockerbody/head.png";
     headLayer.style.display = "block";
     headLayer.style.opacity = "1";
   } else {
