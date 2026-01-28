@@ -25,7 +25,8 @@
 </head>
 
 <body>
-  <!-- LOADING SCREEN -->
+  <!-- LOADING SCREEN DISABLED -->
+  <!--
   <div id="loading-screen">
     <div class="loader-content">
 
@@ -53,9 +54,7 @@
       style="bottom: 15%; right: 15%; background: radial-gradient(circle, rgba(168, 218, 220, 0.05) 0%, transparent 70%); animation-delay: -8s;">
     </div>
 
-    <!-- SCATTERED DECORATIVE ITEMS (User Specific List) -->
     <div class="item-scatter-container">
-      <!-- Layer 1: Front (Sharper, Larger) -->
       <img src="hats/hat25.png" class="item-scatter" style="top: 15%; left: 10%; --d: 6s; --r: 15deg;">
       <img src="pets/spr_wa_pet_reaper_pet2/1.png" class="item-scatter"
         style="top: 20%; right: 15%; --d: 8s; --r: -10deg;">
@@ -65,7 +64,6 @@
         style="bottom: 15%; right: 10%; --d: 9s; --r: -15deg;">
       <img src="display/spr_wa_vip_wings.png" class="item-scatter" style="top: 50%; left: 5%; --d: 11s; --r: 25deg;">
 
-      <!-- Layer 2: Mid (Slight Blur) -->
       <img src="hair/hair1.png" class="item-scatter"
         style="top: 40%; right: 8%; --d: 12s; --r: 10deg; opacity: 0.1; width: 45px;">
       <img src="hair/hair39.png" class="item-scatter"
@@ -77,7 +75,6 @@
       <img src="shirts/shirt2/shirt2.png" class="item-scatter"
         style="top: 60%; right: 25%; --d: 15s; --r: -5deg; opacity: 0.1; width: 50px;">
 
-      <!-- Layer 3: Back (Blurrier, Smaller) -->
       <img src="capes/cape1/vcapeabove.png" class="item-scatter"
         style="top: 5%; right: 40%; --d: 16s; --r: 10deg; opacity: 0.08; width: 40px;">
       <img src="pants/pants1.png" class="item-scatter"
@@ -90,6 +87,7 @@
         style="top: 80%; left: 45%; --d: 20s; --r: 15deg; opacity: 0.08; width: 30px;">
     </div>
   </div>
+  -->
 
   <!-- TOP DRAWER MENU (PLATFORMS & BACKGROUNDS) -->
   <div id="top-drawer" class="top-drawer">
@@ -947,6 +945,10 @@
           <li data-layer="eyes" data-animated="true" data-frames="eyes/eyes17/" data-frame-count="17" data-fps="5"
             data-scale="1.4" data-x="1" data-y="40">
             <img src="display/spr_wa_clown_makeup.png" class="item-icon"> Clown Makeup
+          </li>
+
+          <li data-layer="eyes" data-src="eyes/rocker.png" data-scale="1.39" data-x="2" data-y="39">
+            <img src="display/spr_wa_rocker_makeup.png" class="item-icon"> Rocker Makeup
           </li>
 
           <li data-layer="eyes" data-src="faces/faces2.png" data-scale="0.9" data-x="-13" data-y="118">
@@ -1836,12 +1838,11 @@
           </li>
 
           <li data-layer="shirts" data-src="shirts/shirt71/spbody.png" data-scale="0.74" data-x="-2.8" data-y="181"
-            data-invis-src="shirts/shirt71/spbody.png" data-scale="0.74" data-x="-2.8" data-y="181"
-            data-above-src="shirts/shirt71/spr_wa_sp_outfit_girl_hand/spr_wa_sp_outfit_girl_hand_0.png"
+            data-invis-src="shirts/shirt71/spr_wa_sp_outfit_girl_body_1.png" data-scale="0.74" data-x="-2.8"
+            data-y="181" data-above-src="shirts/shirt71/spr_wa_sp_outfit_girl_hand/spr_wa_sp_outfit_girl_hand_0.png"
             data-above-scale="0.273" data-above-x="-74.5" data-above-y="138">
             <img src="display/spr_wa_sp_outfit_girl.png" class="item-icon"> Mistress Suit
           </li>
-
           <li data-layer="shirts" data-src="shirts/shirt72/spr_wa_space_suit_body_1.png" data-scale="0.96" data-x="1.5"
             data-y="213" data-above-src="shirts/shirt72/spr_wa_space_suit_hand/spr_wa_space_suit_hand_0.png"
             data-above-scale="0.27" data-above-x="-74.8" data-above-y="84.5">
