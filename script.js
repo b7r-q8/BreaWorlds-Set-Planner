@@ -4,8 +4,51 @@ const MAX_SLOTS = 10;
 let inventoryClickDebounce = false;
 
 // Feature toggles
-let enableRockerBodySwap = false;
-let showRockerMakeupItem = false;
+let enableRockerBodySwap = true;
+let showRockerMakeupItem = true;
+
+// Central mapping for Rocker Makeup variants
+const rockerVariants = {
+  // Shirts
+  'shirts/shirt42/bluebody.png': 'shirts/shirt42/rockerbluebikini.png',
+  'shirts/shirt64/redbody.png': 'shirts/shirt64/rockerredbikini.png',
+  'shirts/shirt67/santabody.png': 'shirts/shirt67/rockersantared.png',
+  'shirts/shirt54/goldbody.png': 'shirts/shirt54/rockersantagold.png',
+  'shirts/shirt62/pinkbody.png': 'shirts/shirt62/rockersantapink.png',
+  'shirts/shirt3/shirt3body.png': 'shirts/shirt3/rockershark.png',
+  'shirts/shirt12/shirt12body.png': 'shirts/shirt12/rockerelf.png',
+  'shirts/shirt7/shirt7body.png': 'shirts/shirt7/rockerblueshirt.png',
+  'shirts/shirt5/shirt5body.png': 'shirts/shirt5/rockerblackshirt.png',
+  'shirts/shirt20/greenshirtbody.png': 'shirts/shirt20/rockergreenshirt.png',
+  'shirts/shirt30/redshirtbody.png': 'shirts/shirt30/rockerredshirt.png',
+  'shirts/shirt38/whitshirtbody.png': 'shirts/shirt30/rockerwhiteshirt.png',
+  'shirts/shirt41/shirtyellowbody.png': 'shirts/shirt41/rockeryellowshirt.png',
+  'shirts/shirt71/spbody.png': 'shirts/shirt71/rockermistressshirt.png',
+  'shirts/shirt59/msbody.png': 'shirts/shirt59/rockermsclausshirt.png',
+  // Pants
+  'pants/pants33/summershort.png': 'pants/pants33/rockersummershorts.png',
+  'pants/pants35/bluebody.png': 'pants/pants35/rockerblueskirt.png',
+  'pants/pants36/redbody.png': 'pants/pants36/rockerredskirt.png',
+  'pants/pants37/tikibody.png': 'pants/pants37/rockertikiskirt.png',
+  'pants/pants34/clownshorts.png': 'pants/pants34/rockerclownshorts.png',
+  // Shoes
+  'shoes/shoes18/greenslip.png': 'shoes/shoes18/rockergreenslip.png',
+  'shoes/shoes11/duckbody.png': 'shoes/shoes11/rockerduckshoes.png',
+  'shoes/shoes40/spbody.png': 'shoes/shoes40/rockermistresshoes.png',
+  'shoes/shoes5/blueslip.png': 'shoes/shoes5/rockerblueslip.png',
+  'shoes/shoes20/greenslip.png': 'shoes/shoes20/rockergreenslipper.png',
+  'shoes/shoes32/redslip.png': 'shoes/shoes32/rockerredslip.png',
+  'shoes/shoes44/yellowslip.png': 'shoes/shoes44/rockeryellowslipper.png'
+};
+
+// Helper function to check if rocker makeup is equipped
+function isRockerMakeupActive() {
+  if (!enableRockerBodySwap) return false;
+  const eyesLayer = document.getElementById('eyes');
+  // Check if eyes layer is showing rocker makeup
+  // We check for 'rocker.png' in the src
+  return eyesLayer && eyesLayer.style.display === 'block' && eyesLayer.src && eyesLayer.src.includes('rocker.png');
+}
 
 // In-page scene scale (character only, platforms stay full quality)
 let sceneScale = 1;
@@ -531,7 +574,14 @@ function applyArmRotation() {
   // Apply to Sleeves
   sleeveLayers.forEach(sleeveInfo => {
     const sleeve = sleeveInfo.el;
-    if (sleeve && sleeve.style.display !== 'none') {
+    if (sleeve && sleeve.style.display !== 'none' && sleeve.src) {
+      // Exception: Shark Hoodie top-layer (above3) should NOT rotate with the arm
+      const isSharkTop = (sleeve.id === 'shirtstop' && equippedShirt && (equippedShirt.dataset.src?.includes('shirt3') || equippedShirt.dataset.frames?.includes('shirt3')));
+
+      if (!isSharkTop && sleeve.style.display === 'none') {
+        return; // Skip if hidden and not the shark exception
+      }
+
       // Reconstruct base transform from equipped shirt
       let scale = 1;
       let x = 0;
@@ -557,10 +607,36 @@ function applyArmRotation() {
       let finalY = y;
       let useVars = !hasShirtData; // Use CSS vars if we didn't find specific shirt data
 
-      // Apply Overrides from Hand (if any)
-      if (useArmOverrides && overrideSleeveScale) finalScale = overrideSleeveScale;
-      if (useArmOverrides && overrideSleeveX) finalX = parseFloat(overrideSleeveX);
-      if (useArmOverrides && overrideSleeveY) finalY = parseFloat(overrideSleeveY);
+      // Apply Overrides from Hand or Shirt-specific Rotation Overrides
+      // Exception: Shark Hoodie detail stays static relative to the body
+      if (useArmOverrides && !isSharkTop) {
+        // Priority 1: Check for rotation-specific overrides on the shirt itself
+        const rotScale = equippedShirt?.dataset.rotatedSleeveScale;
+        const rotX = equippedShirt?.dataset.rotatedSleeveX;
+        const rotY = equippedShirt?.dataset.rotatedSleeveY;
+
+        if (rotScale || rotX || rotY) {
+          if (rotScale) finalScale = parseFloat(rotScale);
+          if (rotX) finalX = parseFloat(rotX);
+          if (rotY) finalY = parseFloat(rotY);
+        } else {
+          // Priority 2: Standard Additive Displacement Logic
+          if (overrideSleeveScale) finalScale = parseFloat(overrideSleeveScale);
+
+          // Calculate displacement from standard sleeve baseline (-74.5, 138)
+          const defaultBaseX = -74.5;
+          const defaultBaseY = 138;
+
+          if (overrideSleeveX) {
+            const dx = parseFloat(overrideSleeveX) - defaultBaseX;
+            finalX = parseFloat(x) + dx;
+          }
+          if (overrideSleeveY) {
+            const dy = parseFloat(overrideSleeveY) - defaultBaseY;
+            finalY = parseFloat(y) + dy;
+          }
+        }
+      }
 
       // Construct Transform String
       let transform = '';
@@ -569,13 +645,15 @@ function applyArmRotation() {
         // If no shirt data AND no arm rotation, clear transform to let CSS handle it
         transform = '';
       } else {
-        // If we have specific data OR rotation, we must build string
-        const sScale = (useVars && !overrideSleeveScale) ? (sleeve.id === 'shirtsabove' ? 'var(--shirtsabove-scale)' : 'var(--arm-scale)') : finalScale;
-        const sX = (useVars && !overrideSleeveX) ? (sleeve.id === 'shirtsabove' ? 'var(--shirtsabove-x)' : (useArmOverrides ? armXStr : 0)) : `${finalX}px`;
-        const sY = (useVars && !overrideSleeveY) ? (sleeve.id === 'shirtsabove' ? 'var(--shirtsabove-y)' : (useArmOverrides ? armYStr : 0)) : `${finalY}px`;
+        // Determine final components (with CSS var fallback if no shirt data)
+        const sScale = !hasShirtData ? (sleeve.id === 'shirtsabove' ? 'var(--shirtsabove-scale)' : 'var(--arm-scale)') : finalScale;
+        const sX = !hasShirtData ? (sleeve.id === 'shirtsabove' ? 'var(--shirtsabove-x)' : (useArmOverrides ? armXStr : 0)) : `${finalX}px`;
+        const sY = !hasShirtData ? (sleeve.id === 'shirtsabove' ? 'var(--shirtsabove-y)' : (useArmOverrides ? armYStr : 0)) : `${finalY}px`;
 
         transform = `translateX(-50%) translate(${sX}, ${sY}) scale(${sScale})`;
-        if (useArmOverrides) {
+
+        // Apply rotation to all sleeves EXCEPT the static Shark Hoodie detail
+        if (useArmOverrides && !isSharkTop) {
           transform += ` rotate(${armRot}deg)`;
         }
       }
@@ -1043,7 +1121,7 @@ window.equipNormalCharacter = function (element) {
     armElement.style.display = 'block';
     armElement.src = "arm.png";
     armElement.style.opacity = "";
-    armElement.style.transform = "";
+    // Note: transform will be applied by syncBodyParts -> applyArmRotation
   }
 
   // Restore body parts visibility and opacity
@@ -1164,15 +1242,6 @@ function isGhostOutfitActive() {
   return isActive;
 }
 
-// Helper function to check if rocker makeup is equipped
-function isRockerMakeupActive() {
-  if (!enableRockerBodySwap) return false;
-  const eyesLayer = document.getElementById('eyes');
-  // Check if eyes layer is showing rocker makeup
-  // We check for 'rocker.png' in the src
-  return eyesLayer && eyesLayer.style.display === 'block' && eyesLayer.src && eyesLayer.src.includes('rocker.png');
-}
-
 // Central helper to synchronize all base body parts based on state
 function syncBodyParts() {
   const isRocker = isRockerMakeupActive();
@@ -1239,6 +1308,46 @@ function syncBodyParts() {
     }
   });
 
+  // === ROCKER VARIANT SYNC ===
+  // If Rocker is toggled, we need to update currently equipped variant-supporting items
+  ['shirts', 'pants', 'shoes'].forEach(layerId => {
+    const layer = document.getElementById(layerId);
+    if (layer && layer.style.display === 'block' && layer.src) {
+      // Find the menu item that provided this src
+      const equippedItem = document.querySelector(`li.equipped[data-layer="${layerId}"]`) ||
+        document.querySelector(`img.equipped[data-layer="${layerId}"]`);
+
+      if (equippedItem) {
+        const baseSrc = equippedItem.dataset.src;
+        if (baseSrc && rockerVariants[baseSrc]) {
+          let targetSrc;
+          // Rocker variants only apply to the base character (not when invisible skin is active)
+          if (isRocker && !isInvis) {
+            targetSrc = rockerVariants[baseSrc];
+          } else {
+            // Respect invis skin variant when Rocker is disabled OR when Invis is ON (Invis takes precedence)
+            targetSrc = (isInvis && equippedItem.dataset.invisSrc) ? equippedItem.dataset.invisSrc : baseSrc;
+          }
+
+          if (layer.src && !layer.src.includes(targetSrc)) {
+            console.log(`Syncing Rocker/Invis variant for ${layerId}: ${layer.src} -> ${targetSrc}`);
+            layer.src = targetSrc;
+
+            // If shoes, also update rightshoe counterpart
+            if (layerId === 'shoes') {
+              const rightShoeLayer = document.getElementById('rightshoe');
+              if (rightShoeLayer && rightShoeLayer.style.display === 'block') {
+                const baseRightSrc = equippedItem.dataset.rightSrc || baseSrc;
+                const targetRightSrc = isRocker ? (rockerVariants[baseRightSrc] || rockerVariants[baseSrc]) : (isInvis ? equippedItem.dataset.invisRightSrc || equippedItem.dataset.invisSrc || baseRightSrc : baseRightSrc);
+                rightShoeLayer.src = targetRightSrc;
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
   // Handle Pupil Opacity centrally
   const pupilLayer = document.getElementById('pupil');
   if (pupilLayer) {
@@ -1260,6 +1369,11 @@ function syncBodyParts() {
   }
 
   syncHeadSprite();
+
+  // Apply arm rotation after syncing all body parts
+  // This ensures that any item-specific arm rotation (e.g., water gun, clown hammer)
+  // is correctly reapplied after character swaps (Normal/Invis/Rocker/Skate)
+  applyArmRotation();
 }
 
 // Central helper to manage head sprite based on state and equipment
@@ -1844,9 +1958,15 @@ function equipItem(element) {
       currentSrc = layer.src && (layer.src.includes(framesPath) || (invisFramesPath && layer.src.includes(invisFramesPath)));
       console.log('Animated item check:', { framesPath, invisFramesPath, 'layer.src': layer.src, currentSrc });
     } else {
-      // Static item - consider normal, invis, and right variants as equivalent
+      // Static item - consider normal, invis, rocker, and right variants as equivalent
       const candidates = [];
-      if (element.dataset.src) candidates.push(element.dataset.src);
+      if (element.dataset.src) {
+        candidates.push(element.dataset.src);
+        // Include rocker variant if exists
+        if (rockerVariants[element.dataset.src]) {
+          candidates.push(rockerVariants[element.dataset.src]);
+        }
+      }
       if (element.dataset.invisSrc) candidates.push(element.dataset.invisSrc);
       if (element.dataset.rightSrc) candidates.push(element.dataset.rightSrc);
       if (element.dataset.invisRightSrc) candidates.push(element.dataset.invisRightSrc);
@@ -2278,6 +2398,13 @@ function equipItem(element) {
       actualScale = element.dataset.invisScale ?? actualScale;
       actualX = element.dataset.invisX ?? actualX;
       actualY = element.dataset.invisY ?? actualY;
+    }
+
+    // Rocker Makeup variants: override source if Rocker is active and item has a variant
+    // ONLY apply if invisible skin is NOT active (per user request)
+    if (isRockerMakeupActive() && !isInvisSkinActive() && rockerVariants[actualSrc]) {
+      console.log(`Applying Rocker variant for ${layerName}: ${actualSrc} -> ${rockerVariants[actualSrc]}`);
+      actualSrc = rockerVariants[actualSrc];
     }
 
     layer.src = actualSrc;
@@ -3112,6 +3239,7 @@ window.downloadSet = async function () {
   const bgModeOption = document.querySelector('[data-group="bgMode"].active');
   const mode = bgModeOption ? bgModeOption.dataset.value : 'transparent';
   const includePlatform = document.querySelector('[data-toggle="platform"]').classList.contains('active');
+  const includeStats = document.querySelector('[data-toggle="stats"]').classList.contains('active');
   const characterScene = document.querySelector('.character-scene');
 
   if (!characterScene) {
@@ -3228,9 +3356,6 @@ window.downloadSet = async function () {
       });
     }
 
-    // Restore character scene scale
-    characterScene.style.transform = originalTransform;
-    characterScene.style.zoom = originalZoom;
 
     // Calculate bounds.
     // For width (X), constrain to character/items only (ignoring wide platforms), with side padding.
@@ -3242,8 +3367,38 @@ window.downloadSet = async function () {
 
     const nonPlatformItems = imageData.filter(i => i.id !== 'platforms' && i.id !== 'backgrounds');
 
+    // Include Stats in measurement if enabled
+    if (includeStats) {
+      ['player-name', 'player-level', 'player-badge'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.style.display !== 'none' && window.getComputedStyle(el).display !== 'none') {
+          const rect = el.getBoundingClientRect();
+          const relMinX = rect.left - sceneRect.left;
+          const relMinY = rect.top - sceneRect.top;
+          const relMaxX = rect.right - sceneRect.left;
+          const relMaxY = rect.bottom - sceneRect.top;
+
+          allMinY = Math.min(allMinY, relMinY);
+          allMaxY = Math.max(allMaxY, relMaxY);
+
+          // We also want the canvas width to accommodate the name if it's wider than the character
+          imageData.push({
+            minX: relMinX,
+            maxX: relMaxX,
+            minY: relMinY,
+            maxY: relMaxY,
+            id: id,
+            isStatElement: true // Flag to skip drawing in the main loop
+          });
+
+          // Refresh nonPlatformItems to include these stats for width calculation
+          nonPlatformItems.push(imageData[imageData.length - 1]);
+        }
+      });
+    }
+
     if (nonPlatformItems.length > 0) {
-      // If we have character items, crop width relative to them
+      // If we have character items or stats, crop width relative to them
       const charMinX = Math.min(...nonPlatformItems.map(i => i.minX));
       const charMaxX = Math.max(...nonPlatformItems.map(i => i.maxX));
       const PADDING_X = 125; // 125px padding on each side for context
@@ -3303,6 +3458,7 @@ window.downloadSet = async function () {
 
     // Draw character layers with rotation
     for (const imgData of imageData) {
+      if (imgData.isStatElement) continue; // Drawn later with specialized logic
       const previousAlpha = ctx.globalAlpha;
       ctx.globalAlpha = imgData.opacity;
 
@@ -3320,6 +3476,101 @@ window.downloadSet = async function () {
       ctx.globalAlpha = previousAlpha;
     }
 
+    // Draw Player Stats if enabled
+    if (includeStats) {
+      const playerNameDiv = document.getElementById('player-name');
+      const playerLevelImg = document.getElementById('player-level');
+      const playerBadgeImg = document.getElementById('player-badge');
+      const playerInfoContainer = document.querySelector('.player-info-container');
+
+      if (playerInfoContainer && (playerNameDiv.style.display !== 'none' || playerLevelImg.style.display !== 'none' || playerBadgeImg.style.display !== 'none')) {
+        const infoRect = playerInfoContainer.getBoundingClientRect();
+        const infoBaseX = infoRect.left - sceneRect.left - allMinX;
+        const infoBaseY = infoRect.top - sceneRect.top - allMinY;
+
+        // Draw Badge
+        if (playerBadgeImg.style.display !== 'none' && playerBadgeImg.src) {
+          const badgeRect = playerBadgeImg.getBoundingClientRect();
+          // Recalculate precisely relative to the scene
+          const badgeX = (badgeRect.left - sceneRect.left) - allMinX;
+          const badgeY = (badgeRect.top - sceneRect.top) - allMinY;
+          const bImg = await loadImage(playerBadgeImg.src);
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(bImg, badgeX, badgeY, playerBadgeImg.offsetWidth, playerBadgeImg.offsetHeight);
+        }
+
+        // Draw Level
+        if (playerLevelImg.style.display !== 'none' && playerLevelImg.src) {
+          const levelRect = playerLevelImg.getBoundingClientRect();
+          const levelX = (levelRect.left - sceneRect.left) - allMinX;
+          const levelY = (levelRect.top - sceneRect.top) - allMinY;
+          const lImg = await loadImage(playerLevelImg.src);
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(lImg, levelX, levelY, playerLevelImg.offsetWidth, playerLevelImg.offsetHeight);
+        }
+
+        // Draw Name
+        if (playerNameDiv.style.display !== 'none' && playerNameDiv.textContent) {
+          const nameRect = playerNameDiv.getBoundingClientRect();
+          const nameX = (nameRect.left - sceneRect.left) - allMinX;
+          const nameY = (nameRect.top - sceneRect.top) - allMinY + 13; // Shift name down by 13px total ($9 + 4$)
+
+          ctx.save();
+          const computedNameStyle = window.getComputedStyle(playerNameDiv);
+          ctx.font = `bold ${computedNameStyle.fontSize} "Century Gothic", sans-serif`;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'top';
+
+          // Handle Shadows (Manual recreation of text-shadow and filter: drop-shadow)
+          // The current style uses: text-shadow: 4px 6px 0px rgba(0, 0, 0, 1), 0px 4px 2px rgba(0, 0, 0, 0.9)
+          ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+          ctx.fillText(playerNameDiv.textContent, nameX + 4, nameY + 6);
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+          ctx.fillText(playerNameDiv.textContent, nameX, nameY + 4);
+
+          // Handle Gradients / Colors
+          const background = computedNameStyle.background;
+          const isRainbow = playerNameDiv.style.animation && playerNameDiv.style.animation.includes('rainbow-fade');
+
+          if (isRainbow) {
+            // Replicate current rainbow color (simplified to white-ish for static export if we can't grab precise frame)
+            // Or better: try to extract the current color from the element
+            ctx.fillStyle = computedNameStyle.color || '#ff0000';
+          } else if (background && background.includes('gradient')) {
+            // Create linear gradient
+            const gradParams = background.match(/linear-gradient\(([^)]+)\)/);
+            if (gradParams) {
+              const gradient = ctx.createLinearGradient(nameX, nameY, nameX, nameY + nameRect.height);
+              // Simple parser for our known gradients
+              if (background.includes('#C0C0C0')) { // Diamond
+                gradient.addColorStop(0, '#C0C0C0');
+                gradient.addColorStop(0.5, '#F0F0F0');
+                gradient.addColorStop(1, '#C0C0C0');
+              } else if (background.includes('#0c3bf6')) { // Gradient 1
+                gradient.addColorStop(0, '#0c3bf6');
+                gradient.addColorStop(1, '#fe0065');
+              } else if (background.includes('#517dfd')) { // Gradient 2
+                gradient.addColorStop(0, '#517dfd');
+                gradient.addColorStop(1, '#ff4f96');
+              } else if (background.includes('#fefb1d')) { // Gradient 3
+                gradient.addColorStop(0, '#fefb1d');
+                gradient.addColorStop(0.5, '#fefeda');
+                gradient.addColorStop(1, '#fea700');
+              }
+              ctx.fillStyle = gradient;
+            } else {
+              ctx.fillStyle = computedNameStyle.color;
+            }
+          } else {
+            ctx.fillStyle = computedNameStyle.color;
+          }
+
+          ctx.fillText(playerNameDiv.textContent, nameX, nameY);
+          ctx.restore();
+        }
+      }
+    }
+
     // Download
     const dataUrl = canvas.toDataURL('image/png');
     const link = document.createElement('a');
@@ -3330,6 +3581,10 @@ window.downloadSet = async function () {
     document.body.removeChild(link);
 
     window.closeDownloadModal();
+
+    // Restore character scene scale now that all measurements and drawing are done
+    characterScene.style.transform = originalTransform;
+    characterScene.style.zoom = originalZoom;
   } catch (error) {
     console.error('Download failed:', error);
     alert('Failed to download. Error: ' + error.message);
@@ -4291,7 +4546,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.body.classList.toggle('hide-rocker-makeup', !showRockerMakeupItem);
   if (!showRockerMakeupItem) {
     const eyesLayer = document.getElementById('eyes');
-    if (eyesLayer && eyesLayer.style.display === 'block' && eyesLayer.src && eyesLayer.src.includes('rocker.png')) {
+    if (isRockerMakeupActive()) {
       eyesLayer.style.display = 'none';
       eyesLayer.src = '';
       const rockerItem = document.querySelector('li[data-src="eyes/rocker.png"]');
@@ -4305,4 +4560,20 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Unified UI Application
   applyRoadmapStyleToSubmenus();
+});
+// Loading screen fade out with 3s minimum duration
+const loadingStartTime = Date.now();
+window.addEventListener('load', () => {
+  const loadingScreen = document.getElementById('loading-screen');
+  if (loadingScreen) {
+    const elapsed = Date.now() - loadingStartTime;
+    const remaining = Math.max(0, 3000 - elapsed);
+
+    setTimeout(() => {
+      loadingScreen.classList.add('fade-out');
+      setTimeout(() => {
+        loadingScreen.style.display = 'none';
+      }, 800);
+    }, remaining);
+  }
 });
