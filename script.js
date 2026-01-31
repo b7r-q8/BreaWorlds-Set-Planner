@@ -666,6 +666,8 @@ function applyArmRotation() {
 function addToInventory(item) {
   // Platforms behave like background themes and should not appear in inventory slots
   if (item.type === 'platforms') return;
+  // Exclude hidden Space Boots from inventory
+  if (item.menuElement && item.menuElement.id === 'space-boots-data') return;
 
   const existingIndex = inventory.findIndex(i =>
     i.type === item.type && i.src === item.src
@@ -1657,6 +1659,35 @@ function equipItem(element) {
     }
   }
 
+  // === SPACE SUIT LOGIC ===
+  // 1. If equipping Space Suit Pants, auto-equip Space Boots
+  if (layerName === 'pants' && src.includes('pants28')) {
+    const spaceBoots = document.getElementById('space-boots-data');
+    if (spaceBoots && !spaceBoots.classList.contains('equipped')) {
+      console.log('Auto-equipping Space Boots...');
+      equipItem(spaceBoots);
+    }
+  }
+
+  // 2. If equipping OTHER pants, unequip Space Boots if they are equipped
+  if (layerName === 'pants' && !src.includes('pants28')) {
+    const spaceBoots = document.getElementById('space-boots-data');
+    if (spaceBoots && spaceBoots.classList.contains('equipped')) {
+      console.log('Unequipping Space Boots because other pants were equipped...');
+      equipItem(spaceBoots); // Toggle off
+    }
+  }
+
+  // 3. If equipping OTHER shoes, unequip Space Suit Pants if they are equipped
+  if (layerName === 'shoes' && !src.includes('space/spr_wa_space_suit_boots')) {
+    const spacePants = document.querySelector('li[data-layer="pants"][data-src*="pants28"]');
+    if (spacePants && spacePants.classList.contains('equipped')) {
+      console.log('Unequipping Space Suit Pants because other shoes were equipped...');
+      equipItem(spacePants); // Toggle off
+    }
+  }
+  // ========================
+
   // === REAPER DEPENDENCY LOGIC ===
   const isPetDarkReaper = (layerName === 'pets-back' && element.dataset.frames && element.dataset.frames.includes('pets/pet2/'));
   const isReapersOath = (layerName === 'hands' && element.dataset.frames && element.dataset.frames.includes('hands/sword6/'));
@@ -1990,6 +2021,26 @@ function equipItem(element) {
       layer.src = "";
 
       element.classList.remove("equipped");
+
+      // === SPACE SUIT UNEQUIP LOGIC ===
+      if (layerName === 'pants' && element.dataset.src && element.dataset.src.includes('pants28')) {
+        console.log('Space Suit Pants unequipped - removing Space Boots...');
+        const spaceBoots = document.getElementById('space-boots-data');
+        if (spaceBoots) {
+          const shoesLayer = document.getElementById('shoes');
+          const rightShoeLayer = document.getElementById('rightshoe');
+          if (shoesLayer) {
+            shoesLayer.style.display = 'none';
+            shoesLayer.src = '';
+          }
+          if (rightShoeLayer) {
+            rightShoeLayer.style.display = 'none';
+            rightShoeLayer.src = '';
+          }
+          spaceBoots.classList.remove('equipped');
+        }
+      }
+      // ================================
 
       // Show corresponding body parts when unequipping items (respecting character state)
       const isInvis = isInvisSkinActive();

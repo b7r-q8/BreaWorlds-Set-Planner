@@ -3237,3 +3237,8 @@ body.ghost-active #skin {
   background-position: left top;
   /* Tile from the center outwards */
 }
+
+/* Utility to permanently hide items regardless of JS toggle */
+.always-hidden {
+  display: none !important;
+}
