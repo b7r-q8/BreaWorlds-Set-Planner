@@ -2160,6 +2160,15 @@ function equipItem(element) {
   }
 
   layer.style.display = "block";
+
+  // Apply floating class for pets-back if specified
+  if (layerName === 'pets-back') {
+    if (element.dataset.floating === 'true') {
+      layer.classList.add('floating');
+    } else {
+      layer.classList.remove('floating');
+    }
+  }
   const isAnimated = element.dataset.animated === "true";
 
   // If equipping pants while Nutcracker outfit is active, render pants above the outfit

@@ -608,6 +608,9 @@ body {
 
 .pets-back {
   z-index: 1;
+}
+
+.pets-back.floating {
   /* Floating animation - Duration (1.5s is faster), Speed (ease-in-out) */
   animation: reaper-float 1.5s ease-in-out infinite;
 }
