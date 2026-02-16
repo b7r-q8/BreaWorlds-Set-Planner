@@ -5629,24 +5629,42 @@ window.wpReposition = function () {
 };
 
 // Add a resize listener to keep canvases in sync with viewport
-window.addEventListener('resize', () => {
+window.addEventListener('resize', handleWPResize);
+window.addEventListener('orientationchange', handleWPResize);
+
+function handleWPResize() {
   if (wpCanvas && document.getElementById('world-planner-container').style.display !== 'none') {
     const viewport = document.getElementById('wp-viewport');
+    const dpr = window.devicePixelRatio || 1;
     if (viewport) {
-      wpCanvas.width = viewport.clientWidth;
-      wpCanvas.height = viewport.clientHeight;
+      // FIX: Apply DPR scaling to match initialization (lines 5354-5406)
+      // Reset transform before resizing to avoid compounding scales
+      wpCtx.setTransform(1, 0, 0, 1, 0, 0);
+      wpCanvas.width = viewport.clientWidth * dpr;
+      wpCanvas.height = viewport.clientHeight * dpr;
+      wpCanvas.style.width = viewport.clientWidth + 'px';
+      wpCanvas.style.height = viewport.clientHeight + 'px';
+      wpCtx.scale(dpr, dpr);
+      disableWPSmoothing(wpCtx);
+      
       if (wpRainbowAnimatedCanvas) {
-        wpRainbowAnimatedCanvas.width = viewport.clientWidth;
-        wpRainbowAnimatedCanvas.height = viewport.clientHeight;
+        wpRainbowAnimatedCtx.setTransform(1, 0, 0, 1, 0, 0);
+        wpRainbowAnimatedCanvas.width = viewport.clientWidth * dpr;
+        wpRainbowAnimatedCanvas.height = viewport.clientHeight * dpr;
+        wpRainbowAnimatedCtx.scale(dpr, dpr);
+        disableWPSmoothing(wpRainbowAnimatedCtx);
       }
       if (wpTempCanvas) {
-        wpTempCanvas.width = viewport.clientWidth;
-        wpTempCanvas.height = viewport.clientHeight;
+        wpTempCtx.setTransform(1, 0, 0, 1, 0, 0);
+        wpTempCanvas.width = viewport.clientWidth * dpr;
+        wpTempCanvas.height = viewport.clientHeight * dpr;
+        wpTempCtx.scale(dpr, dpr);
+        disableWPSmoothing(wpTempCtx);
       }
     }
     wpMarkDirty();
   }
-});
+}
 
 window.wpUndo = function () {
   if (wpHistoryIndex > 0) {
