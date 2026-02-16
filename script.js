@@ -6181,8 +6181,8 @@ async function generateWPWorldPreview() {
                 const hue = ((x + y * 0.5) * 10) % 360;
                 offCtx.save();
                 offCtx.globalCompositeOperation = 'source-atop';
-                offCtx.globalAlpha = 0.6;
-                offCtx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                offCtx.globalAlpha = 0.75;
+                offCtx.fillStyle = `hsl(${hue}, 100%, 40%)`;
                 offCtx.fillRect(px, py, nw * scale, nh * scale);
                 offCtx.restore();
               }
@@ -7258,8 +7258,8 @@ function drawWPWorld(timestamp) {
         // Apply rainbow tint using source-atop (only affects existing pixels)
         wpCtx.save();
         wpCtx.globalCompositeOperation = 'source-atop';
-        wpCtx.globalAlpha = 0.6; // Control rainbow intensity
-        wpCtx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+        wpCtx.globalAlpha = 0.75; // Darker/more intense rainbow
+        wpCtx.fillStyle = `hsl(${hue}, 100%, 40%)`; // Darker lightness (40% instead of 50%)
         wpCtx.fillRect(px, py, w, h);
         wpCtx.restore();
       } else {
