@@ -1,0 +1,26 @@
+[
+  {
+    "id": "spr_fg_gem_machine",
+    "name": "Gem Machine",
+    "src": "worldplanner/Blocks/spr_fg_gem_machine/spr_fg_gem_machine_0.png",
+    "type": "foreground",
+    "framesPath": "worldplanner/Blocks/spr_fg_gem_machine/spr_fg_gem_machine_",
+    "frameCount": 2,
+    "fps": 10,
+    "group": "Miscellaneous",
+    "wrench": true,
+    "defaultState": 0
+  },
+  {
+    "id": "spr_fg_xmas_dj_box",
+    "name": "Xmas Dj Box",
+    "src": "worldplanner/Blocks/spr_fg_xmas_dj_box/spr_fg_xmas_dj_box_0.png",
+    "type": "foreground",
+    "framesPath": "worldplanner/Blocks/spr_fg_xmas_dj_box/spr_fg_xmas_dj_box_",
+    "frameCount": 2,
+    "fps": 3,
+    "wrench": true,
+    "defaultState": 0,
+    "group": "Miscellaneous"
+  }
+]

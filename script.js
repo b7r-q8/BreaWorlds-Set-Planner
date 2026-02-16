@@ -1,7 +1,16 @@
+﻿window.onload = function () {
+  if (window.lucide) {
+    lucide.createIcons();
+  }
+};
 
 let inventory = [];
+var wpStaticBGCanvas = null;
+var wpStaticBGCtx = null;
 const MAX_SLOTS = 10;
 let inventoryClickDebounce = false;
+let wpTouchActive = false;
+let wpLastSmoothingReset = 0;
 
 // Feature toggles
 let enableRockerBodySwap = true;
@@ -1692,6 +1701,31 @@ function equipItem(element) {
   const isPetDarkReaper = (layerName === 'pets-back' && element.dataset.frames && element.dataset.frames.includes('pets/pet2/'));
   const isReapersOath = (layerName === 'hands' && element.dataset.frames && element.dataset.frames.includes('hands/sword6/'));
 
+  // Standard Layer Handling
+  if (element.classList.contains('equipped')) {
+    // Unequipping Item
+    element.classList.remove('equipped');
+    removeFromInventory(element);
+
+    if (layer) {
+      layer.style.display = 'none';
+      stopAnimation(layer);
+      layer.src = '';
+
+      // If shoes, also update rightshoe counterpart
+      if (actualLayerName === 'shoes') {
+        const rightShoeLayer = document.getElementById('rightshoe');
+        if (rightShoeLayer) {
+          rightShoeLayer.style.display = 'none';
+          rightShoeLayer.src = '';
+        }
+      }
+    }
+    saveState();
+    return;
+  }
+
+  // Equipping Item...
   if (isPetDarkReaper && !element.classList.contains('equipped')) {
     // Equipping the pet -> Only auto-equip sword if another hand item is currently equipped
     const handsLayer = document.getElementById('hands');
@@ -2691,8 +2725,11 @@ function equipItem(element) {
       li.classList.remove('equipped');
     });
   } else {
-    element.closest(".submenu").querySelectorAll("li")
-      .forEach(li => li.classList.remove("equipped"));
+    const submenu = element.closest(".submenu");
+    if (submenu) {
+      submenu.querySelectorAll("li")
+        .forEach(li => li.classList.remove("equipped"));
+    }
   }
 
   element.classList.add("equipped");
@@ -3659,7 +3696,10 @@ window.downloadSet = async function () {
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    // Only use anonymous for non-file protocols to avoid local CORS issues
+    if (window.location.protocol !== 'file:') {
+      img.crossOrigin = 'anonymous';
+    }
     img.onload = () => resolve(img);
     img.onerror = reject;
     img.src = src;
@@ -4060,6 +4100,9 @@ window.addEventListener('load', function () {
         playerNameDiv.style.color = colorMap[color] || '#FFFFFF';
         playerNameDiv.style.background = 'none';
         playerNameDiv.style.webkitTextFillColor = 'unset';
+        playerNameDiv.style.webkitBackgroundClip = 'unset';
+        playerNameDiv.style.backgroundClip = 'unset';
+        playerNameDiv.style.animation = 'none';
         playerNameDiv.style.textShadow = '4px 6px 0px rgba(0, 0, 0, 1), 0px 4px 2px rgba(0, 0, 0, 0.9)';
         playerNameDiv.style.filter = 'none';
       }
@@ -4422,24 +4465,6 @@ window.addEventListener('DOMContentLoaded', () => {
   renderSaveSlots();
 });
 
-// Hide loading screen once everything is truly loaded
-window.onload = function () {
-  const loader = document.getElementById('loading-screen');
-  if (loader) {
-    // Increased delay to 3.6s as requested for a better cinematic introduction
-    setTimeout(() => {
-      loader.classList.add('fade-out');
-    }, 3600);
-  }
-
-  // Private visitor tracking
-  if (!sessionStorage.getItem('counted')) {
-    fetch('https://api.counterapi.dev/v1/breaworlds-set-planner/visits/up')
-      .then(() => sessionStorage.setItem('counted', 'true'))
-      .catch(() => { /* silent fail to keep it invisible */ });
-  }
-};
-
 // ==================== TOP DRAWER MENU ====================
 window.toggleTopDrawer = function () {
   const drawer = document.getElementById('top-drawer');
@@ -4625,15 +4650,2932 @@ window.addEventListener('DOMContentLoaded', () => {
 const loadingStartTime = Date.now();
 window.addEventListener('load', () => {
   const loadingScreen = document.getElementById('loading-screen');
+  const loaderInitial = document.getElementById('loader-initial');
+  const loadingSelection = document.getElementById('loading-selection');
+
   if (loadingScreen) {
     const elapsed = Date.now() - loadingStartTime;
     const remaining = Math.max(0, 3000 - elapsed);
 
     setTimeout(() => {
-      loadingScreen.classList.add('fade-out');
-      setTimeout(() => {
-        loadingScreen.style.display = 'none';
-      }, 800);
+      // Replace bar with selection options
+      if (loaderInitial && loadingSelection) {
+        loaderInitial.style.display = 'none';
+        loadingSelection.style.display = 'flex';
+      }
     }, remaining);
+
+    // Private visitor tracking
+    if (!sessionStorage.getItem('counted')) {
+      fetch('https://api.counterapi.dev/v1/breaworlds-set-planner/visits/up')
+        .then(() => sessionStorage.setItem('counted', 'true'))
+        .catch(() => { /* silent fail */ });
+    }
   }
 });
+
+// ==========================================
+// WORLD PLANNER FEATURE
+// ==========================================
+
+const WORLD_WIDTH = 100; // 0 to 99
+const WORLD_HEIGHT = 45; // 44 to 0 (flipped for rendering)
+const BLOCK_SIZE = 32;
+
+window.selectPlanner = function (type) {
+  const wpContainer = document.getElementById('world-planner-container');
+  const setContainer = document.getElementById('set-planner-container');
+  const loadingScreen = document.getElementById('loading-screen');
+
+  if (type === 'world') {
+    wpContainer.style.display = 'flex';
+    if (setContainer) setContainer.style.display = 'none';
+    initWorldPlanner();
+  } else {
+    wpContainer.style.display = 'none';
+    if (setContainer) setContainer.style.display = 'block';
+  }
+
+  // Fade out loading screen after selection (if not already hidden)
+  if (loadingScreen && loadingScreen.style.display !== 'none') {
+    loadingScreen.classList.add('fade-out');
+    setTimeout(() => {
+      loadingScreen.style.display = 'none';
+      loadingScreen.classList.remove('fade-out');
+    }, 800);
+  }
+};
+
+window.backToSelection = function () {
+  const wpContainer = document.getElementById('world-planner-container');
+  const setContainer = document.getElementById('set-planner-container');
+  const loadingScreen = document.getElementById('loading-screen');
+  const loaderInitial = document.getElementById('loader-initial');
+  const loadingSelection = document.getElementById('loading-selection');
+
+  wpContainer.style.display = 'none';
+  if (setContainer) setContainer.style.display = 'none';
+
+  if (loadingScreen) {
+    loadingScreen.style.display = 'flex';
+    loadingScreen.classList.remove('fade-out');
+    if (loaderInitial) loaderInitial.style.display = 'none';
+    if (loadingSelection) loadingSelection.style.display = 'flex';
+  }
+};
+
+let wpBlocks = []; // Will be populated from manifest
+let wpManifestThemes = [];
+let wpCurrentTab = 'foreground';
+let wpCurrentTheme = 'bg_forest'; // Default theme ID
+
+let wpGrid = []; // Foreground: Array of arrays [y][x]
+let wpBackgroundGrid = []; // Background: Array of arrays [y][x]
+let wpInventory = []; // Max 10 items
+let wpSelectedBlockId = 'spr_fg_dirt';
+let wpCanvas, wpCtx;
+let wpTempCanvas, wpTempCtx; // For optimized textures
+let wpRainbowPattern, wpRainbowPatternCanvas;
+let wpRainbowAnimatedCanvas, wpRainbowAnimatedCtx; // Buffer for applying pattern to bases
+let isPainting = false;
+let isErasing = false;
+let isSmartEraserMode = false; // New Mode: Smart Erase (paints only over same block to erase it)
+let isPanning = false;
+let wpMultiTouchActive = false; // Prevents "glitch drawing" when tapping/pinching
+
+// TOOLBAR STATE
+let wpCurrentTool = 'pencil';
+let wpZoom = 1;
+let wpOffsetX = 0;
+let wpOffsetY = 0;
+let wpShowGrid = true;
+let wpHistory = [];
+let wpHistoryIndex = -1;
+const MAX_HISTORY = 50;
+let wpAnimatedCells = []; // Tracks {x, y} of all cells with animated blocks
+let _wpLastViewKey = ''; // Tracks wpOffsetX, wpOffsetY, wpZoom for smooth panning redraws
+
+function updateWPAnimatedCellList(tx, ty, isRemoving = false) {
+  if (tx === undefined) {
+    // Full scan (only used for initial load)
+    wpAnimatedCells = [];
+    for (let y = 0; y < WORLD_HEIGHT; y++) {
+      if (!wpGrid[y]) continue;
+      for (let x = 0; x < WORLD_WIDTH; x++) {
+        // Check Foreground
+        const bdFG = wpGrid[y][x];
+        if (bdFG) {
+          const bid = (typeof bdFG === 'object' && bdFG !== null) ? bdFG.id : bdFG;
+          const blk = wpBlockMap[bid];
+          if ((bid === 'spr_fg_rainbow_block' || bid === 'rainbow_block') || (blk && blk.framesPath && (typeof bdFG !== 'object' || bdFG.state === undefined || bid === 'spr_fg_xmas_dj_box' || bid === 'spr_fg_gem_machine'))) {
+            wpAnimatedCells.push({ x, y, layer: 'fg' });
+          }
+        }
+        // Check Background
+        const bdBG = wpBackgroundGrid[y][x];
+        if (bdBG) {
+          const bid = (typeof bdBG === 'object' && bdBG !== null) ? bdBG.id : bdBG;
+          const blk = wpBlockMap[bid];
+          if (blk && blk.framesPath && (typeof bdBG !== 'object' || bdBG.state === undefined || bid === 'spr_fg_xmas_dj_box' || bid === 'spr_fg_gem_machine')) {
+            wpAnimatedCells.push({ x, y, layer: 'bg' });
+          }
+        }
+      }
+    }
+    return;
+  }
+
+  // Incremental update
+  if (isRemoving) {
+    wpAnimatedCells = wpAnimatedCells.filter(c => !(c.x === tx && c.y === ty));
+  } else {
+    // Clear old entries for this cell first (could be in either layer)
+    wpAnimatedCells = wpAnimatedCells.filter(c => !(c.x === tx && c.y === ty));
+
+    const bdFG = wpGrid[ty][tx];
+    const bdBG = wpBackgroundGrid[ty][tx];
+
+    // Check FG Anim
+    if (bdFG) {
+      const bidFG = (typeof bdFG === 'object' && bdFG !== null) ? bdFG.id : bdFG;
+      const blkFG = wpBlockMap[bidFG];
+      if ((bidFG === 'spr_fg_rainbow_block' || bidFG === 'rainbow_block') || (blkFG && blkFG.framesPath && (typeof bdFG !== 'object' || bdFG.state === undefined || bidFG === 'spr_fg_xmas_dj_box' || bidFG === 'spr_fg_gem_machine'))) {
+        wpAnimatedCells.push({ x: tx, y: ty, layer: 'fg' });
+      }
+    }
+
+    // Check BG Anim
+    if (bdBG) {
+      const bidBG = (typeof bdBG === 'object' && bdBG !== null) ? bdBG.id : bdBG;
+      const blkBG = wpBlockMap[bidBG];
+      if (blkBG && blkBG.framesPath && (typeof bdBG !== 'object' || bdBG.state === undefined || bidBG === 'spr_fg_xmas_dj_box' || bidBG === 'spr_fg_gem_machine')) {
+        wpAnimatedCells.push({ x: tx, y: ty, layer: 'bg' });
+      }
+    }
+  }
+
+  // Sort the list once after changes to avoid sorting in drawWPWorld
+  if (wpAnimatedCells.length > 1) {
+    wpAnimatedCells.sort((a, b) => {
+      if (a.y !== b.y) return a.y - b.y;
+      if (a.layer === b.layer) return -1; // BG first
+      return 1;
+    });
+  }
+}
+
+function updateWPBlockCount() {
+  const listContainer = document.getElementById('wpCountList');
+  if (!listContainer) return;
+
+  // Aggregate counts for ALL blocks in the grid
+  const counts = {};
+  for (let y = 0; y < WORLD_HEIGHT; y++) {
+    if (!wpGrid[y]) continue;
+    for (let x = 0; x < WORLD_WIDTH; x++) {
+      // Process Foreground
+      const blockData = wpGrid[y][x];
+      if (blockData) {
+        let blockId = (typeof blockData === 'object' && blockData !== null) ? blockData.id : blockData;
+        if (blockId) {
+          if (!((blockId === 'bedrock' || blockId === 'spr_fg_bedrock') && y >= WORLD_HEIGHT - 5)) {
+            counts[blockId] = (counts[blockId] || 0) + 1;
+          }
+        }
+      }
+      // Process Background
+      const bgData = wpBackgroundGrid[y][x];
+      if (bgData) {
+        let blockId = (typeof bgData === 'object' && bgData !== null) ? bgData.id : bgData;
+        if (blockId) {
+          counts[blockId] = (counts[blockId] || 0) + 1;
+        }
+      }
+    }
+  }
+
+  // Render the list
+  listContainer.innerHTML = '';
+
+  // Sort by count (highest first)
+  const sortedBlockIds = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+
+  if (sortedBlockIds.length === 0) {
+    listContainer.innerHTML = '<div style="text-align:center; opacity:0.5; padding: 20px;">No blocks placed yet.</div>';
+    return;
+  }
+
+  sortedBlockIds.forEach(blockId => {
+    const block = wpBlockMap[blockId];
+    if (!block) return;
+
+    const item = document.createElement('div');
+    item.className = 'wp-count-item';
+
+    item.innerHTML = `
+      <img src="${block.src}" alt="${block.name}">
+      <div class="wp-count-details">
+        <span class="wp-count-name">${block.name}</span>
+        <span class="wp-count-val">${counts[blockId]}</span>
+      </div>
+    `;
+    listContainer.appendChild(item);
+  });
+}
+
+function saveActiveWorld() {
+  // USER REQUEST: Keep the bedrock foundation in the save file after all
+  localStorage.setItem('wp_active_grid_exclusive', JSON.stringify(wpGrid));
+  localStorage.setItem('wp_background_grid_exclusive', JSON.stringify(wpBackgroundGrid));
+  const viewport = document.getElementById('wp-viewport');
+  if (viewport) {
+    localStorage.setItem('wp_planner_theme_bg', viewport.style.getPropertyValue('--wp-theme-bg'));
+    localStorage.setItem('wp_planner_theme_id', wpCurrentTheme);
+  }
+  // USER REQUEST: Save Inventory Hotbar
+  localStorage.setItem('wp_inventory', JSON.stringify(wpInventory));
+}
+
+
+function loadActiveWorld() {
+  const savedGrid = localStorage.getItem('wp_active_grid_exclusive') || localStorage.getItem('wp_active_grid');
+  const savedBGGrid = localStorage.getItem('wp_background_grid_exclusive');
+  const savedInventory = localStorage.getItem('wp_inventory');
+
+  if (savedInventory) {
+    try {
+      const parsedInv = JSON.parse(savedInventory);
+      if (Array.isArray(parsedInv)) wpInventory = parsedInv;
+    } catch (e) { console.warn("Failed to load WP inventory", e); }
+  }
+
+  if (savedGrid) {
+    const loadedGrid = JSON.parse(savedGrid);
+    // Pad to full height with bedrock if needed
+    wpGrid = loadedGrid;
+    while (wpGrid.length < WORLD_HEIGHT) {
+      const y = wpGrid.length;
+      const isBedrock = y >= WORLD_HEIGHT - 5;
+      wpGrid[y] = new Array(WORLD_WIDTH).fill(isBedrock ? 'spr_fg_bedrock' : null);
+    }
+
+    // Standardize IDs
+    for (let y = 0; y < WORLD_HEIGHT; y++) {
+      if (!wpGrid[y]) continue;
+      for (let x = 0; x < WORLD_WIDTH; x++) {
+        const bd = wpGrid[y][x];
+        const bid = (typeof bd === 'object' && bd !== null) ? bd.id : bd;
+
+        if (bid === 'bedrock') {
+          if (typeof bd === 'object') wpGrid[y][x].id = 'spr_fg_bedrock';
+          else wpGrid[y][x] = 'spr_fg_bedrock';
+        }
+        if (bid === 'spr_fg_dirt_0' || bid === 'dirt_0' || bid === 'dirt_1') {
+          if (typeof bd === 'object') wpGrid[y][x].id = 'spr_fg_dirt';
+          else wpGrid[y][x] = 'spr_fg_dirt';
+        }
+      }
+    }
+  } else {
+    wpGrid = getWPDefaultGrid();
+  }
+
+  if (savedBGGrid) {
+    wpBackgroundGrid = JSON.parse(savedBGGrid);
+    while (wpBackgroundGrid.length < WORLD_HEIGHT) {
+      wpBackgroundGrid.push(new Array(WORLD_WIDTH).fill(null));
+    }
+  } else {
+    wpBackgroundGrid = [];
+    for (let y = 0; y < WORLD_HEIGHT; y++) {
+      wpBackgroundGrid[y] = new Array(WORLD_WIDTH).fill(null);
+    }
+  }
+
+  // Apply tiling logic to all blocks on load
+  for (let y = 0; y < WORLD_HEIGHT; y++) {
+    for (let x = 0; x < WORLD_WIDTH; x++) {
+      wpUpdateTilingAt(x, y);
+    }
+  }
+
+  updateWPAnimatedCellList();
+  updateWPBlockCount();
+
+  // Start the constant render loop
+  if (wpAnimationId) cancelAnimationFrame(wpAnimationId);
+  wpAnimationId = requestAnimationFrame(drawWPWorld);
+}
+
+let wpAnimationId = null;
+let wpDirty = true; // Dirty flag: only redraw when something changes
+let wpLastAnimTick = 0; // Throttle animation redraws
+const WP_ANIM_INTERVAL = 100; // Animation tick every 100ms (10fps)
+
+// Off-screen static cache: render all static blocks once, blit visible portion each frame
+// Split into two layers to ensure blocks always cover shadows
+let wpStaticShadowCanvas = null;
+let wpStaticShadowCtx = null;
+let wpStaticBlockCanvas = null;
+let wpStaticBlockCtx = null;
+let wpStaticDirty = true; // Rebuild when blocks change
+
+// Shadow Staging for professional silhouette rendering (Fixes Safari/iOS)
+let wpShadowStagingCanvas = null;
+let wpShadowStagingCtx = null;
+
+// Tracking for smooth line drawing
+let wpLastGridX = -1;
+let wpLastGridY = -1;
+let wpNeedsPostProcess = false;
+
+function wpMarkDirty() { wpDirty = true; }
+function wpMarkStaticDirty() { wpStaticDirty = true; wpDirty = true; }
+
+function wpUpdateStaticCacheRegion(x1, y1, x2, y2) {
+  const xMin = Math.max(0, Math.min(x1, x2));
+  const yMin = Math.max(0, Math.min(y1, y2));
+  const xMax = Math.min(WORLD_WIDTH - 1, Math.max(x1, x2));
+  const yMax = Math.min(WORLD_HEIGHT - 1, Math.max(y1, y2));
+
+  // 1. Define the clipping area (slightly padded for shadows/body spills)
+  const clearX1 = Math.max(0, xMin - 1);
+  const clearY1 = Math.max(0, yMin - 1);
+  const clearX2 = Math.min(WORLD_WIDTH - 1, xMax + 1);
+  const clearY2 = Math.min(WORLD_HEIGHT - 1, yMax + 1);
+
+  const cx = clearX1 * BLOCK_SIZE;
+  const cy = clearY1 * BLOCK_SIZE;
+  const cw = (clearX2 - clearX1 + 1) * BLOCK_SIZE;
+  const ch = (clearY2 - clearY1 + 1) * BLOCK_SIZE;
+
+  // 2. CLEAR once to prevent alpha stacking
+  if (wpStaticBGCtx) wpStaticBGCtx.clearRect(cx, cy, cw, ch);
+  if (wpStaticBlockCtx) wpStaticBlockCtx.clearRect(cx, cy, cw, ch);
+  if (wpStaticShadowCtx) wpStaticShadowCtx.clearRect(cx, cy, cw, ch);
+
+  // 3. CLIP and REDRAW everything that could overlap this area
+  // We use save/clip to ensure that neighbors that aren't being redrawn 
+  // don't get double-drawn by the neighborhood loop below.
+  const contexts = [wpStaticBGCtx, wpStaticBlockCtx, wpStaticShadowCtx];
+  contexts.forEach(ctx => {
+    if (ctx) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(cx, cy, cw, ch);
+      ctx.clip();
+    }
+  });
+
+  // Iteration neighborhood: +2 vertical (for blocks with yOffset), +1 horizontal (for shadows)
+  const iterY1 = Math.max(0, clearY1 - 1);
+  const iterY2 = Math.min(WORLD_HEIGHT - 1, clearY2 + 2);
+  const iterX1 = Math.max(0, clearX1 - 1);
+  const iterX2 = Math.min(WORLD_WIDTH - 1, clearX2 + 1);
+
+  for (let ty = iterY1; ty <= iterY2; ty++) {
+    for (let tx = iterX1; tx <= iterX2; tx++) {
+      updateWPStaticCacheAt(tx, ty, 'bg', false);
+      updateWPStaticCacheAt(tx, ty, 'shadows', false);
+      updateWPStaticCacheAt(tx, ty, 'blocks', false);
+    }
+  }
+
+  contexts.forEach(ctx => { if (ctx) ctx.restore(); });
+}
+
+function wpUpdateStaticCacheArea(x, y, radius = 5) {
+  // Radius 5 + Clipping = Perfect visuals, zero "slicing", and buttery smooth 60fps interaction.
+  wpUpdateStaticCacheRegion(x - radius, y - radius, x + radius, y + radius);
+}
+
+// Incremental update for a single cell (high performance painting)
+function updateWPStaticCacheAt(x, y, pass, shouldClear = true) {
+  if (x < 0 || x >= WORLD_WIDTH || y < 0 || y >= WORLD_HEIGHT) return;
+  if (!wpStaticShadowCtx || !wpStaticBlockCtx || !wpStaticBGCtx) return;
+
+  const bx = x * BLOCK_SIZE;
+  const by = y * BLOCK_SIZE;
+  const areaSize = BLOCK_SIZE;
+  const shadowOffset = 4;
+
+  // Static Pass
+  // Background Pass
+  if (pass === 'bg' || !pass) {
+    if (shouldClear) wpStaticBGCtx.clearRect(bx, by, areaSize, areaSize);
+    const bdbg = wpBackgroundGrid[y][x];
+    if (bdbg) {
+      const bid = (typeof bdbg === 'object') ? bdbg.id : bdbg;
+      const blk = wpBlockMap[bid];
+      if (blk) {
+        let imgPath = blk.src;
+        if (blk.framesPath && typeof bdbg === 'object' && bdbg.state !== undefined) {
+          imgPath = `${blk.framesPath}${bdbg.state}.png`;
+        }
+
+        const img = getWPImage(imgPath);
+        if (img.complete && img.naturalWidth > 0) {
+          const nw = img.naturalWidth;
+          const nh = img.naturalHeight;
+          const px = x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2;
+          const py = (y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0);
+          wpStaticBGCtx.drawImage(img, px, py, nw, nh);
+        }
+      }
+    }
+  }
+
+  // Foreground Block Pass
+  if (pass === 'blocks' || !pass) {
+    if (shouldClear) wpStaticBlockCtx.clearRect(bx, by, areaSize, areaSize);
+    const bd = wpGrid[y][x];
+    if (bd) {
+      const bid = (typeof bd === 'object') ? bd.id : bd;
+      const blk = wpBlockMap[bid];
+      if (blk && (!blk.framesPath || (typeof bd === 'object' && bd.state !== undefined && bid !== 'spr_fg_xmas_dj_box' && bid !== 'spr_fg_gem_machine') || blk.isDirt)) {
+        if (bid && !bid.includes('rainbow')) {
+          let imgPath = blk.src;
+          if (blk.isDirt) imgPath = getDirtSrc(blk, (bd.dirtState || 0));
+          else if (typeof bd === 'object' && bd.state !== undefined && blk.framesPath) imgPath = `${blk.framesPath}${bd.state}.png`;
+
+          const img = getWPImage(imgPath);
+          if (img.complete && img.naturalWidth > 0) {
+            const nw = img.naturalWidth;
+            const nh = img.naturalHeight;
+            const px = x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2;
+            const py = (y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0);
+            wpStaticBlockCtx.drawImage(img, px, py, nw, nh);
+          }
+        }
+      }
+    }
+  }
+
+  // Shadow Pass
+  if (pass === 'shadows' || !pass) {
+    if (wpMultiTouchActive) return; // Locked high-fidelity refresh
+    if (shouldClear) wpStaticShadowCtx.clearRect(bx, by, areaSize, areaSize);
+
+    const bd = wpGrid[y][x]; // ONLY FOREGROUND CASTS SHADOWS
+    if (bd) {
+      const bid = (typeof bd === 'object') ? bd.id : bd;
+      const blk = wpBlockMap[bid];
+      if (blk && !blk.noShadow && blk.verticalAlign !== 'center' && blk.type !== 'background') {
+        if (!blk.framesPath || (typeof bd === 'object' && bd.state !== undefined && bid !== 'spr_fg_xmas_dj_box' && bid !== 'spr_fg_gem_machine')) {
+          let imgPath = blk.src;
+          if (blk.isDirt) imgPath = getDirtSrc(blk, (bd.dirtState || 0));
+          else if (typeof bd === 'object' && bd.state !== undefined && blk.framesPath) imgPath = `${blk.framesPath}${bd.state}.png`;
+
+          const img = getWPImage(imgPath);
+          if (img.complete && img.naturalWidth > 0) {
+            const nw = img.naturalWidth;
+            const nh = img.naturalHeight;
+
+            if (shouldClear) wpStaticShadowCtx.clearRect(bx, by, areaSize, areaSize);
+
+            // DRAW SHADOW VIA PRE-CACHE (High Performance)
+            const shadowImg = getWPShadow(imgPath);
+            if (shadowImg) {
+              wpStaticShadowCtx.save();
+              wpStaticShadowCtx.globalAlpha = 0.4;
+              wpStaticShadowCtx.drawImage(shadowImg, x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2 + shadowOffset, (y + 1) * BLOCK_SIZE - nh + shadowOffset + (blk.yOffset || 0), nw, nh);
+              wpStaticShadowCtx.restore();
+            } else {
+              // Image or shadow not ready yet, flag for a later retry
+              window._wpShadowsMissing = true;
+            }
+          }
+        }
+      }
+    }
+  }
+
+}
+
+function rebuildWPStaticCache() {
+  if (!wpStaticShadowCanvas) {
+    wpStaticShadowCanvas = document.createElement('canvas');
+    wpStaticShadowCanvas.width = WORLD_WIDTH * BLOCK_SIZE;
+    wpStaticShadowCanvas.height = WORLD_HEIGHT * BLOCK_SIZE;
+    wpStaticShadowCtx = wpStaticShadowCanvas.getContext('2d');
+    disableWPSmoothing(wpStaticShadowCtx);
+  }
+  if (!wpStaticBlockCanvas) {
+    wpStaticBlockCanvas = document.createElement('canvas');
+    wpStaticBlockCanvas.width = WORLD_WIDTH * BLOCK_SIZE;
+    wpStaticBlockCanvas.height = WORLD_HEIGHT * BLOCK_SIZE;
+    wpStaticBlockCtx = wpStaticBlockCanvas.getContext('2d');
+    disableWPSmoothing(wpStaticBlockCtx);
+  }
+  if (!wpStaticBGCanvas) {
+    wpStaticBGCanvas = document.createElement('canvas');
+    wpStaticBGCanvas.width = WORLD_WIDTH * BLOCK_SIZE;
+    wpStaticBGCanvas.height = WORLD_HEIGHT * BLOCK_SIZE;
+    wpStaticBGCanvas.classList.add('rendering-pixelated');
+    wpStaticBGCtx = wpStaticBGCanvas.getContext('2d');
+    disableWPSmoothing(wpStaticBGCtx);
+  }
+
+  const W = WORLD_WIDTH * BLOCK_SIZE;
+  const H = WORLD_HEIGHT * BLOCK_SIZE;
+  wpStaticShadowCtx.clearRect(0, 0, W, H);
+  wpStaticBlockCtx.clearRect(0, 0, W, H);
+  wpStaticBGCtx.clearRect(0, 0, W, H);
+
+  // Pass 1: Background Blocks
+  for (let y = 0; y < WORLD_HEIGHT; y++) {
+    for (let x = 0; x < WORLD_WIDTH; x++) {
+      updateWPStaticCacheAt(x, y, 'bg', false);
+    }
+  }
+  // Pass 2: Foreground Shadows
+  for (let y = 0; y < WORLD_HEIGHT; y++) {
+    for (let x = 0; x < WORLD_WIDTH; x++) {
+      updateWPStaticCacheAt(x, y, 'shadows', false);
+    }
+  }
+  // Pass 3: Foreground Blocks
+  for (let y = 0; y < WORLD_HEIGHT; y++) {
+    for (let x = 0; x < WORLD_WIDTH; x++) {
+      updateWPStaticCacheAt(x, y, 'blocks', false);
+    }
+  }
+  wpStaticDirty = false;
+
+  // BUG FIX: If some shadows were not ready (images loading), flag for a retry soon
+  if (window._wpShadowsMissing) {
+    setTimeout(() => {
+      window._wpShadowsMissing = false;
+      wpMarkStaticDirty();
+    }, 1000);
+  }
+}
+
+window.wpResetWorld = function () {
+  if (confirm("Reset world to default? All changes will be lost.")) {
+    wpGrid = getWPDefaultGrid();
+
+    // Also clear background layer
+    for (let y = 0; y < WORLD_HEIGHT; y++) {
+      wpBackgroundGrid[y].fill(null);
+    }
+
+    // Apply tiling logic to fix tiling
+    for (let y = 0; y < WORLD_HEIGHT; y++) {
+      for (let x = 0; x < WORLD_WIDTH; x++) {
+        wpUpdateTilingAt(x, y);
+      }
+    }
+    saveWPHistory();
+    saveActiveWorld();
+    updateWPAnimatedCellList();
+    updateWPBlockCount();
+    wpMarkStaticDirty();
+  }
+};
+
+window.wpClearWorldOnly = function () {
+  if (confirm("Clear all blocks except the bedrock foundation?")) {
+    // Clear both layers up to bedrock
+    for (let y = 0; y < WORLD_HEIGHT - 5; y++) {
+      wpGrid[y].fill(null);
+      wpBackgroundGrid[y].fill(null);
+    }
+    saveWPHistory();
+    saveActiveWorld();
+    updateWPAnimatedCellList();
+    updateWPBlockCount();
+    wpMarkStaticDirty();
+  }
+};
+
+function getWPDefaultGrid() {
+  const grid = [];
+  for (let y = 0; y < WORLD_HEIGHT; y++) {
+    grid[y] = new Array(WORLD_WIDTH).fill(null);
+  }
+
+  // 1. Bedrock foundation (bottom 5 rows)
+  for (let y = WORLD_HEIGHT - 5; y < WORLD_HEIGHT; y++) {
+    for (let x = 0; x < WORLD_WIDTH; x++) {
+      grid[y][x] = 'spr_fg_bedrock';
+    }
+  }
+
+  // 2. Lava layer (3 rows above bedrock)
+  for (let y = WORLD_HEIGHT - 8; y < WORLD_HEIGHT - 5; y++) {
+    for (let x = 0; x < WORLD_WIDTH; x++) {
+      grid[y][x] = 'spr_fg_lava';
+    }
+  }
+
+  // 3. Obsidian layer (3 rows above lava)
+  for (let y = WORLD_HEIGHT - 11; y < WORLD_HEIGHT - 8; y++) {
+    for (let x = 0; x < WORLD_WIDTH; x++) {
+      grid[y][x] = 'spr_fg_obsidian_block';
+    }
+  }
+
+  // 4. Fill common dirt area (rows 15 to 33)
+  for (let y = 15; y < WORLD_HEIGHT - 11; y++) {
+    for (let x = 0; x < WORLD_WIDTH; x++) {
+      grid[y][x] = 'spr_fg_dirt';
+    }
+  }
+
+  // 5. Place Entrance at surface (Shifted to x=51 for layout consistency)
+  grid[14][51] = 'spr_fg_entrance';
+  grid[15][51] = 'spr_fg_bedrock';
+
+  // 6. Scattered Stone blocks (exactly 212)
+  let stonesPlaced = 0;
+  const targetStones = 212;
+  const dirtStartRow = 16;
+  const dirtEndRow = 33;
+
+  // Use a pseudo-random seed or just random clusters
+  // Ensure we place exactly 212 stones, starting from x=1
+  while (stonesPlaced < targetStones) {
+    const cx = 1 + Math.floor(Math.random() * (WORLD_WIDTH - 1));
+    const cy = Math.floor(Math.random() * (dirtEndRow - dirtStartRow + 1)) + dirtStartRow;
+
+    if (grid[cy][cx] === 'spr_fg_dirt') {
+      const clusterSize = Math.floor(Math.random() * 3) + 1; // Cluster of 1-3
+      for (let i = 0; i < clusterSize && stonesPlaced < targetStones; i++) {
+        const dx = (i === 0) ? 0 : Math.floor(Math.random() * 3) - 1;
+        const dy = (i === 0) ? 0 : Math.floor(Math.random() * 3) - 1;
+        const tx = cx + dx;
+        const ty = cy + dy;
+
+        if (tx >= 0 && tx < WORLD_WIDTH && ty >= dirtStartRow && ty <= dirtEndRow && grid[ty][tx] === 'spr_fg_dirt') {
+          grid[ty][tx] = 'spr_fg_stone';
+          stonesPlaced++;
+        }
+      }
+    }
+  }
+
+  return grid;
+}
+
+function shouldSkipShadow(x, y, blockId) {
+  return !blockId;
+}
+
+function disableWPSmoothing(ctx) {
+  if (!ctx) return;
+  ctx.imageSmoothingEnabled = false;
+  ctx.mozImageSmoothingEnabled = false;
+  ctx.webkitImageSmoothingEnabled = false;
+  ctx.msImageSmoothingEnabled = false;
+}
+
+function initWorldPlanner() {
+  wpCanvas = document.getElementById('worldCanvas');
+  wpCtx = wpCanvas.getContext('2d');
+  disableWPSmoothing(wpCtx);
+
+  // CRITICAL: Synchronously initialize empty 2D grids to prevent race condition crashes
+  if (wpGrid.length === 0) {
+    for (let y = 0; y < WORLD_HEIGHT; y++) {
+      wpGrid[y] = new Array(WORLD_WIDTH).fill(null);
+    }
+  }
+  if (wpBackgroundGrid.length === 0) {
+    for (let y = 0; y < WORLD_HEIGHT; y++) {
+      wpBackgroundGrid[y] = new Array(WORLD_WIDTH).fill(null);
+    }
+  }
+
+  loadWPManifest();
+
+  // Initialize temp canvas for rainbow effect (and others)
+  // Sized to viewport for correct masking
+  const viewport = document.getElementById('wp-viewport');
+  const viewWidth = viewport ? viewport.clientWidth : window.innerWidth;
+  const viewHeight = viewport ? viewport.clientHeight : window.innerHeight;
+  const dpr = window.devicePixelRatio || 1;
+
+  wpTempCanvas = document.createElement('canvas');
+  wpTempCanvas.width = viewWidth * dpr;
+  wpTempCanvas.height = viewHeight * dpr;
+  wpTempCtx = wpTempCanvas.getContext('2d');
+  wpTempCtx.scale(dpr, dpr);
+  disableWPSmoothing(wpTempCtx);
+
+  // Initialize Shadow Staging (Used for solid dark silhouettes)
+  wpShadowStagingCanvas = document.createElement('canvas');
+  wpShadowStagingCanvas.width = 256; // Max block size compatibility (Palm Trees, etc.)
+  wpShadowStagingCanvas.height = 256;
+  wpShadowStagingCtx = wpShadowStagingCanvas.getContext('2d');
+  disableWPSmoothing(wpShadowStagingCtx);
+
+  // Initialize repeating rainbow pattern
+  wpRainbowPatternCanvas = document.createElement('canvas');
+  const cycleWidth = 1600; // Wider cycle for smoother transitions
+  wpRainbowPatternCanvas.width = cycleWidth;
+  wpRainbowPatternCanvas.height = 32;
+  const rpCtx = wpRainbowPatternCanvas.getContext('2d');
+  disableWPSmoothing(rpCtx);
+
+  // Create a smoother HSL-based gradient
+  const gradient = rpCtx.createLinearGradient(0, 0, cycleWidth, 0);
+  for (let i = 0; i <= 10; i++) {
+    const hue = (i / 10) * 360;
+    gradient.addColorStop(i / 10, `hsl(${hue}, 100%, 50%)`);
+  }
+
+  rpCtx.fillStyle = gradient;
+  rpCtx.fillRect(0, 0, cycleWidth, 32);
+  wpRainbowPattern = wpCtx.createPattern(wpRainbowPatternCanvas, 'repeat');
+
+  // Screen-Space Buffers (Sized to viewport for max performance)
+  wpRainbowAnimatedCanvas = document.createElement('canvas');
+  wpRainbowAnimatedCanvas.width = viewWidth * dpr;
+  wpRainbowAnimatedCanvas.height = viewHeight * dpr;
+  wpRainbowAnimatedCtx = wpRainbowAnimatedCanvas.getContext('2d');
+  wpRainbowAnimatedCtx.scale(dpr, dpr);
+  disableWPSmoothing(wpRainbowAnimatedCtx);
+
+  // Main Canvas is also screen-space now
+  wpCanvas.width = viewWidth * dpr;
+  wpCanvas.height = viewHeight * dpr;
+  // CRITICAL: Set CSS style to keep logical size for coordinate mapping
+  wpCanvas.style.width = viewWidth + 'px';
+  wpCanvas.style.height = viewHeight + 'px';
+  wpCtx.scale(dpr, dpr);
+
+
+  // Render search catalogue
+  renderWPCollection();
+
+  // Render initial inventory slots
+  renderWPInventory();
+
+  // Initialize Lucide icons
+  if (window.lucide) {
+    lucide.createIcons();
+  }
+
+  // Toolbar event listeners
+  setupWPToolbarEvents();
+
+  // Setup Backgrounds
+  setupWPBackgrounds();
+
+  // Initial transform fix
+  setTimeout(() => {
+    const minZoom = getWPMinZoom();
+    wpZoom = minZoom;
+
+    // Center the world in the viewport
+    const viewport = document.getElementById('wp-viewport');
+    if (viewport) {
+      const vWidth = viewport.clientWidth;
+      const vHeight = viewport.clientHeight;
+      const worldWidthPx = WORLD_WIDTH * BLOCK_SIZE * wpZoom;
+      const worldHeightPx = WORLD_HEIGHT * BLOCK_SIZE * wpZoom;
+
+      wpOffsetX = (vWidth / wpZoom - WORLD_WIDTH * BLOCK_SIZE) / 2;
+      wpOffsetY = (vHeight / wpZoom - WORLD_HEIGHT * BLOCK_SIZE) / 2;
+    } else {
+      wpOffsetX = 0;
+      wpOffsetY = 0;
+    }
+
+    applyWPTransform();
+  }, 100);
+
+  // Start render loop
+  drawWPWorld();
+
+  // Initial block count
+  updateWPBlockCount();
+
+  // Event listeners
+  setupWPEvents();
+
+  // Show tutorial if first time
+  checkAndShowWPTutorial();
+}
+
+function checkAndShowWPTutorial() {
+  const hasSeen = localStorage.getItem('wp_tutorial_seen_v12');
+  if (!hasSeen) {
+    setTimeout(() => {
+      const el = document.getElementById('wp-tutorial-popup');
+      if (el) {
+        el.classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+
+        // Auto-detect platform
+        const isMobile = window.innerWidth <= 768 ||
+          (navigator.userAgent.match(/Android/i)) ||
+          (navigator.userAgent.match(/webOS/i)) ||
+          (navigator.userAgent.match(/iPhone/i)) ||
+          (navigator.userAgent.match(/iPad/i)) ||
+          (navigator.userAgent.match(/iPod/i)) ||
+          (navigator.userAgent.match(/BlackBerry/i)) ||
+          (navigator.userAgent.match(/Windows Phone/i));
+
+        if (isMobile) {
+          setWPTutorialTab('mobile');
+        } else {
+          setWPTutorialTab('pc');
+        }
+      }
+    }, 1000);
+  }
+}
+
+window.closeWPTutorial = function () {
+  localStorage.setItem('wp_tutorial_seen_v12', 'true');
+  const popupId = 'wp-tutorial-popup';
+  const el = document.getElementById(popupId);
+  if (el) {
+    // If toggleWPPopup exists and is global, use it for consistency
+    if (typeof window.toggleWPPopup === 'function') {
+      window.toggleWPPopup(popupId);
+    } else {
+      el.classList.add('hidden');
+    }
+  }
+};
+
+function setupWPToolbarEvents() {
+  const buttons = document.querySelectorAll('.wp-tool-btn[data-tool]');
+  buttons.forEach(btn => {
+    btn.onclick = () => {
+      const tool = btn.getAttribute('data-tool');
+      if (tool === 'blocks') {
+        document.getElementById('blockCatalogue').classList.toggle('hidden');
+        return;
+      }
+      if (tool === 'visibility') {
+        const header = document.querySelector('.wp-header');
+        const footer = document.querySelector('.wp-footer-ui');
+        const exitBtn = document.getElementById('wp-view-exit');
+
+        header.style.display = 'none';
+        footer.style.opacity = '0';
+        footer.style.pointerEvents = 'none';
+
+        if (exitBtn) {
+          exitBtn.classList.remove('hidden');
+        }
+        return;
+      }
+
+      if (tool === 'background') {
+        toggleWPPopup('wp-bg-popup');
+        return;
+      }
+
+      wpCurrentTool = tool;
+      buttons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    };
+  });
+
+  // Sync initial tool
+  const activeBtn = document.querySelector('.wp-tool-btn.active[data-tool]');
+  if (activeBtn) wpCurrentTool = activeBtn.getAttribute('data-tool');
+}
+
+window.toggleWPInventory = function () {
+  const drawer = document.getElementById('wp-inventory-drawer');
+  if (drawer) {
+    drawer.classList.toggle('closed');
+  }
+};
+
+function getWPMinZoom() {
+  const viewport = document.getElementById('wp-viewport');
+  if (!viewport) return 0.3;
+  // Use clientWidth/Height to get current viewport size
+  const vWidth = viewport.clientWidth - 40;
+  const vHeight = viewport.clientHeight - 40;
+  const cWidth = WORLD_WIDTH * BLOCK_SIZE;
+  const cHeight = WORLD_HEIGHT * BLOCK_SIZE;
+
+  // Return the smaller scale to ensure the whole 100x45 grid fits
+  return Math.min(vWidth / cWidth, vHeight / cHeight);
+}
+
+function wpZoomTo(delta, mouseX, mouseY) {
+  const oldZoom = wpZoom;
+  const minZoom = getWPMinZoom();
+  const newZoom = Math.max(minZoom, Math.min(oldZoom + delta, 3));
+
+  if (newZoom === oldZoom) return;
+
+  // Zoom anchoring: Keep the world position under the mouse the same
+  if (mouseX !== undefined && mouseY !== undefined) {
+    const rect = wpCanvas.getBoundingClientRect();
+    const localX = mouseX - rect.left;
+    const localY = mouseY - rect.top;
+
+    // World position before zoom
+    const worldX = localX / oldZoom - wpOffsetX;
+    const worldY = localY / oldZoom - wpOffsetY;
+
+    wpZoom = newZoom;
+
+    // Adjust offsets to keep worldX/worldY at the same localX/localY
+    wpOffsetX = localX / wpZoom - worldX;
+    wpOffsetY = localY / wpZoom - worldY;
+  } else {
+    wpZoom = newZoom;
+  }
+
+  applyWPTransform();
+}
+
+window.wpZoomIn = function () {
+  const viewport = document.getElementById('wp-viewport');
+  const centerX = viewport ? viewport.clientWidth / 2 : window.innerWidth / 2;
+  const centerY = viewport ? viewport.clientHeight / 2 : window.innerHeight / 2;
+  wpZoomTo(0.1, centerX, centerY);
+};
+
+window.wpZoomOut = function () {
+  const viewport = document.getElementById('wp-viewport');
+  const centerX = viewport ? viewport.clientWidth / 2 : window.innerWidth / 2;
+  const centerY = viewport ? viewport.clientHeight / 2 : window.innerHeight / 2;
+  wpZoomTo(-0.1, centerX, centerY);
+};
+
+
+function applyWPTransform() {
+  wpMarkDirty();
+}
+
+window.wpReposition = function () {
+  const minZoom = getWPMinZoom();
+  wpZoom = minZoom;
+
+  const viewport = document.getElementById('wp-viewport');
+  if (viewport) {
+    const vWidth = viewport.clientWidth;
+    const vHeight = viewport.clientHeight;
+    // Calculation matching the initialization logic
+    wpOffsetX = (vWidth / wpZoom - WORLD_WIDTH * BLOCK_SIZE) / 2;
+    wpOffsetY = (vHeight / wpZoom - WORLD_HEIGHT * BLOCK_SIZE) / 2;
+  } else {
+    wpOffsetX = 0;
+    wpOffsetY = 0;
+  }
+  applyWPTransform();
+};
+
+// Add a resize listener to keep canvases in sync with viewport
+window.addEventListener('resize', () => {
+  if (wpCanvas && document.getElementById('world-planner-container').style.display !== 'none') {
+    const viewport = document.getElementById('wp-viewport');
+    if (viewport) {
+      wpCanvas.width = viewport.clientWidth;
+      wpCanvas.height = viewport.clientHeight;
+      if (wpRainbowAnimatedCanvas) {
+        wpRainbowAnimatedCanvas.width = viewport.clientWidth;
+        wpRainbowAnimatedCanvas.height = viewport.clientHeight;
+      }
+      if (wpTempCanvas) {
+        wpTempCanvas.width = viewport.clientWidth;
+        wpTempCanvas.height = viewport.clientHeight;
+      }
+    }
+    wpMarkDirty();
+  }
+});
+
+window.wpUndo = function () {
+  if (wpHistoryIndex > 0) {
+    wpHistoryIndex--;
+    const state = wpHistory[wpHistoryIndex];
+    if (state.bg) {
+      wpGrid = JSON.parse(JSON.stringify(state.fg));
+      wpBackgroundGrid = JSON.parse(JSON.stringify(state.bg));
+    } else {
+      // Compatibility for old snapshots
+      wpGrid = JSON.parse(JSON.stringify(state));
+    }
+    updateWPAnimatedCellList();
+    updateWPBlockCount();
+    wpMarkStaticDirty();
+  }
+};
+
+window.wpRedo = function () {
+  if (wpHistoryIndex < wpHistory.length - 1) {
+    wpHistoryIndex++;
+    const state = wpHistory[wpHistoryIndex];
+    if (state.bg) {
+      wpGrid = JSON.parse(JSON.stringify(state.fg));
+      wpBackgroundGrid = JSON.parse(JSON.stringify(state.bg));
+    } else {
+      wpGrid = JSON.parse(JSON.stringify(state));
+    }
+    updateWPAnimatedCellList();
+    updateWPBlockCount();
+    wpMarkStaticDirty();
+  }
+};
+
+function saveWPHistory() {
+  // Remove future states if we are in the middle of history
+  if (wpHistoryIndex < wpHistory.length - 1) {
+    wpHistory.splice(wpHistoryIndex + 1);
+  }
+
+  const deepCopyGrid = (grid) => grid.map(row => row.slice().map(cell =>
+    (typeof cell === 'object' && cell !== null) ? { ...cell } : cell
+  ));
+
+  const snapshot = {
+    fg: deepCopyGrid(wpGrid),
+    bg: deepCopyGrid(wpBackgroundGrid)
+  };
+
+  wpHistory.push(snapshot);
+  if (wpHistory.length > MAX_HISTORY) {
+    wpHistory.shift();
+  }
+  wpHistoryIndex = wpHistory.length - 1;
+}
+
+window.wpToggleGrid = function () {
+  wpShowGrid = !wpShowGrid;
+  wpMarkDirty();
+};
+
+window.wpClearWorld = function () {
+  if (confirm("Are you sure you want to clear the entire world?")) {
+    for (let y = 0; y < WORLD_HEIGHT; y++) {
+      wpGrid[y].fill(null);
+    }
+    saveWPHistory();
+    saveActiveWorld();
+    updateWPAnimatedCellList();
+    updateWPBlockCount();
+    wpMarkStaticDirty();
+  }
+};
+
+window.wpSaveWorld = function () {
+  const data = JSON.stringify(wpGrid);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'world_plan.json';
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+// VIEW MODE EXIT
+window.exitWPViewMode = function () {
+  const header = document.querySelector('.wp-header');
+  const footer = document.querySelector('.wp-footer-ui');
+  const exitBtn = document.getElementById('wp-view-exit');
+
+  header.style.display = 'flex';
+  footer.style.opacity = '1';
+  footer.style.pointerEvents = 'auto';
+  if (exitBtn) exitBtn.classList.add('hidden');
+};
+
+// POPUPS & BACKGROUNDS & SAVE SLOTS
+window.toggleWPPopup = function (id) {
+  const popup = document.getElementById(id);
+  if (!popup) return;
+
+  const isHidden = popup.classList.contains('hidden');
+
+  // Close other popups first
+  document.querySelectorAll('.wp-popup').forEach(p => p.classList.add('hidden'));
+
+  if (isHidden) {
+    popup.classList.remove('hidden');
+    if (id === 'wp-save-popup') renderWPWorldSlots();
+  }
+};
+
+window.saveWPWorldToSlot = saveWPWorldToSlot;
+window.loadWPWorldFromSlot = loadWPWorldFromSlot;
+
+async function saveWPWorldToSlot(slotNumber) {
+  const preview = await generateWPWorldPreview();
+  const viewport = document.getElementById('wp-viewport');
+
+  const saveData = {
+    grid: wpGrid,
+    bgGrid: wpBackgroundGrid,
+    background: viewport ? viewport.style.backgroundImage : wpCanvas.style.backgroundImage,
+    backgroundColor: viewport ? viewport.style.backgroundColor : wpCanvas.style.backgroundColor,
+    themeId: wpCurrentTheme,
+    preview: preview,
+    timestamp: Date.now()
+  };
+
+  localStorage.setItem(`wpSaveSlot_${slotNumber}`, JSON.stringify(saveData));
+  renderWPWorldSlots();
+}
+
+function loadWPWorldFromSlot(slotNumber) {
+  const dataStr = localStorage.getItem(`wpSaveSlot_${slotNumber}`);
+  if (!dataStr) return;
+
+  try {
+    const data = JSON.parse(dataStr);
+    wpGrid = data.grid || [];
+    wpBackgroundGrid = data.bgGrid || [];
+
+    // Safeguard for empty/malformed grids
+    if (wpBackgroundGrid.length === 0) {
+      wpBackgroundGrid = [];
+      for (let y = 0; y < WORLD_HEIGHT; y++) wpBackgroundGrid[y] = new Array(WORLD_WIDTH).fill(null);
+    }
+
+    const viewport = document.getElementById('wp-viewport');
+    if (data.background && viewport) {
+      viewport.style.backgroundImage = data.background;
+      viewport.style.backgroundColor = data.backgroundColor || 'transparent';
+      wpCurrentTheme = data.themeId || 'bg_forest';
+    }
+
+    saveWPHistory();
+    saveActiveWorld();
+    updateWPAnimatedCellList();
+    updateWPBlockCount();
+    wpMarkStaticDirty();
+    toggleWPPopup('wp-save-popup');
+    // Force a redraw to show the loaded world
+    setTimeout(() => {
+      wpDirty = true;
+      wpStaticDirty = true;
+    }, 50);
+  } catch (e) {
+    console.error('Failed to load world slot:', e);
+  }
+}
+
+window.addNewWPWorldSlot = function () {
+  const allSlots = JSON.parse(localStorage.getItem('wpSaveSlotsList') || '[]');
+  let next = 1;
+  while (allSlots.includes(next)) next++;
+  allSlots.push(next);
+  localStorage.setItem('wpSaveSlotsList', JSON.stringify(allSlots));
+  renderWPWorldSlots();
+};
+
+window.deleteWPWorldSlot = function (slot) {
+  if (confirm(`Delete World Slot ${slot}?`)) {
+    localStorage.removeItem(`wpSaveSlot_${slot}`);
+    const allSlots = JSON.parse(localStorage.getItem('wpSaveSlotsList') || '[]');
+    const idx = allSlots.indexOf(slot);
+    if (idx > -1) allSlots.splice(idx, 1);
+    localStorage.setItem('wpSaveSlotsList', JSON.stringify(allSlots));
+    renderWPWorldSlots();
+  }
+};
+
+function renderWPWorldSlots() {
+  const container = document.getElementById('wpSaveSlotsContainer');
+  if (!container) return;
+
+  const allSlots = JSON.parse(localStorage.getItem('wpSaveSlotsList') || '[]');
+  container.innerHTML = '';
+
+  allSlots.forEach(slot => {
+    const dataStr = localStorage.getItem(`wpSaveSlot_${slot}`);
+    const hasData = !!dataStr;
+    let preview = '';
+    if (hasData) {
+      preview = JSON.parse(dataStr).preview || '';
+    }
+
+    const div = document.createElement('div');
+    div.className = 'wp-save-slot';
+    div.innerHTML = `
+      <div class="wp-save-slot-preview" style="background-image: url('${preview}')"></div>
+      <div class="wp-save-slot-info">
+        <div class="wp-save-slot-label">World Slot ${slot}</div>
+        <div class="wp-save-slot-actions">
+          <button class="wp-save-btn" onclick="saveWPWorldToSlot(${slot})">Save Current</button>
+          ${hasData ? `
+            <button class="wp-save-btn" style="background: #2a9d8f" onclick="loadWPWorldFromSlot(${slot})">Load</button>
+            <button class="wp-save-btn" style="background: #e76f51" onclick="downloadWPWorldPNG(${slot})" title="Download PNG">
+              <i data-lucide="download" style="width: 14px; height: 14px; vertical-align: middle;"></i>
+            </button>
+          ` : ''}
+        </div>
+      </div>
+      <button class="wp-delete-btn" onclick="deleteWPWorldSlot(${slot})" title="Delete Slot">
+        <i data-lucide="x" style="width: 14px; height: 14px;"></i>
+      </button>
+    `;
+    container.appendChild(div);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  });
+}
+
+/**
+ * Downloads the world from a specific slot as a PNG image.
+ */
+window.downloadWPWorldPNG = async function (slotNumber) {
+  const dataStr = localStorage.getItem(`wpSaveSlot_${slotNumber}`);
+  if (!dataStr) return;
+
+  const data = JSON.parse(dataStr);
+  const gridData = data.grid || [];
+  const bgGridData = data.bgGrid || [];
+  const background = data.background;
+
+  // Create a high-res canvas for the whole world
+  const exportCanvas = document.createElement('canvas');
+  exportCanvas.width = WORLD_WIDTH * BLOCK_SIZE;
+  exportCanvas.height = WORLD_HEIGHT * BLOCK_SIZE;
+  const eCtx = exportCanvas.getContext('2d');
+  eCtx.imageSmoothingEnabled = false;
+
+  // 1. Resolve Theme
+  const themeId = data.themeId || wpCurrentTheme;
+  const theme = wpManifestThemes.find(t => t.id === themeId);
+
+  // 2. Gather ALL unique image paths needed for this world
+  const imageUrls = new Set();
+
+  // Theme BG
+  if (theme) imageUrls.add(theme.src);
+  else if (background && background !== 'none') {
+    const bgMatch = background.match(/url\(['"]?([^'"]+)['"]?\)/);
+    if (bgMatch) imageUrls.add(bgMatch[1]);
+  }
+
+  const getPath = (bd, blk, x, y, layer) => {
+    if (!blk) return null;
+    let path = blk.src;
+
+    // Fluid check (Water, Acid, Mud)
+    const bid = typeof bd === 'object' ? bd.id : bd;
+    const isFluid = bid === 'spr_fg_water_block' || bid === 'spr_fg_acid_block' || bid === 'spr_fg_mud_block';
+
+    if (isFluid && (typeof bd !== 'object' || bd.state === undefined)) {
+      const grid = layer === 'fg' ? gridData : bgGridData;
+      const blockAbove = (y > 0) ? grid[y - 1][x] : null;
+      const bidAbove = (typeof blockAbove === 'object' && blockAbove !== null) ? blockAbove.id : blockAbove;
+      const isSameFluidAbove = (bidAbove === bid);
+      const start = blk.frameStart || 0;
+      const frameIndex = isSameFluidAbove ? (start + 4) : start;
+      path = `${blk.framesPath}${frameIndex}.png`;
+    }
+    else if (blk.framesPath && (typeof bd !== 'object' || bd.state === undefined)) {
+      const fs = blk.frameStart || 0;
+      path = `${blk.framesPath}${fs}.png`;
+    }
+    else if (blk.isDirt) path = getDirtSrc(blk, (bd.dirtState || 0));
+    else if (typeof bd === 'object' && bd.state !== undefined && blk.framesPath) path = `${blk.framesPath}${bd.state}.png`;
+    return path;
+  };
+
+  for (let y = 0; y < WORLD_HEIGHT; y++) {
+    for (let x = 0; x < WORLD_WIDTH; x++) {
+      const bd = gridData[y][x];
+      const bg = bgGridData[y] ? bgGridData[y][x] : null;
+      if (bd) {
+        const p = getPath(bd, wpBlockMap[typeof bd === 'object' ? bd.id : bd], x, y, 'fg');
+        if (p) imageUrls.add(p);
+      }
+      if (bg) {
+        const p = getPath(bg, wpBlockMap[typeof bg === 'object' ? bg.id : bg], x, y, 'bg');
+        if (p) imageUrls.add(p);
+      }
+    }
+  }
+
+  // 3. Pre-load ALL images in parallel
+  const imageCache = {};
+  await Promise.allSettled(Array.from(imageUrls).map(async (url) => {
+    try {
+      imageCache[url] = await loadImage(url);
+    } catch (e) {
+      console.warn("Pre-load fail:", url, e);
+    }
+  }));
+
+  // 4. Draw Background (Stretched)
+  if (theme && imageCache[theme.src]) {
+    const bgImg = imageCache[theme.src];
+    eCtx.drawImage(bgImg, 0, 0, exportCanvas.width, exportCanvas.height);
+  } else if (background && background !== 'none') {
+    const bgMatch = background.match(/url\(['"]?([^'"]+)['"]?\)/);
+    if (bgMatch && imageCache[bgMatch[1]]) {
+      const bgImg = imageCache[bgMatch[1]];
+      eCtx.drawImage(bgImg, 0, 0, exportCanvas.width, exportCanvas.height);
+    }
+  } else {
+    eCtx.fillStyle = data.backgroundColor || '#0a0a1a';
+    eCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+  }
+
+  // 5. Unified Drawing Pass (Synchronous using cache)
+  const shadowAlpha = 0.4, shadowOffset = 4;
+  const rainbowMaskCanvas = document.createElement('canvas');
+  rainbowMaskCanvas.width = exportCanvas.width;
+  rainbowMaskCanvas.height = exportCanvas.height;
+  const rmCtx = rainbowMaskCanvas.getContext('2d');
+  disableWPSmoothing(rmCtx);
+  let hasRainbow = false;
+
+  for (let y = 0; y < WORLD_HEIGHT; y++) {
+    for (let x = 0; x < WORLD_WIDTH; x++) {
+      // Pass A: Shadows (Drawn before blocks for this row)
+      const bdFG = gridData[y][x];
+      if (bdFG) {
+        const blk = wpBlockMap[typeof bdFG === 'object' ? bdFG.id : bdFG];
+        if (blk && !blk.noShadow && blk.verticalAlign !== 'center') {
+          const path = getPath(bdFG, blk, x, y, 'fg');
+          const img = imageCache[path];
+          if (img) {
+            const nw = img.naturalWidth, nh = img.naturalHeight;
+
+            // DRAW SHADOW VIA STAGING (Fixes iOS coloring)
+            wpShadowStagingCtx.clearRect(0, 0, 256, 256);
+            wpShadowStagingCtx.drawImage(img, 0, 0);
+            wpShadowStagingCtx.globalCompositeOperation = 'source-in';
+            wpShadowStagingCtx.fillStyle = 'black';
+            wpShadowStagingCtx.fillRect(0, 0, nw, nh);
+            wpShadowStagingCtx.globalCompositeOperation = 'source-over';
+
+            eCtx.save();
+            eCtx.globalAlpha = shadowAlpha;
+            const px = x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2 + shadowOffset + (blk.xOffset || 0);
+            const py = (y + 1) * BLOCK_SIZE - nh + shadowOffset + (blk.yOffset || 0);
+            eCtx.drawImage(wpShadowStagingCanvas, 0, 0, nw, nh, px, py, nw, nh);
+            eCtx.restore();
+          }
+        }
+      }
+
+      // Pass B: Blocks (BG then FG)
+      [{ g: bgGridData, l: 'bg' }, { g: gridData, l: 'fg' }].forEach(layer => {
+        const bd = layer.g[y] ? layer.g[y][x] : null;
+        if (!bd) return;
+        const bid = typeof bd === 'object' ? bd.id : bd;
+        const blk = wpBlockMap[bid];
+        if (!blk) return;
+
+        const isRainbow = bid && bid.includes('rainbow');
+        const path = getPath(bd, blk, x, y, layer.l);
+        const img = imageCache[path];
+        if (img) {
+          const nw = img.naturalWidth, nh = img.naturalHeight;
+          const px = x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2;
+          let py = (blk.verticalAlign === 'center') ? (y * BLOCK_SIZE + (BLOCK_SIZE - nh) / 2) : ((y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0));
+
+          eCtx.drawImage(img, px, py, nw, nh);
+          if (isRainbow) {
+            hasRainbow = true;
+            rmCtx.drawImage(img, px, py, nw, nh);
+          }
+        }
+      });
+    }
+  }
+
+  // 6. Apply Rainbow Effect to Export
+  if (hasRainbow) {
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = exportCanvas.width;
+    tempCanvas.height = exportCanvas.height;
+    const tCtx = tempCanvas.getContext('2d');
+    disableWPSmoothing(tCtx);
+
+    const pattern = tCtx.createPattern(wpRainbowPatternCanvas, 'repeat');
+    tCtx.fillStyle = pattern;
+    tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+    tCtx.globalCompositeOperation = 'destination-in';
+    tCtx.drawImage(rainbowMaskCanvas, 0, 0);
+
+    eCtx.save();
+    eCtx.globalCompositeOperation = 'multiply';
+    eCtx.drawImage(tempCanvas, 0, 0);
+    eCtx.restore();
+  }
+
+  // Trigger download
+  const url = exportCanvas.toDataURL('image/png');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `world_export_slot${slotNumber}.png`;
+  a.click();
+};
+
+async function generateWPWorldPreview() {
+  const offCanvas = document.createElement('canvas');
+  const worldWidth = WORLD_WIDTH * BLOCK_SIZE;
+  const worldHeight = WORLD_HEIGHT * BLOCK_SIZE;
+  const scale = 0.15;
+  offCanvas.width = worldWidth * scale;
+  offCanvas.height = worldHeight * scale;
+  const offCtx = offCanvas.getContext('2d');
+  offCtx.imageSmoothingEnabled = false;
+
+  // 1. Resolve Theme & Gather necessary images
+  let bgUrl = null;
+  if (wpCurrentTheme) {
+    const theme = wpManifestThemes.find(t => t.id === wpCurrentTheme);
+    if (theme) bgUrl = theme.src;
+  }
+  if (!bgUrl) {
+    const viewport = document.getElementById('wp-viewport');
+    const background = viewport ? (viewport.style.backgroundImage || viewport.style.getPropertyValue('--wp-theme-bg')) : '';
+    const bgMatch = background.match(/url\(['"]?([^'"]+)['"]?\)/);
+    if (bgMatch) bgUrl = bgMatch[1];
+  }
+
+  const imageUrls = new Set();
+  if (bgUrl) imageUrls.add(bgUrl);
+
+  // Animated blocks (first frame)
+  for (let y = 0; y < WORLD_HEIGHT; y++) {
+    for (let x = 0; x < WORLD_WIDTH; x++) {
+      [wpGrid, wpBackgroundGrid].forEach(grid => {
+        const bd = grid[y][x];
+        if (!bd) return;
+        const bid = (typeof bd === 'object') ? bd.id : bd;
+        const blk = wpBlockMap[bid];
+        // If it's effectively animated in this session (no static state yet)
+        if (blk && blk.framesPath && (typeof bd !== 'object' || bd.state === undefined)) {
+          const fs = blk.frameStart || 0;
+          imageUrls.add(`${blk.framesPath}${fs}.png`);
+        }
+      });
+    }
+  }
+
+  // 2. Load all in parallel
+  const cache = {};
+  await Promise.allSettled(Array.from(imageUrls).map(async url => {
+    try { cache[url] = await loadImage(url); } catch (e) { }
+  }));
+
+  try {
+    // 3. Draw Background (Stretched)
+    if (bgUrl && cache[bgUrl]) {
+      offCtx.drawImage(cache[bgUrl], 0, 0, offCanvas.width, offCanvas.height);
+    } else {
+      offCtx.fillStyle = '#0a0a1a';
+      offCtx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+    }
+
+    // 4. Static Layers
+    offCtx.save();
+    offCtx.scale(scale, scale);
+    if (wpStaticBGCanvas) offCtx.drawImage(wpStaticBGCanvas, 0, 0);
+    if (wpStaticShadowCanvas) offCtx.drawImage(wpStaticShadowCanvas, 0, 0);
+    if (wpStaticBlockCanvas) offCtx.drawImage(wpStaticBlockCanvas, 0, 0);
+    offCtx.restore();
+
+    // 5. Animated Layers (Synchronous using cache)
+    for (let y = 0; y < WORLD_HEIGHT; y++) {
+      for (let x = 0; x < WORLD_WIDTH; x++) {
+        [wpGrid, wpBackgroundGrid].forEach(grid => {
+          const bd = grid[y][x];
+          if (!bd) return;
+          const bid = (typeof bd === 'object') ? bd.id : bd;
+          const blk = wpBlockMap[bid];
+          if (blk && blk.framesPath && (typeof bd !== 'object' || bd.state === undefined)) {
+            const fs = blk.frameStart || 0;
+            const path = `${blk.framesPath}${fs}.png`;
+            const img = cache[path];
+            if (img) {
+              const nw = img.naturalWidth, nh = img.naturalHeight;
+              const px = (x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2 + (blk.xOffset || 0)) * scale;
+              const py = (blk.verticalAlign === 'center') ?
+                (y * BLOCK_SIZE + (BLOCK_SIZE - nh) / 2) * scale :
+                ((y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0)) * scale;
+              offCtx.drawImage(img, px, py, nw * scale, nh * scale);
+            }
+          }
+        });
+      }
+    }
+    return offCanvas.toDataURL('image/webp', 0.8);
+  } catch (e) {
+    console.warn("High-fidelity preview blocked (Tainted Canvas), falling back to solid colors", e);
+    // (Solid color fallback logic remains as is, but updated for object support)
+    offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
+    offCtx.fillStyle = '#0a0a1a';
+    offCtx.fillRect(0, 0, offCanvas.width, offCanvas.height);
+
+    for (let y = 0; y < WORLD_HEIGHT; y++) {
+      for (let x = 0; x < WORLD_WIDTH; x++) {
+        const blockData = wpGrid[y][x];
+        if (blockData) {
+          const blockId = (typeof blockData === 'object' && blockData !== null) ? blockData.id : blockData;
+          offCtx.fillStyle = '#8e44ad'; // Default purple
+          offCtx.fillRect(x * BLOCK_SIZE * scale, y * BLOCK_SIZE * scale, BLOCK_SIZE * scale, BLOCK_SIZE * scale);
+        }
+      }
+    }
+    return offCanvas.toDataURL();
+  }
+}
+
+function setupWPBackgrounds() {
+  const list = document.getElementById('wp-bg-list');
+  if (!list) return;
+
+  // Use ONLY themes from the manifest as requested
+  const bgs = wpManifestThemes.map(t => ({
+    id: t.id,
+    name: t.name,
+    src: t.src
+  }));
+
+  list.innerHTML = '';
+  bgs.forEach(bg => {
+    const item = document.createElement('div');
+    item.className = 'wp-bg-item';
+    if (wpCurrentTheme === bg.id) item.classList.add('active');
+
+    const img = document.createElement('img');
+    img.src = bg.src;
+    img.alt = bg.name;
+    item.appendChild(img);
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'wp-cat-name'; // Consistent with block catalogue naming style or dedicated span
+    nameSpan.textContent = bg.name;
+    item.appendChild(nameSpan);
+
+    item.onclick = () => {
+      document.querySelectorAll('.wp-bg-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+      setWPTheme(bg.id);
+      saveActiveWorld();
+    };
+    list.appendChild(item);
+  });
+}
+
+function setupWPEvents() {
+  wpCanvas.onmousedown = (e) => {
+    if (e.button === 1) {
+      e.preventDefault();
+      pickWPBlock(e);
+      return;
+    }
+    if (wpCurrentTool === 'move' || e.button === 2) {
+      isPanning = true;
+      return;
+    }
+    if (e.button === 0) {
+      isPainting = true;
+
+      // Smart Erase Check: If starting on a matching block, activate Smart Erase Mode
+      if (wpCurrentTool === 'pencil') {
+        const rect = wpCanvas.getBoundingClientRect();
+        const canvasMouseX = (e.clientX - rect.left) / wpZoom - wpOffsetX;
+        const canvasMouseY = (e.clientY - rect.top) / wpZoom - wpOffsetY;
+        const x = Math.floor(canvasMouseX / BLOCK_SIZE);
+        const y = Math.floor(canvasMouseY / BLOCK_SIZE);
+
+        if (x >= 0 && x < WORLD_WIDTH && y >= 0 && y < WORLD_HEIGHT) {
+          const newBlock = wpBlockMap[wpSelectedBlockId];
+          if (newBlock) {
+            const isBg = newBlock.type === 'background';
+            const targetGrid = isBg ? wpBackgroundGrid : wpGrid;
+            const currentData = targetGrid[y][x];
+            const currentId = (typeof currentData === 'object' && currentData !== null) ? currentData.id : currentData;
+
+            if (currentId === wpSelectedBlockId) {
+              isSmartEraserMode = true;
+            }
+          }
+        }
+      }
+    }
+    handleWPInteraction(e);
+  };
+
+  window.onmouseup = () => {
+    isSmartEraserMode = false; // Reset Smart Erase Mode
+    if (isPainting || isErasing) {
+      // Defer heavy history and save operations to prevent UI freeze
+      setTimeout(() => {
+        saveWPHistory();
+        if (wpNeedsPostProcess) {
+          saveActiveWorld();
+          updateWPBlockCount();
+          // updateWPAnimatedCellList(); // Optimized to incremental later
+          renderWPInventory();
+          // Removed wpMarkStaticDirty() - Incremental Phase 11/12 is high-fidelity
+          wpNeedsPostProcess = false;
+        }
+      }, 10);
+    }
+    isPainting = false;
+    isErasing = false;
+    isPanning = false;
+  };
+
+  wpCanvas.onmousemove = (e) => {
+    if (isPanning) {
+      wpOffsetX += e.movementX / wpZoom;
+      wpOffsetY += e.movementY / wpZoom;
+      applyWPTransform();
+      return;
+    }
+    handleWPInteraction(e);
+  };
+
+  wpCanvas.onwheel = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.05 : -0.05; // Even slower wheel zoom
+    wpZoomTo(delta, e.clientX, e.clientY);
+  };
+
+  // --- MOBILE TOUCH SUPPORT ---
+  let lastPinchDist = 0;
+  let wpTouchTimer = null;
+  let wpTouchStartX = 0;
+  let wpTouchStartY = 0;
+
+  wpCanvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    wpTouchActive = true;
+
+    // Reset timer on new touch
+    if (wpTouchTimer) clearTimeout(wpTouchTimer);
+
+    if (e.touches.length === 1) {
+      // Single finger: Potential Long Press for Pick Block
+      wpTouchStartX = e.touches[0].clientX;
+      wpTouchStartY = e.touches[0].clientY;
+
+      wpTouchTimer = setTimeout(() => {
+        // Long Press Triggered!
+        pickWPBlock({ clientX: wpTouchStartX, clientY: wpTouchStartY });
+        // Optional: Haptic feedback
+        if (navigator.vibrate) navigator.vibrate(50);
+        // Cancel painting action that might have started
+        isPainting = false;
+        isErasing = false;
+        wpTouchTimer = null;
+      }, 500); // 500ms hold
+    }
+
+    if (e.touches.length > 1) {
+      if (wpTouchTimer) clearTimeout(wpTouchTimer); // Cancel long press
+      isPanning = false;
+      isPainting = false;
+      isErasing = false;
+      wpMultiTouchActive = true; // LOCK ON
+      wpLastGridX = -1; wpLastGridY = -1; // Wipe coordinate history to prevent "jumps"
+
+      lastPinchDist = 0; // Reset pinch state
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      lastPinchDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      wpLastTouchX = (t1.clientX + t2.clientX) / 2;
+      wpLastTouchY = (t1.clientY + t2.clientY) / 2;
+    } else if (e.touches.length === 1) {
+      lastPinchDist = 0;
+      wpLastGridX = -1; wpLastGridY = -1; // Reset on every new stroke
+      if (wpCurrentTool === 'move') {
+        isPanning = true;
+      } else {
+        if (!wpMultiTouchActive) {
+          isPainting = true;
+          handleWPInteraction(e.touches[0]);
+        }
+      }
+      wpLastTouchX = e.touches[0].clientX;
+      wpLastTouchY = e.touches[0].clientY;
+    }
+  }, { passive: false });
+
+  wpCanvas.addEventListener('touchmove', (e) => {
+    e.preventDefault(); // Prevent scrolling
+
+    // Check for movement threshold to cancel long press
+    if (wpTouchTimer && e.touches.length === 1) {
+      const moveX = Math.abs(e.touches[0].clientX - wpTouchStartX);
+      const moveY = Math.abs(e.touches[0].clientY - wpTouchStartY);
+      if (moveX > 10 || moveY > 10) {
+        clearTimeout(wpTouchTimer);
+        wpTouchTimer = null;
+      }
+    }
+
+    if (e.touches.length >= 2) {
+      wpMultiTouchActive = true;
+      isPanning = false;
+      isPainting = false;
+      isErasing = false;
+
+      // Pinch to Zoom AND Move
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dx = t1.clientX - t2.clientX;
+      const dy = t1.clientY - t2.clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const centerX = (t1.clientX + t2.clientX) / 2;
+      const centerY = (t1.clientY + t2.clientY) / 2;
+
+      // Pan while Pinching
+      if (wpLastTouchX !== undefined && wpLastTouchY !== undefined) {
+        wpOffsetX += (centerX - wpLastTouchX) / wpZoom;
+        wpOffsetY += (centerY - wpLastTouchY) / wpZoom;
+        applyWPTransform();
+      }
+      wpLastTouchX = centerX;
+      wpLastTouchY = centerY;
+
+      if (lastPinchDist > 0) {
+        const delta = (dist - lastPinchDist) / 300;
+        wpZoomTo(delta, centerX, centerY);
+      }
+      lastPinchDist = dist;
+    } else if (e.touches.length === 1) {
+      if (isPanning) {
+        // We lack movementX/Y on touch, so we track it manually if needed, 
+        // but for now we can just use handleWPInteraction style logic 
+        // or add a lastTouchX/Y tracker.
+        const touch = e.touches[0];
+        if (wpLastTouchX !== undefined && wpLastTouchY !== undefined) {
+          wpOffsetX += (touch.clientX - wpLastTouchX) / wpZoom;
+          wpOffsetY += (touch.clientY - wpLastTouchY) / wpZoom;
+          applyWPTransform();
+        }
+        wpLastTouchX = touch.clientX;
+        wpLastTouchY = touch.clientY;
+      } else {
+        handleWPInteraction(e.touches[0]);
+      }
+    }
+  }, { passive: false });
+
+  wpCanvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    if (e.touches.length < 2) lastPinchDist = 0;
+    if (e.touches.length === 0) {
+      wpMultiTouchActive = false; // UNLOCK
+      wpTouchActive = false;
+      // Trigger mouseup-style cleanup
+      window.onmouseup();
+      wpLastTouchX = undefined;
+      wpLastTouchY = undefined;
+      wpMarkDirty(); // Final high-quality redraw
+    }
+  }, { passive: false });
+
+  wpCanvas.oncontextmenu = (e) => e.preventDefault();
+}
+
+let wpLastTouchX, wpLastTouchY;
+
+function pickWPBlock(e) {
+  const rect = wpCanvas.getBoundingClientRect();
+  const canvasMouseX = (e.clientX - rect.left) / wpZoom - wpOffsetX;
+  const canvasMouseY = (e.clientY - rect.top) / wpZoom - wpOffsetY;
+  const x = Math.floor(canvasMouseX / BLOCK_SIZE);
+  const y = Math.floor(canvasMouseY / BLOCK_SIZE);
+
+  if (x >= 0 && x < WORLD_WIDTH && y >= 0 && y < WORLD_HEIGHT) {
+    let blockData = wpGrid[y][x];
+    if (!blockData) blockData = wpBackgroundGrid[y][x]; // Fallback to background layer
+
+    if (!blockData) return;
+
+    const blockId = (typeof blockData === 'object' && blockData !== null) ? blockData.id : blockData;
+    const block = wpBlockMap[blockId];
+    if (!block) return;
+
+    wpSelectedBlockId = block.id;
+    wpCurrentTool = 'pencil';
+    if (block.type) wpCurrentTab = block.type;
+
+    // Update UI
+    // 1. Toolbar
+    document.querySelectorAll('.wp-tool-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tool === 'pencil');
+    });
+
+    // 2. Tabs
+    document.querySelectorAll('.wp-tab-btn').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.tab === wpCurrentTab);
+    });
+
+    // 3. Catalog
+    renderWPCollection();
+
+    // 4. Inventory
+    pushToWPInventory(block.id);
+  }
+}
+
+function handleWPInteractionLine(x1, y1, x2, y2) {
+  const ix1 = Math.round(x1);
+  const iy1 = Math.round(y1);
+  const ix2 = Math.round(x2);
+  const iy2 = Math.round(y2);
+  
+  const dx = Math.abs(ix2 - ix1);
+  const dy = Math.abs(iy2 - iy1);
+  const sx = ix1 < ix2 ? 1 : -1;
+  const sy = iy1 < iy2 ? 1 : -1;
+  
+  let minX = ix1, minY = iy1, maxX = ix1, maxY = iy1;
+  let err = dx - dy;
+  let x = ix1, y = iy1;
+
+  // Bresenham line algorithm - guarantees visiting all cells in the line
+  while (true) {
+    handleWPInteractionAt(x, y, true);
+    
+    minX = Math.min(minX, x); minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+    
+    if (x === ix2 && y === iy2) break;
+    
+    const e2 = 2 * err;
+    if (e2 > -dy) {
+      err -= dy;
+      x += sx;
+    }
+    if (e2 < dx) {
+      err += dx;
+      y += sy;
+    }
+  }
+
+  // Batch refresh the entire line boundary in one clean Pass-Shadow/Pass-Block sequence
+  wpUpdateStaticCacheRegion(minX, minY, maxX, maxY);
+  wpMarkDirty();
+}
+
+function handleWPInteraction(e) {
+  if (wpMultiTouchActive) return; // Safety lock
+  if (!isPainting && !isErasing) {
+    wpLastGridX = -1;
+    wpLastGridY = -1;
+    return;
+  }
+  if (wpCurrentTool === 'move') return;
+
+  const rect = wpCanvas.getBoundingClientRect();
+  const canvasMouseX = (e.clientX - rect.left) / wpZoom - wpOffsetX;
+  const canvasMouseY = (e.clientY - rect.top) / wpZoom - wpOffsetY;
+
+  const x = Math.floor(canvasMouseX / BLOCK_SIZE);
+  const y = Math.floor(canvasMouseY / BLOCK_SIZE);
+
+  // Mobile Optimization: Prevent processing the same grid cell multiple times in a single drag event
+  if (x === wpLastGridX && y === wpLastGridY) return;
+
+  if (x >= 0 && x < WORLD_WIDTH && y >= 0 && y < WORLD_HEIGHT) {
+    if (wpLastGridX !== -1 && wpLastGridY !== -1) {
+      // Interpolate line between last position and current
+      handleWPInteractionLine(wpLastGridX, wpLastGridY, x, y);
+    } else {
+      handleWPInteractionAt(x, y);
+    }
+    wpLastGridX = x;
+    wpLastGridY = y;
+  }
+}
+
+function handleWPInteractionAt(x, y, isBatched = false) {
+  if (x < 0 || x >= WORLD_WIDTH || y < 0 || y >= WORLD_HEIGHT) return;
+
+  // USER REQUEST: Protect bedrock foundation from editing/erasing
+  if (y >= WORLD_HEIGHT - 5) return;
+
+  const effectiveErasing = isErasing || wpCurrentTool === 'eraser';
+  const effectivePainting = isPainting && wpCurrentTool === 'pencil';
+  const effectiveWrench = isPainting && wpCurrentTool === 'wrench';
+  const effectiveCopy = isPainting && wpCurrentTool === 'copy';
+
+  if (effectivePainting) {
+    const newBlock = wpBlockMap[wpSelectedBlockId];
+    if (!newBlock) return;
+
+    // Determine target layer, prioritizing Foreground if new block is FG, etc.
+    // Logic: 
+    // - If placing FG: Check FG first. If FG has SAME block -> Erase it. If FG has DIFF block -> Replace it? (User didn't specifying replacing, but usually yes).
+    // - User said: "if i specifically draw over the same block im equipping then it removes those blocks, and if i go into an empty space it doesnt draw over it"
+    // This implies that if I START a drag on a matching block, I enter "Smart Erase Mode".
+    // I need to implement `wpSmartEraseMode` global or check it in the event handler.
+
+    // Let's defer this to a read of the event handler first to be sure.
+    // I will return the original content for now and do a separate read.
+    const isBackground = newBlock.type === 'background';
+    const targetGrid = isBackground ? wpBackgroundGrid : wpGrid;
+
+    const currentBlockData = targetGrid[y][x];
+    const currentId = (typeof currentBlockData === 'object' && currentBlockData !== null) ? currentBlockData.id : currentBlockData;
+    let wasUpdated = false;
+
+    // SMART ERASE LOGIC
+    if (isSmartEraserMode) {
+      // If in smart erase mode, ONLY erase matching blocks
+      if (currentId === wpSelectedBlockId) {
+        targetGrid[y][x] = null; // Erase!
+        wasUpdated = true; // Flag for updates
+
+        // Trigger generic updates for removal
+        updateWPAnimatedCellList(x, y, true);
+
+        if (!isBackground) {
+          // Update neighbors for tiling fix
+          wpUpdateTilingAt(x, y + 1);
+          wpUpdateTilingAt(x, y - 1);
+          wpUpdateTilingAt(x + 1, y);
+          wpUpdateTilingAt(x - 1, y);
+        }
+
+        wpNeedsPostProcess = true;
+        if (!isBatched) {
+          wpUpdateStaticCacheArea(x, y, 1);
+          wpMarkDirty();
+        }
+        return; // Done for this cell
+      } else {
+        return; // Skip non-matching blocks and empty space in smart erase mode
+      }
+    }
+
+    if (currentId === wpSelectedBlockId) return;
+
+    targetGrid[y][x] = wpSelectedBlockId;
+    wasUpdated = true;
+
+    // Prefetch frames
+    if (newBlock.framesPath && newBlock.frameCount) {
+      for (let f = (newBlock.frameStart || 0); f < (newBlock.frameStart || 0) + newBlock.frameCount; f++) {
+        getWPImage(`${newBlock.framesPath}${f}.png`);
+      }
+    }
+
+    if (!isBackground) {
+      // Only update immediate cardinal neighbors — no chain walk
+      wpUpdateTilingAt(x, y);     // Self
+      wpUpdateTilingAt(x, y + 1); // Below
+      wpUpdateTilingAt(x, y - 1); // Above
+      wpUpdateTilingAt(x + 1, y); // Right
+      wpUpdateTilingAt(x - 1, y); // Left
+    }
+
+    // Apply default state if defined (e.g. Ceiling Lights -> State 1)
+    if (newBlock.defaultState !== undefined) {
+      if (targetGrid === wpGrid) {
+        wpGrid[y][x] = { id: wpSelectedBlockId, state: newBlock.defaultState };
+      } else {
+        wpBackgroundGrid[y][x] = { id: wpSelectedBlockId, state: newBlock.defaultState };
+      }
+    }
+
+    updateWPAnimatedCellList(x, y); // Incremental update
+
+    if (wpInventory.indexOf(wpSelectedBlockId) === -1) {
+      pushToWPInventory(wpSelectedBlockId);
+    }
+
+    wpNeedsPostProcess = true;
+    if (!isBatched) {
+      wpUpdateStaticCacheArea(x, y, 1);
+      wpMarkDirty();
+    }
+  } else if (effectiveErasing) {
+    // Eraser priority: Foreground first, then Background
+    let wasRemoved = false;
+    if (wpGrid[y][x] !== null) {
+      wpGrid[y][x] = null;
+      // Only update immediate cardinal neighbors — no chain walk
+      wpUpdateTilingAt(x, y + 1);
+      wpUpdateTilingAt(x, y - 1);
+      wpUpdateTilingAt(x + 1, y);
+      wpUpdateTilingAt(x - 1, y);
+      wasRemoved = true;
+    } else if (wpBackgroundGrid[y][x] !== null) {
+      wpBackgroundGrid[y][x] = null;
+      wasRemoved = true;
+    }
+
+    if (wasRemoved) {
+      updateWPAnimatedCellList(x, y, true);
+      wpNeedsPostProcess = true;
+      if (!isBatched) {
+        wpUpdateStaticCacheArea(x, y, 1);
+        wpMarkDirty();
+      }
+    }
+  } else if (effectiveWrench) {
+    // Wrench priority: Foreground first, then Background
+    let targetData = wpGrid[y][x];
+    let gridType = 'fg';
+
+    if (!targetData) {
+      targetData = wpBackgroundGrid[y][x];
+      gridType = 'bg';
+    }
+
+    if (!targetData) return;
+
+    const blockId = (typeof targetData === 'object' && targetData !== null) ? targetData.id : targetData;
+    const block = wpBlockMap[blockId];
+
+    // STRICT OPT-IN: Wrench only works if explicitly enabled or if it's a multi-frame block NOT explicitly disabled
+    // User requested: "disable wrench button for all blocks except the ones im currently working on"
+    // So we will strictly require block.wrench === true for now.
+    if (block && block.wrench && block.frameCount > 1) {
+      let currentState = (typeof targetData === 'object' && targetData !== null) ? (targetData.state || 0) : 0;
+      let newState = (currentState + 1) % block.frameCount;
+
+      const newData = { id: blockId, state: newState };
+      if (gridType === 'fg') wpGrid[y][x] = newData;
+      else wpBackgroundGrid[y][x] = newData;
+
+      saveActiveWorld();
+      updateWPAnimatedCellList();
+
+      wpUpdateStaticCacheArea(x, y, 1);
+      wpMarkDirty();
+    }
+    isPainting = false;
+  } else if (effectiveCopy) {
+    let targetId = null;
+    const fgData = wpGrid[y][x];
+    const bgData = wpBackgroundGrid[y][x];
+
+    if (fgData) {
+      targetId = (typeof fgData === 'object' && fgData !== null) ? fgData.id : fgData;
+    } else if (bgData) {
+      targetId = (typeof bgData === 'object' && bgData !== null) ? bgData.id : bgData;
+    }
+
+    if (targetId) {
+      wpSelectedBlockId = targetId;
+      wpCurrentTool = 'pencil';
+
+      // Update UI buttons
+      const buttons = document.querySelectorAll('.wp-tool-btn[data-tool]');
+      buttons.forEach(btn => btn.classList.remove('active'));
+      const pencilBtn = document.querySelector('.wp-tool-btn[data-tool="pencil"]');
+      if (pencilBtn) pencilBtn.classList.add('active');
+
+      // Refresh inventory to show active highlight
+      renderWPInventory();
+    }
+    isPainting = false;
+  }
+}
+
+// Check if a block ID refers to a dirt-type block via the manifest isDirt flag
+function isDirtBlock(blockId) {
+  if (!blockId) return false;
+  const block = wpBlockMap[blockId];
+  if (block && block.isDirt) return true;
+  // Fallback for common ID patterns (Excluding bedrock as per User Request Phase 18)
+  return blockId.includes('dirt');
+}
+
+// Get the correct image src for a dirt block given its dirtState (0 or 1)
+function getDirtSrc(block, dirtState) {
+  // block.src is always the _0 image. Swap _0 for _1 if dirtState is 1
+  if (dirtState === 1) {
+    return block.src.replace('_0.png', '_1.png');
+  }
+  return block.src;
+}
+
+// Tiling Chain Update: Ensures contiguous blocks of the same type all update together
+function wpUpdateTilingChainAt(x, y, bid) {
+  if (x < 0 || x >= WORLD_WIDTH || y < 0 || y >= WORLD_HEIGHT) return;
+  const targetData = wpGrid[y][x];
+  if (!targetData) return;
+  const targetId = bid || ((typeof targetData === 'object') ? targetData.id : targetData);
+
+  // Find vertical bounds
+  let yMin = y; while (yMin > 0 && getWPBlockId(x, yMin - 1) === targetId) yMin--;
+  let yMax = y; while (yMax < WORLD_HEIGHT - 1 && getWPBlockId(x, yMax + 1) === targetId) yMax++;
+
+  // Find horizontal bounds
+  let xMin = x; while (xMin > 0 && getWPBlockId(xMin - 1, y) === targetId) xMin--;
+  let xMax = x; while (xMax < WORLD_WIDTH - 1 && getWPBlockId(xMax + 1, y) === targetId) xMax++;
+
+  // Update all in cross-shape (usually only one direction is needed but this is safe)
+  for (let ty = yMin; ty <= yMax; ty++) wpUpdateTilingAt(x, ty);
+  for (let tx = xMin; tx <= xMax; tx++) wpUpdateTilingAt(tx, y);
+}
+
+function getWPBlockId(x, y) {
+  if (x < 0 || x >= WORLD_WIDTH || y < 0 || y >= WORLD_HEIGHT) return null;
+  const d = wpGrid[y][x];
+  return (typeof d === 'object' && d !== null) ? d.id : d;
+}
+
+// Unified Tiling System (Replaces wpApplyDirtLogic)
+function wpUpdateTilingAt(x, y) {
+  if (x < 0 || x >= WORLD_WIDTH || y < 0 || y >= WORLD_HEIGHT) return;
+
+  const currentData = wpGrid[y][x];
+  if (!currentData) return;
+  const bid = (typeof currentData === 'object') ? currentData.id : currentData;
+  const blk = wpBlockMap[bid];
+  if (!blk) return;
+
+  let newState = -1; // -1 means no change needed for 'state'
+  let newDirtState = -1;
+
+  // 1. DIRT LOGIC
+  if (isDirtBlock(bid)) {
+    const blockAboveData = y > 0 ? wpGrid[y - 1][x] : null;
+    const blockAboveId = (typeof blockAboveData === 'object' && blockAboveData !== null) ? blockAboveData.id : blockAboveData;
+    const isDirtAbove = isDirtBlock(blockAboveId);
+    newDirtState = isDirtAbove ? 1 : 0;
+  }
+
+  // Helper to get neighbor IDs
+  const getID = (nx, ny) => {
+    if (nx < 0 || nx >= WORLD_WIDTH || ny < 0 || ny >= WORLD_HEIGHT) return null;
+    const d = wpGrid[ny][nx];
+    return (typeof d === 'object' && d !== null) ? d.id : d;
+  };
+
+  // 2. BARRIER ROPE (Horizontal Connecting: Lone, Start, Middle, End)
+  if (bid === 'spr_fg_barrier_rope') {
+    const isL = getID(x - 1, y) === 'spr_fg_barrier_rope';
+    const isR = getID(x + 1, y) === 'spr_fg_barrier_rope';
+    if (!isL && !isR) newState = 0;
+    else if (!isL && isR) newState = 1;
+    else if (isL && isR) newState = 2;
+    else if (isL && !isR) newState = 3;
+  }
+
+  // 3. CANDY CANE / VINES (Vertical Stacking: Top=0, Rest=1)
+  const isVine = bid === 'spr_fg_climbing_vine' || bid === 'spr_fg_crystal_vine';
+  const isCandy = bid === 'spr_fg_candy_cane';
+  if (isVine || isCandy) {
+    const isAboveSame = getID(x, y - 1) === bid;
+    newState = isAboveSame ? 1 : 0;
+  }
+
+  // 4. SPIKES (Attachment: Above=1, Below/None=0)
+  if (bid && bid.includes('spikes')) {
+    const isAboveSolid = getID(x, y - 1) !== null;
+    newState = isAboveSolid ? 1 : 0;
+  }
+
+  // 5. PILLARS (4 Frames: 0=Alone, 1=Top/Ceiling, 2=Middle, 3=Bottom)
+  if (bid === 'spr_fg_pillar') {
+    const isAboveSame = getID(x, y - 1) === bid;
+    const isBelowSame = getID(x, y + 1) === bid;
+    const isBlockAbove = !isAboveSame && getID(x, y - 1) !== null;
+
+    if (isAboveSame && isBelowSame) newState = 2; // Frame 2 (Middle)
+    else if (isAboveSame) newState = 3; // Frame 3 (Bottom)
+    else if (isBelowSame || isBlockAbove) newState = 1; // Frame 1 (Top/Ceiling)
+    else newState = 0; // Frame 0 (Alone)
+  }
+
+  // 6. GINGERBREAD BLOCK (47-State 8-Neighbor Tiling)
+  if (bid === 'spr_fg_gingerbread_block') {
+    const s = getID(x, y + 1) === bid;
+    const e = getID(x + 1, y) === bid;
+    const w = getID(x - 1, y) === bid;
+    const n = getID(x, y - 1) === bid;
+
+    // 100% Verified Cardinal Bits: S=1, E=2, W=4, N=8
+    const mask = (s ? 1 : 0) | (e ? 2 : 0) | (w ? 4 : 0) | (n ? 8 : 0);
+
+    const cardinalMap = {
+      0: 0,           // Alone
+      1: 1, 2: 2, 8: 3, 4: 4,   // Ends (1:Top, 2:Left, 3:Bottom, 4:Right)
+      3: 36, 5: 39, 10: 37, 12: 38, // Corners (3:TL, 5:TR, 10:BL, 12:BR)
+      9: 26, 6: 27,           // Straights (26:Vertical Middle, 27:Horizontal Middle)
+      7: 15, 11: 13, 13: 14, 14: 16 // T-Junctions
+    };
+
+    if (mask === 15) {
+      // Surrounded: Use _46 as requested
+      newState = 46;
+    } else {
+      newState = (cardinalMap[mask] !== undefined) ? cardinalMap[mask] : 0;
+    }
+  }
+
+  // APPLY CHANGES
+  let changed = false;
+  let finalData = (typeof currentData === 'object') ? { ...currentData } : { id: bid };
+
+  if (newState !== -1 && finalData.state !== newState) {
+    finalData.state = newState;
+    changed = true;
+  }
+  if (newDirtState !== -1 && finalData.dirtState !== newDirtState) {
+    finalData.dirtState = newDirtState;
+    changed = true;
+  }
+
+  if (changed) {
+    wpGrid[y][x] = finalData;
+  }
+}
+
+// Memory cache for images
+const wpImageCache = {};
+const wpShadowCache = {};
+
+function getWPImage(src) {
+  if (wpImageCache[src]) return wpImageCache[src];
+  const img = new Image();
+  if (window.location.protocol !== 'file:') {
+    img.crossOrigin = 'anonymous';
+  }
+  img.src = src;
+  wpImageCache[src] = img;
+  img.onload = () => {
+    wpMarkStaticDirty();
+  };
+  return img;
+}
+
+function getWPShadow(src) {
+  if (wpShadowCache[src]) return wpShadowCache[src];
+
+  const img = getWPImage(src);
+  if (!img.complete || img.naturalWidth === 0) return null;
+
+  const shadowCanvas = document.createElement('canvas');
+  shadowCanvas.width = img.naturalWidth;
+  shadowCanvas.height = img.naturalHeight;
+  const sCtx = shadowCanvas.getContext('2d');
+
+  sCtx.drawImage(img, 0, 0);
+  sCtx.globalCompositeOperation = 'source-in';
+  sCtx.fillStyle = 'black';
+  sCtx.fillRect(0, 0, shadowCanvas.width, shadowCanvas.height);
+
+  wpShadowCache[src] = shadowCanvas;
+  return shadowCanvas;
+}
+
+function drawWPWorld(timestamp) {
+  if (!wpCtx) return;
+  // Reduce overhead: Only force sharp pixels on dirty frames or once per second
+  if (wpDirty || !wpLastSmoothingReset || (timestamp - wpLastSmoothingReset > 1000)) {
+    disableWPSmoothing(wpCtx);
+    wpLastSmoothingReset = timestamp;
+  }
+
+  const container = document.getElementById('world-planner-container');
+  if (!container || container.style.display === 'none' || document.visibilityState === 'hidden') {
+    wpAnimationId = null;
+    return;
+  }
+
+  const now = timestamp || performance.now();
+
+  // Throttled animation tick check
+  const animTick = (now - wpLastAnimTick) >= WP_ANIM_INTERVAL;
+  const hasAnimatedBlocks = wpAnimatedCells && wpAnimatedCells.length > 0;
+
+  // Skip frame if nothing changed and no animation tick due
+  if (!wpDirty && !(hasAnimatedBlocks && animTick)) {
+    wpAnimationId = requestAnimationFrame(drawWPWorld);
+    return;
+  }
+
+  if (animTick) wpLastAnimTick = now;
+  wpDirty = false;
+
+  // Use CSS width/height for culling logic, but scaled width/height for clearing
+  const dpr = window.devicePixelRatio || 1;
+  const viewWidth = wpCanvas.width / dpr;
+  const viewHeight = wpCanvas.height / dpr;
+  const scaledWidth = wpCanvas.width;
+  const scaledHeight = wpCanvas.height;
+
+  // Grid culling bounds
+  const vStartX = Math.max(0, Math.floor(-wpOffsetX / BLOCK_SIZE));
+  const vEndX = Math.min(WORLD_WIDTH - 1, Math.ceil((-wpOffsetX + viewWidth / wpZoom) / BLOCK_SIZE));
+  const vStartY = Math.max(0, Math.floor(-wpOffsetY / BLOCK_SIZE));
+  const vEndY = Math.min(WORLD_HEIGHT - 1, Math.ceil((-wpOffsetY + viewHeight / wpZoom) / BLOCK_SIZE));
+
+  wpCtx.clearRect(0, 0, viewWidth, viewHeight); // Scale has been applied, clear logical area
+
+  // Buffer prep
+  let hasRainbow = false;
+  let rainbowBufferCleared = false;
+  // Previously: wpRainbowAnimatedCtx.clearRect(0, 0, viewWidth, viewHeight); <-- REMOVED (now lazy)
+
+  // Rebuild static cache if blocks changed
+  if (wpStaticDirty) rebuildWPStaticCache();
+
+  // Sorting removed (now handled incrementally in updateWPAnimatedCellList)
+
+  // ── BLIT STATIC CACHE (Separate passes for layering) ──
+  const sx = vStartX * BLOCK_SIZE;
+  const sy = vStartY * BLOCK_SIZE;
+  const sw = (vEndX - vStartX + 1) * BLOCK_SIZE;
+  const sh = (vEndY - vStartY + 1) * BLOCK_SIZE;
+  const dx = (vStartX * BLOCK_SIZE + wpOffsetX) * wpZoom;
+  const dy = (vStartY * BLOCK_SIZE + wpOffsetY) * wpZoom;
+  const dw = sw * wpZoom;
+  const dh = sh * wpZoom;
+
+  // 1. Static Backgrounds
+  if (wpStaticBGCanvas) {
+    wpCtx.drawImage(wpStaticBGCanvas, sx, sy, sw, sh, dx, dy, dw, dh);
+  }
+
+  // AESTHETIC WORLD BORDER (Lightweight Canvas Path)
+  wpCtx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+  wpCtx.lineWidth = 2;
+  wpCtx.strokeRect(wpOffsetX * wpZoom, wpOffsetY * wpZoom, WORLD_WIDTH * BLOCK_SIZE * wpZoom, WORLD_HEIGHT * BLOCK_SIZE * wpZoom);
+
+  // 2. Static Shadows (Blitted with 1.0 as it already contains 0.4 alpha per block)
+  if (wpStaticShadowCanvas) {
+    wpCtx.drawImage(wpStaticShadowCanvas, sx, sy, sw, sh, dx, dy, dw, dh);
+  }
+
+  // 2. Animated Shadows (Direct Draw Optimization - skipping buffer clear/blit)
+  if (wpZoom >= 0.5) {
+    // We draw directly to wpCtx with alpha 0.4
+    // This avoids:
+    // 1. Clearing full screen rainbow buffer
+    // 2. Drawing to buffer
+    // 3. Blitting buffer to screen
+    // Trade-off: Overlapping animated shadows will be slightly darker (additive alpha). Acceptable for mobile perf.
+
+    // Reset DPR transform for manual screen-space positioning if needed?
+    // Actually, wpCtx already has DPR transform applied via setTransform/scale done externally...
+    // Wait, let's check: in initWorldPlanner we do wpCtx.scale(dpr, dpr).
+    // So 'px' calculation should be logical pixels if we use standard drawImage.
+
+    // BUT the original code used manual dpr scaling for shadows?
+    // "Compute in screen-space (accounting for DPR)... wpRainbowAnimatedCtx.setTransform(dprShadow...)"
+
+    // Let's use straightforward logical coords on wpCtx (which is dpr-scaled).
+    // The previous buffer logic was complex to handle the buffer's dpr.
+    // Direct drawing simplifies this: logical coords work automatically.
+
+    wpCtx.save();
+    wpCtx.globalAlpha = 0.4;
+
+    const shadowOffset = 4 * wpZoom; // Logical pixels
+
+    for (const cell of wpAnimatedCells) {
+      if (cell.layer !== 'fg') continue; // Background blocks don't cast shadows
+      if (cell.x < vStartX || cell.x > vEndX || cell.y < vStartY || cell.y > vEndY) continue;
+
+      const bd = wpGrid[cell.y][cell.x];
+      if (!bd) continue;
+      const bid = (typeof bd === 'object') ? bd.id : bd;
+      const blk = wpBlockMap[bid];
+      if (!blk || blk.noShadow || blk.verticalAlign === 'center') continue;
+      // Skip shadow for fluids (lava/water/acid/mud) — they don't cast shadows in-game
+      const isFluid = bid === 'spr_fg_water_block' || bid === 'spr_fg_acid_block' || bid === 'spr_fg_mud_block' || bid === 'spr_fg_lava_block';
+      if (isFluid) continue;
+
+      const isDjBox = bid === 'spr_fg_xmas_dj_box';
+      const isGemMachine = bid === 'spr_fg_gem_machine';
+      const isAnimated = blk.framesPath && (isDjBox || isGemMachine || !(typeof bd === 'object' && bd.state !== undefined));
+
+      let imgPath;
+      if (isAnimated) {
+        let fps = blk.fps || 10;
+        if (blk.frameCount === 2) fps = 1; // 2-frame blocks always use 1 FPS (matches game sway speed)
+
+        let frameIndex;
+        // Fix: Support frameDurations for shadows (Bear Trap, etc.)
+        if (blk.frameDurations && Array.isArray(blk.frameDurations)) {
+          const totalDuration = blk.frameDurations.reduce((a, b) => a + b, 0);
+          const elapsed = now % totalDuration;
+          let cumulative = 0;
+          frameIndex = 0;
+          for (let i = 0; i < blk.frameDurations.length; i++) {
+            cumulative += blk.frameDurations[i];
+            if (elapsed < cumulative) {
+              frameIndex = i;
+              break;
+            }
+          }
+          frameIndex += (blk.frameStart || 0);
+        } else if (isDjBox) {
+          fps = 3;
+          const state = (typeof bd === 'object' && bd.state !== undefined) ? bd.state : 0;
+          if (state === 1) {
+            frameIndex = 4 + (Math.floor(now / (1000 / fps)) % 5); // Frames 4-8 (9th frame _9 is missing)
+          } else {
+            frameIndex = Math.floor(now / (1000 / fps)) % 4; // Frames 0-3
+          }
+        } else if (bid === 'spr_fg_gem_machine') {
+          const state = (typeof bd === 'object' && bd.state !== undefined) ? bd.state : 0;
+          frameIndex = (state === 1) ? 11 : 0;
+        } else {
+          frameIndex = (Math.floor(now / (1000 / fps)) % blk.frameCount) + (blk.frameStart || 0);
+        }
+        imgPath = `${blk.framesPath}${frameIndex}.png`;
+      } else {
+        if (bid === 'spr_fg_gem_machine') {
+          const state = (typeof bd === 'object' && bd.state !== undefined) ? bd.state : 0;
+          imgPath = `${blk.framesPath}${(state === 1) ? 11 : 0}.png`;
+        } else {
+          imgPath = (typeof bd === 'object' && bd.state !== undefined && blk.framesPath) ? `${blk.framesPath}${bd.state}.png` : blk.src;
+        }
+      }
+      const shadowImg = getWPShadow(imgPath);
+      if (shadowImg) {
+        const nw = shadowImg.width;
+        const nh = shadowImg.height;
+        // Compute logical position
+        const px = (cell.x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2 + wpOffsetX) * wpZoom + shadowOffset;
+        const py = ((cell.y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0) + wpOffsetY) * wpZoom + shadowOffset;
+
+        wpCtx.drawImage(shadowImg, px, py, nw * wpZoom, nh * wpZoom);
+      }
+    }
+    wpCtx.restore();
+  }
+
+  // 3. Static Blocks (Background & Foreground cached)
+  if (wpStaticBlockCanvas) {
+    wpCtx.drawImage(wpStaticBlockCanvas, sx, sy, sw, sh, dx, dy, dw, dh);
+  }
+
+  // 4. Animated Blocks (Background then Foreground)
+  const drawAnimBlock = (cell) => {
+    const grid = cell.layer === 'fg' ? wpGrid : wpBackgroundGrid;
+    const bd = grid[cell.y][cell.x];
+    if (!bd) return;
+    const bid = (typeof bd === 'object') ? bd.id : bd;
+    const blk = wpBlockMap[bid];
+    if (!blk) return;
+
+    const isRainbow = bid && bid.includes('rainbow');
+    const isAnimated = blk.framesPath && (bid === 'spr_fg_xmas_dj_box' || bid === 'spr_fg_gem_machine' || !(typeof bd === 'object' && bd.state !== undefined));
+
+    let imgPath;
+    if (isAnimated) {
+      const useStaticIcon = blk.verticalAlign === 'center' && wpZoom < 0.6;
+      if (useStaticIcon) imgPath = blk.src;
+      else {
+        let fps = blk.fps || 10;
+        if (blk.frameCount === 2) fps = 1; // 2-frame blocks always use 1 FPS (matches game sway speed)
+
+        // USER REQUEST: Slow down NPC animations by 2x (Exempt Lion NPC)
+        if (bid && bid.toLowerCase().includes('npc') && bid !== 'spr_fg_lion_npc') {
+          fps = fps / 2;
+        }
+
+        let frameIndex;
+        const isFluid = bid === 'spr_fg_water_block' || bid === 'spr_fg_acid_block' || bid === 'spr_fg_mud_block' || bid === 'spr_fg_lava_block';
+
+        if (blk.frameDurations && Array.isArray(blk.frameDurations)) {
+          const totalDuration = blk.frameDurations.reduce((a, b) => a + b, 0);
+          const elapsed = now % totalDuration;
+          let cumulative = 0;
+          frameIndex = 0;
+          for (let i = 0; i < blk.frameDurations.length; i++) {
+            cumulative += blk.frameDurations[i];
+            if (elapsed < cumulative) {
+              frameIndex = i;
+              break;
+            }
+          }
+          frameIndex += (blk.frameStart || 0);
+        } else if (bid === 'spr_fg_xmas_dj_box') {
+          fps = 3; // Force 3 FPS (override frameCount=2 logic)
+          const state = (typeof bd === 'object' && bd.state !== undefined) ? bd.state : 0;
+          if (state === 1) {
+            // State 1 (Wrenched): Frames 4-8 (spr_fg_xmas_dj_box_9.png is missing)
+            frameIndex = 4 + (Math.floor(now / (1000 / fps)) % 5);
+          } else {
+            // State 0 (Default): Frames 0-3
+            frameIndex = Math.floor(now / (1000 / fps)) % 4;
+          }
+        } else if (bid === 'spr_fg_gem_machine') {
+          const state = (typeof bd === 'object' && bd.state !== undefined) ? bd.state : 0;
+          frameIndex = (state === 1) ? 11 : 0;
+        } else if (isFluid) {
+          // Check block above (y-1) in same layer
+          const blockAbove = (cell.y > 0) ? grid[cell.y - 1][cell.x] : null;
+          const bidAbove = (typeof blockAbove === 'object' && blockAbove !== null) ? blockAbove.id : blockAbove;
+          const isSameFluidAbove = (bidAbove === bid);
+
+          if (!isSameFluidAbove) {
+            // Surface animation (First 4 frames: 0-3)
+            frameIndex = Math.floor(now / (1000 / fps)) % 4;
+          } else {
+            // Submerged animation (Frames 4-7)
+            frameIndex = 4 + (Math.floor(now / (1000 / fps)) % 4);
+          }
+        } else {
+          frameIndex = (Math.floor(now / (1000 / fps)) % blk.frameCount) + (blk.frameStart || 0);
+        }
+
+        imgPath = `${blk.framesPath}${frameIndex}.png`;
+      }
+    } else {
+      if (bid === 'spr_fg_gem_machine') {
+        const state = (typeof bd === 'object' && bd.state !== undefined) ? bd.state : 0;
+        imgPath = `${blk.framesPath}${(state === 1) ? 11 : 0}.png`;
+      } else {
+        imgPath = (typeof bd === 'object' && bd.state !== undefined && blk.framesPath) ? `${blk.framesPath}${bd.state}.png` : blk.src;
+      }
+    }
+
+    const img = getWPImage(imgPath);
+    if (img.complete && img.naturalWidth > 0) {
+      const nw = img.naturalWidth;
+      const nh = img.naturalHeight;
+      const px = Math.round((cell.x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2 + (blk.xOffset || 0) + wpOffsetX) * wpZoom);
+      let py;
+      const useStaticIcon = blk.verticalAlign === 'center' && wpZoom < 0.6;
+      if (blk.verticalAlign === 'center' && !useStaticIcon) py = Math.round((cell.y * BLOCK_SIZE + (BLOCK_SIZE - nh) / 2 + wpOffsetY) * wpZoom);
+      else py = Math.round(((cell.y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0) + wpOffsetY) * wpZoom);
+
+      if (isRainbow) {
+        // Lazy clear: only clear the buffer once per frame, and only if we actually have rainbow blocks
+        if (!rainbowBufferCleared) {
+          wpRainbowAnimatedCtx.clearRect(0, 0, viewWidth, viewHeight);
+          rainbowBufferCleared = true;
+        }
+        hasRainbow = true;
+        // 1. Draw standard block PNG to main viewport (fixes gaps/divided lines)
+        wpCtx.drawImage(img, px, py, Math.round(nw * wpZoom), Math.round(nh * wpZoom));
+        // 2. Draw standard block PNG to effect mask (ensures perfect alignment)
+        wpRainbowAnimatedCtx.drawImage(img, px, py, Math.round(nw * wpZoom), Math.round(nh * wpZoom));
+      } else {
+        wpCtx.drawImage(img, px, py, Math.round(nw * wpZoom), Math.round(nh * wpZoom));
+      }
+    }
+  };
+
+  // 4. Animated Blocks (Unified Y-sorted pass)
+  for (const cell of wpAnimatedCells) {
+    if (cell.x < vStartX || cell.x > vEndX || cell.y < vStartY || cell.y > vEndY) continue;
+    drawAnimBlock(cell);
+  }
+
+  // â”€â”€ RAINBOW EFFECT â”€â”€
+  if (hasRainbow) {
+    const cycleWidth = 1600;
+    const offset = (now / 28) % cycleWidth;
+    if (typeof DOMMatrix !== 'undefined') {
+      wpRainbowPattern.setTransform(new DOMMatrix().rotate(45).translate(-offset, 0));
+    }
+
+    // Simplified composite: Pattern -> Mask(dest-in) -> Screen(multiply)
+    wpTempCtx.clearRect(0, 0, viewWidth, viewHeight);
+    wpTempCtx.save();
+    wpTempCtx.fillStyle = wpRainbowPattern;
+    wpTempCtx.fillRect(0, 0, viewWidth, viewHeight);
+    wpTempCtx.globalCompositeOperation = 'destination-in';
+    wpTempCtx.drawImage(wpRainbowAnimatedCanvas, 0, 0);
+    wpTempCtx.restore();
+
+    wpCtx.save();
+    wpCtx.globalCompositeOperation = 'multiply';
+    wpCtx.drawImage(wpTempCanvas, 0, 0);
+    wpCtx.restore();
+  }
+
+  // â”€â”€ GRID (LOD: Skip if zoomed out too far) â”€â”€
+  if (wpShowGrid && wpZoom > 0.3) {
+    wpCtx.save();
+    wpCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    wpCtx.lineWidth = 1;
+    wpCtx.beginPath();
+    for (let x = vStartX; x <= vEndX + 1; x++) {
+      const gx = (x * BLOCK_SIZE + wpOffsetX) * wpZoom;
+      wpCtx.moveTo(gx, (vStartY * BLOCK_SIZE + wpOffsetY) * wpZoom);
+      wpCtx.lineTo(gx, (vEndY * 1 * BLOCK_SIZE + BLOCK_SIZE + wpOffsetY) * wpZoom);
+    }
+    for (let y = vStartY; y <= vEndY + 1; y++) {
+      const gy = (y * BLOCK_SIZE + wpOffsetY) * wpZoom;
+      wpCtx.moveTo((vStartX * BLOCK_SIZE + wpOffsetX) * wpZoom, gy);
+      wpCtx.lineTo((vEndX * 1 * BLOCK_SIZE + BLOCK_SIZE + wpOffsetX) * wpZoom, gy);
+    }
+    wpCtx.stroke();
+    wpCtx.restore();
+  }
+
+  // ── WRENCH INDICATOR ──
+  // ── WRENCH INDICATOR ──
+  if (wpCurrentTool === 'wrench') {
+    // Ensure wrench icon is loaded
+    if (!window.wpWrenchIcon) {
+      window.wpWrenchIcon = new Image();
+      window.wpWrenchIcon.src = 'worldplanner/Blocks/spr_wrench/spr_wrench_0.png';
+    }
+
+    if (window.wpWrenchIcon.complete && window.wpWrenchIcon.naturalWidth > 0) {
+      // Wiggle animation: +/- 15 degrees (approx 0.26 rad)
+      const wiggleAngle = Math.sin(now / 150) * 0.26;
+
+      for (let y = vStartY; y <= vEndY; y++) {
+        if (!wpGrid[y]) continue;
+        for (let x = vStartX; x <= vEndX; x++) {
+          // Determine target block (FG priority, then BG)
+          let targetBlock = null;
+
+          // Check Foreground
+          let bd = wpGrid[y][x];
+          if (bd) {
+            const bid = (typeof bd === 'object') ? bd.id : bd;
+            const blk = wpBlockMap[bid];
+            if (blk && blk.wrench) targetBlock = blk;
+          }
+
+          // Check Background if no FG target
+          if (!targetBlock) {
+            let bdbg = wpBackgroundGrid[y][x];
+            if (bdbg) {
+              const bid = (typeof bdbg === 'object') ? bdbg.id : bdbg;
+              const blk = wpBlockMap[bid];
+              if (blk && blk.wrench) targetBlock = blk;
+            }
+          }
+
+          if (targetBlock) {
+            // Center of the block
+            const px = (x * BLOCK_SIZE + wpOffsetX + BLOCK_SIZE / 2) * wpZoom;
+            const py = (y * BLOCK_SIZE + wpOffsetY + BLOCK_SIZE / 2) * wpZoom;
+
+            wpCtx.save();
+            wpCtx.translate(px, py);
+            wpCtx.rotate(wiggleAngle);
+
+            // Draw centered (size: 24x24 scaled)
+            const w = 24 * wpZoom;
+            const h = 24 * wpZoom;
+            wpCtx.drawImage(window.wpWrenchIcon, -w / 2, -h / 2, w, h);
+
+            wpCtx.restore();
+          }
+        }
+      }
+    }
+  }
+
+  wpAnimationId = requestAnimationFrame(drawWPWorld);
+}
+
+// Page Visibility API Protection
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !wpAnimationId) {
+    const container = document.getElementById('world-planner-container');
+    if (container && container.style.display !== 'none') {
+      wpAnimationId = requestAnimationFrame(drawWPWorld);
+    }
+  }
+});
+
+
+// O(1) block lookup map â€” populated in loadWPManifest
+let wpBlockMap = {};
+
+async function loadWPManifest() {
+  try {
+    const response = await fetch(`worldplanner/blocks_manifest.json?t=${Date.now()}`);
+    const data = await response.json();
+    wpBlocks = data.blocks || [];
+    wpManifestThemes = data.themes || [];
+
+    // SCAN blocks for themes if dedicated themes array is empty
+    if (wpManifestThemes.length === 0) {
+      wpManifestThemes = wpBlocks.filter(b => b.type === 'theme');
+    }
+
+    // Build O(1) lookup map
+    wpBlockMap = {};
+    for (const b of wpBlocks) wpBlockMap[b.id] = b;
+
+    renderWPCollection();
+    setupTabListeners();
+    updateWPAnimatedCellList();
+
+    // CLEANUP & DEFAULTS (Must happen after manifest is loaded)
+    if (!wpBlocks.find(b => b.id === wpSelectedBlockId)) {
+      wpSelectedBlockId = 'spr_fg_dirt';
+    }
+    wpInventory = wpInventory.filter(id => wpBlocks.find(b => b.id === id));
+    if (wpInventory.length === 0) {
+      // Default set if empty
+      wpInventory = ['spr_fg_dirt', 'spr_fg_grass', 'spr_fg_obsidian_block', 'spr_fg_bedrock'];
+    }
+
+    renderWPInventory(); // Fix: Render inventory after blocks are loaded
+
+    // LOAD WORLD & TILING (Must happen after manifest is loaded)
+    // Check if grid is just empty nulls from the failsafe init in initWorldPlanner()
+    const isMeaningfullyEmpty = wpGrid.length === 0 || wpGrid.every(row => row.every(cell => cell === null));
+
+    if (isMeaningfullyEmpty) {
+      loadActiveWorld();
+    }
+
+    // Ensure bedrock foundation if still empty (fallback if loadActiveWorld failed or returned empty)
+    const isStillEmpty = wpGrid.length === 0 || wpGrid.every(row => row.every(cell => cell === null));
+    if (isStillEmpty) {
+      wpGrid = getWPDefaultGrid();
+      // Apply tiling logic initially
+      for (let y = 0; y < WORLD_HEIGHT; y++) {
+        for (let x = 0; x < WORLD_WIDTH; x++) {
+          wpUpdateTilingAt(x, y);
+        }
+      }
+    }
+
+    // Ensure buffers are correctly sized
+    const viewport = document.getElementById('wp-viewport');
+    if (viewport) {
+      const vw = viewport.clientWidth;
+      const vh = viewport.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
+      wpRainbowAnimatedCanvas.width = vw * dpr;
+      wpRainbowAnimatedCanvas.height = vh * dpr;
+      wpRainbowAnimatedCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      wpTempCanvas.width = vw * dpr;
+      wpTempCanvas.height = vh * dpr;
+      wpTempCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    // Ensure Static Cache is ready
+    rebuildWPStaticCache();
+
+    // Restore Theme AFTER manifest loads
+    const savedThemeId = localStorage.getItem('wp_planner_theme_id');
+    if (savedThemeId && wpManifestThemes.length > 0) {
+      setWPTheme(savedThemeId);
+    } else if (wpManifestThemes.length > 0) {
+      // Default fallback: Forest
+      setWPTheme('bg_forest');
+    }
+
+    setupWPBackgrounds();
+  } catch (err) {
+    console.warn("Could not load blocks manifest, using defaults.", err);
+  }
+}
+
+function setupTabListeners() {
+  const tabs = document.querySelectorAll('.wp-tab-btn');
+  tabs.forEach(tab => {
+    tab.onclick = () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      wpCurrentTab = tab.dataset.tab;
+      renderWPCollection();
+    };
+  });
+}
+
+function closeWPCatalogue() {
+  const catalogue = document.getElementById('blockCatalogue');
+  if (catalogue) catalogue.classList.add('hidden');
+}
+
+function renderWPCollection() {
+  const grid = document.getElementById('blockCatalogueGrid');
+  if (!grid) return;
+
+  grid.innerHTML = '';
+
+  // Filter by current tab (foreground vs background)
+  let itemsToRender = [];
+  if (wpCurrentTab === 'background') {
+    // Show only items that start with spr_bg_, are type background, and are not seeds
+    itemsToRender = wpBlocks.filter(b => b.id.startsWith('spr_bg_') && b.type === 'background' && !b.id.toLowerCase().includes('seed'));
+  } else {
+    itemsToRender = wpBlocks.filter(b => b.type === wpCurrentTab);
+  }
+
+  // Get search query
+  const searchInput = document.getElementById('blockSearch');
+  const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+  // Filter by search query
+  if (query) {
+    itemsToRender = itemsToRender.filter(b => b.name.toLowerCase().includes(query));
+  }
+
+  // Sort alphabetically by name
+  itemsToRender.sort((a, b) => a.name.localeCompare(b.name));
+
+  // Render items
+  itemsToRender.forEach(block => {
+    const item = document.createElement('div');
+    item.className = 'wp-cat-item';
+    if (wpSelectedBlockId === block.id) item.classList.add('active');
+
+    item.onclick = () => {
+      wpSelectedBlockId = block.id;
+      pushToWPInventory(block.id);
+      renderWPCollection(); // Update active state
+      closeWPCatalogue(); // Auto-close modal after selection
+    };
+
+    const img = document.createElement('img');
+    img.src = block.src;
+    img.alt = block.name;
+    item.appendChild(img);
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'wp-cat-name';
+    nameSpan.textContent = block.name;
+    item.appendChild(nameSpan);
+
+    grid.appendChild(item);
+  });
+}
+
+function pushToWPInventory(blockId) {
+  const idx = wpInventory.indexOf(blockId);
+  if (idx !== -1) {
+    // If already exists, move it to the front
+    wpInventory.splice(idx, 1);
+  }
+
+  wpInventory.unshift(blockId);
+  if (wpInventory.length > 10) wpInventory.pop();
+
+  // If we are actively painting, we defer the re-render to onmouseup
+  if (!isPainting) renderWPInventory();
+
+  // USER REQUEST: Auto-save inventory on change
+  saveActiveWorld();
+}
+
+function renderWPInventory() {
+  const container = document.querySelector('.wp-inventory');
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  // Always show 10 slots
+  for (let i = 0; i < 10; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'wp-slot';
+    if (wpInventory[i] === wpSelectedBlockId) slot.classList.add('active');
+
+    const blockId = wpInventory[i];
+    if (blockId) {
+      const block = wpBlocks.find(b => b.id === blockId);
+      if (block) {
+        const img = document.createElement('img');
+        img.src = block.src;
+        slot.appendChild(img);
+        slot.onclick = () => {
+          wpSelectedBlockId = blockId;
+          updateWPBlockCount();
+          renderWPInventory();
+        };
+      }
+    }
+
+    container.appendChild(slot);
+  }
+}
+
+window.searchBlocks = function () {
+  // We now use renderWPCollection for search filtering
+  renderWPCollection();
+
+  // Automatically open catalogue if user is searching
+  const catalogue = document.getElementById('blockCatalogue');
+  if (catalogue) catalogue.classList.remove('hidden');
+};
+
+function setWPTheme(themeId) {
+  const theme = wpManifestThemes.find(t => t.id === themeId);
+  if (!theme) return;
+
+  const viewport = document.getElementById('wp-viewport');
+  if (viewport) {
+    viewport.style.setProperty('--wp-theme-bg', `url("${theme.src}")`);
+    wpCurrentTheme = themeId;
+    // Isolated keys to prevent leakage into main app theme
+    localStorage.setItem('wp_planner_theme_bg', `url("${theme.src}")`);
+    localStorage.setItem('wp_planner_theme_id', themeId);
+  }
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    if (window.location.protocol !== 'file:') img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = (e) => reject(e);
+    img.src = src;
+  });
+}
+

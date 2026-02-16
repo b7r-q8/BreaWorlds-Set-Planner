@@ -1,0 +1,32 @@
+[
+  {
+    "id": "spr_fg_candle_checkpoint",
+    "name": "Candle Checkpoint",
+    "src": "worldplanner/Blocks/spr_fg_candle_checkpoint/spr_fg_candle_checkpoint_0.png",
+    "type": "foreground",
+    "framesPath": "worldplanner/Blocks/spr_fg_candle_checkpoint/spr_fg_candle_checkpoint_",
+    "frameCount": 5,
+    "fps": 10,
+    "group": "Miscellaneous"
+  },
+  {
+    "id": "spr_fg_checkpoint",
+    "name": "Checkpoint",
+    "src": "worldplanner/Blocks/spr_fg_checkpoint/spr_fg_checkpoint_0.png",
+    "type": "foreground",
+    "framesPath": "worldplanner/Blocks/spr_fg_checkpoint/spr_fg_checkpoint_",
+    "frameCount": 6,
+    "fps": 10,
+    "group": "Miscellaneous"
+  },
+  {
+    "id": "spr_fg_heart_checkpoint",
+    "name": "Heart Checkpoint",
+    "src": "worldplanner/Blocks/spr_fg_heart_checkpoint/spr_fg_heart_checkpoint_0.png",
+    "type": "foreground",
+    "framesPath": "worldplanner/Blocks/spr_fg_heart_checkpoint/spr_fg_heart_checkpoint_",
+    "frameCount": 6,
+    "fps": 5,
+    "group": "Miscellaneous"
+  }
+]

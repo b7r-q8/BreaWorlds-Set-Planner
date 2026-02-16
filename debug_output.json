@@ -1,0 +1,56 @@
+[
+  {
+    "id": "spr_fg_candle_checkpoint",
+    "name": "Candle Checkpoint",
+    "src": "worldplanner/Blocks/spr_fg_candle_checkpoint/spr_fg_candle_checkpoint_0.png",
+    "type": "foreground",
+    "framesPath": "worldplanner/Blocks/spr_fg_candle_checkpoint/spr_fg_candle_checkpoint_",
+    "frameCount": 5,
+    "fps": 10,
+    "group": "Miscellaneous"
+  },
+  {
+    "id": "spr_fg_checkpoint",
+    "name": "Checkpoint",
+    "src": "worldplanner/Blocks/spr_fg_checkpoint/spr_fg_checkpoint_0.png",
+    "type": "foreground",
+    "framesPath": "worldplanner/Blocks/spr_fg_checkpoint/spr_fg_checkpoint_",
+    "frameCount": 6,
+    "fps": 10,
+    "group": "Miscellaneous"
+  },
+  {
+    "id": "spr_fg_gem_machine",
+    "name": "Gem Machine",
+    "src": "worldplanner/Blocks/spr_fg_gem_machine/spr_fg_gem_machine_0.png",
+    "type": "foreground",
+    "framesPath": "worldplanner/Blocks/spr_fg_gem_machine/spr_fg_gem_machine_",
+    "frameCount": 12,
+    "fps": 10,
+    "group": "Miscellaneous",
+    "wrench": true,
+    "defaultState": 0
+  },
+  {
+    "id": "spr_fg_heart_checkpoint",
+    "name": "Heart Checkpoint",
+    "src": "worldplanner/Blocks/spr_fg_heart_checkpoint/spr_fg_heart_checkpoint_0.png",
+    "type": "foreground",
+    "framesPath": "worldplanner/Blocks/spr_fg_heart_checkpoint/spr_fg_heart_checkpoint_",
+    "frameCount": 6,
+    "fps": 5,
+    "group": "Miscellaneous"
+  },
+  {
+    "id": "spr_fg_xmas_dj_box",
+    "name": "Xmas Dj Box",
+    "src": "worldplanner/Blocks/spr_fg_xmas_dj_box/spr_fg_xmas_dj_box_0.png",
+    "type": "foreground",
+    "framesPath": "worldplanner/Blocks/spr_fg_xmas_dj_box/spr_fg_xmas_dj_box_",
+    "frameCount": 9,
+    "fps": 3,
+    "wrench": true,
+    "defaultState": 0,
+    "group": "Miscellaneous"
+  }
+]
