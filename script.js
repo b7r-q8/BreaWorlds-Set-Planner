@@ -6348,10 +6348,8 @@ function setupWPEvents() {
       if (wpCurrentTool === 'move') {
         isPanning = true;
       } else {
-        if (!wpMultiTouchActive) {
-          isPainting = true;
-          handleWPInteraction(e.touches[0]);
-        }
+        // Don't start painting yet - wait for long press timer or touchmove
+        // to determine if this is a hold (copy) or a drag (paint)
       }
       wpLastTouchX = e.touches[0].clientX;
       wpLastTouchY = e.touches[0].clientY;
@@ -6414,7 +6412,13 @@ function setupWPEvents() {
         wpLastTouchX = touch.clientX;
         wpLastTouchY = touch.clientY;
       } else {
-        handleWPInteraction(e.touches[0]);
+        // Start painting on move if long press was cancelled
+        if (wpTouchTimer === null && !isPainting && wpCurrentTool !== 'move') {
+          isPainting = true;
+        }
+        if (isPainting) {
+          handleWPInteraction(e.touches[0]);
+        }
       }
     }
   }, { passive: false });
