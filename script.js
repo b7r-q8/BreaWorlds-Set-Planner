@@ -6486,6 +6486,7 @@ function pickWPBlock(e) {
 
     // 4. Inventory
     pushToWPInventory(block.id);
+    renderWPInventory(); // Update inventory slot visually
   }
 }
 
