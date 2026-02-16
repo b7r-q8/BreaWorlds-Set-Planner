@@ -7240,30 +7240,30 @@ function drawWPWorld(timestamp) {
   if (hasRainbow) {
     const cycleWidth = 1600;
     const offset = (now / 28) % cycleWidth;
-    if (typeof DOMMatrix !== 'undefined') {
-      // Anchor the rainbow pattern to world coordinates so it doesn't
-      // slide with the viewport. Apply pan (wpOffsetX/wpOffsetY) and
-      // zoom (wpZoom), then rotate and translate for the animated offset.
-      const m = new DOMMatrix();
-      // Translate to account for world pan (in screen pixels)
-      m.translateSelf(wpOffsetX * wpZoom, wpOffsetY * wpZoom);
-      // Apply rotation for diagonal rainbow
-      m.rotateSelf(45);
-      // Apply animated horizontal offset
-      m.translateSelf(-offset, 0);
-      // Scale pattern with zoom so it lines up with world blocks
-      m.scaleSelf(wpZoom, wpZoom);
-      wpRainbowPattern.setTransform(m);
-    }
 
-    // Simplified composite: Pattern -> Mask(dest-in) -> Screen(multiply)
+    // Draw rainbow with a pattern created on the temp context so the
+    // transform will be correct for the temp buffer (accounts for DPR).
     wpTempCtx.clearRect(0, 0, viewWidth, viewHeight);
     wpTempCtx.save();
-    wpTempCtx.fillStyle = wpRainbowPattern;
-    wpTempCtx.fillRect(0, 0, viewWidth, viewHeight);
-    wpTempCtx.globalCompositeOperation = 'destination-in';
-    wpTempCtx.drawImage(wpRainbowAnimatedCanvas, 0, 0);
-    wpTempCtx.restore();
+    try {
+      const dpr = window.devicePixelRatio || 1;
+      const tPattern = wpTempCtx.createPattern(wpRainbowPatternCanvas, 'repeat');
+      if (tPattern && typeof DOMMatrix !== 'undefined') {
+        const m = new DOMMatrix();
+        // Apply pan (logical pixels * zoom) then rotate and offset
+        m.translateSelf(wpOffsetX * wpZoom * dpr, wpOffsetY * wpZoom * dpr);
+        m.rotateSelf(45);
+        m.translateSelf(-offset * dpr, 0);
+        m.scaleSelf(wpZoom * dpr, wpZoom * dpr);
+        tPattern.setTransform(m);
+      }
+      wpTempCtx.fillStyle = tPattern || wpTempCtx.createPattern(wpRainbowPatternCanvas, 'repeat');
+      wpTempCtx.fillRect(0, 0, viewWidth, viewHeight);
+      wpTempCtx.globalCompositeOperation = 'destination-in';
+      wpTempCtx.drawImage(wpRainbowAnimatedCanvas, 0, 0);
+    } finally {
+      wpTempCtx.restore();
+    }
 
     wpCtx.save();
     wpCtx.globalCompositeOperation = 'multiply';
