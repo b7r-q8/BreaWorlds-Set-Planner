@@ -6997,7 +6997,7 @@ function drawWPWorld(timestamp) {
   const vStartY = Math.max(0, Math.floor(-wpOffsetY / BLOCK_SIZE));
   const vEndY = Math.min(WORLD_HEIGHT - 1, Math.ceil((-wpOffsetY + viewHeight / wpZoom) / BLOCK_SIZE));
 
-  wpCtx.clearRect(0, 0, viewWidth, viewHeight); // Scale has been applied, clear logical area
+  wpCtx.clearRect(0, 0, scaledWidth, scaledHeight);
 
   // Buffer prep
   let hasRainbow = false;
@@ -7234,7 +7234,7 @@ function drawWPWorld(timestamp) {
       if (isRainbow) {
         // Lazy clear: only clear the buffer once per frame, and only if we actually have rainbow blocks
         if (!rainbowBufferCleared) {
-          wpRainbowAnimatedCtx.clearRect(0, 0, viewWidth, viewHeight);
+          wpRainbowAnimatedCtx.clearRect(0, 0, scaledWidth, scaledHeight);
           rainbowBufferCleared = true;
         }
         hasRainbow = true;
@@ -7261,7 +7261,7 @@ function drawWPWorld(timestamp) {
 
     // Draw rainbow with a pattern created on the temp context so the
     // transform will be correct for the temp buffer (accounts for DPR).
-    wpTempCtx.clearRect(0, 0, viewWidth, viewHeight);
+    wpTempCtx.clearRect(0, 0, scaledWidth, scaledHeight);
     wpTempCtx.save();
     try {
       const dpr = window.devicePixelRatio || 1;
@@ -7276,16 +7276,16 @@ function drawWPWorld(timestamp) {
         tPattern.setTransform(m);
       }
       wpTempCtx.fillStyle = tPattern || wpTempCtx.createPattern(wpRainbowPatternCanvas, 'repeat');
-      wpTempCtx.fillRect(0, 0, viewWidth, viewHeight);
+      wpTempCtx.fillRect(0, 0, scaledWidth, scaledHeight);
       wpTempCtx.globalCompositeOperation = 'destination-in';
-      wpTempCtx.drawImage(wpRainbowAnimatedCanvas, 0, 0);
+      wpTempCtx.drawImage(wpRainbowAnimatedCanvas, 0, 0, scaledWidth, scaledHeight);
     } finally {
       wpTempCtx.restore();
     }
 
     wpCtx.save();
     wpCtx.globalCompositeOperation = 'multiply';
-    wpCtx.drawImage(wpTempCanvas, 0, 0);
+    wpCtx.drawImage(wpTempCanvas, 0, 0, scaledWidth, scaledHeight);
     wpCtx.restore();
   }
 
@@ -7442,13 +7442,19 @@ async function loadWPManifest() {
       const vw = viewport.clientWidth;
       const vh = viewport.clientHeight;
       const dpr = window.devicePixelRatio || 1;
+      
+      // Reset transforms before resizing to avoid compounding
+      wpRainbowAnimatedCtx.setTransform(1, 0, 0, 1, 0, 0);
       wpRainbowAnimatedCanvas.width = vw * dpr;
       wpRainbowAnimatedCanvas.height = vh * dpr;
-      wpRainbowAnimatedCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      wpRainbowAnimatedCtx.scale(dpr, dpr);
+      disableWPSmoothing(wpRainbowAnimatedCtx);
 
+      wpTempCtx.setTransform(1, 0, 0, 1, 0, 0);
       wpTempCanvas.width = vw * dpr;
       wpTempCanvas.height = vh * dpr;
-      wpTempCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      wpTempCtx.scale(dpr, dpr);
+      disableWPSmoothing(wpTempCtx);
     }
 
     // Ensure Static Cache is ready
