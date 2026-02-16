@@ -6176,11 +6176,14 @@ async function generateWPWorldPreview() {
                 ((y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0)) * scale;
               offCtx.drawImage(img, px, py, nw * scale, nh * scale);
               
-              // Add rainbow overlay for rainbow blocks in preview
+              // Add rainbow overlay for rainbow blocks in preview (multiply blend)
               if (bid && bid.includes('rainbow')) {
                 const hue = ((x + y * 0.5) * 10) % 360;
-                offCtx.fillStyle = `hsla(${hue}, 100%, 30%, 0.85)`;
+                offCtx.save();
+                offCtx.globalCompositeOperation = 'multiply';
+                offCtx.fillStyle = `hsl(${hue}, 100%, 50%)`;
                 offCtx.fillRect(px, py, nw * scale, nh * scale);
+                offCtx.restore();
               }
             }
           }
@@ -7238,23 +7241,28 @@ function drawWPWorld(timestamp) {
       if (blk.verticalAlign === 'center' && !useStaticIcon) py = Math.round((cell.y * BLOCK_SIZE + (BLOCK_SIZE - nh) / 2 + wpOffsetY) * wpZoom);
       else py = Math.round(((cell.y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0) + wpOffsetY) * wpZoom);
 
-      // Draw the block
-      wpCtx.drawImage(img, px, py, Math.round(nw * wpZoom), Math.round(nh * wpZoom));
-
-      // For rainbow blocks, calculate color based on position in world (creates flowing gradient)
+      // For rainbow blocks, draw with multiply blend mode for vibrant overlay
       if (isRainbow) {
+        // First draw the block at full opacity
+        wpCtx.drawImage(img, px, py, Math.round(nw * wpZoom), Math.round(nh * wpZoom));
+        
         const w = Math.round(nw * wpZoom);
         const h = Math.round(nh * wpZoom);
         
         // Calculate hue based on block position + time (creates flowing rainbow across all blocks)
-        // Use cell.x and cell.y to create spatial gradient, add time for animation
-        const spatialOffset = (cell.x + cell.y * 0.5) * 10; // Spatial component
-        const timeOffset = (now / 50); // Time component (matches player name speed)
+        const spatialOffset = (cell.x + cell.y * 0.5) * 10;
+        const timeOffset = (now / 50);
         const hue = ((spatialOffset + timeOffset) % 360);
         
-        // Use HSL for smooth rainbow colors - much darker/more vibrant (30% lightness, higher opacity)
-        wpCtx.fillStyle = `hsla(${hue}, 100%, 30%, 0.85)`;
+        // Draw rainbow overlay with multiply blend for rich colors
+        wpCtx.save();
+        wpCtx.globalCompositeOperation = 'multiply';
+        wpCtx.fillStyle = `hsl(${hue}, 100%, 50%)`;
         wpCtx.fillRect(px, py, w, h);
+        wpCtx.restore();
+      } else {
+        // Non-rainbow blocks draw normally
+        wpCtx.drawImage(img, px, py, Math.round(nw * wpZoom), Math.round(nh * wpZoom));
       }
     }
   };
