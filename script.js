@@ -7269,9 +7269,9 @@ function drawWPWorld(timestamp) {
         const w = Math.round(nw * wpZoom);
         const h = Math.round(nh * wpZoom);
         
-        // Calculate hue based on block position + time
+        // Calculate hue based on block position + time (slower animation)
         const spatialOffset = (cell.x + cell.y * 0.5) * 10;
-        const timeOffset = (now / 50);
+        const timeOffset = (now / 100); // Slower: 100ms instead of 50ms
         const hue = ((spatialOffset + timeOffset) % 360);
         
         // Use multiply blend mode (matches PNG export method)
