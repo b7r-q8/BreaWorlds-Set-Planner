@@ -6156,7 +6156,7 @@ async function generateWPWorldPreview() {
     if (wpStaticBlockCanvas) offCtx.drawImage(wpStaticBlockCanvas, 0, 0);
     offCtx.restore();
 
-    // 5. Animated Layers (Synchronous using cache)
+    // 5. Animated Layers (Synchronous using cache) - includes rainbow blocks
     for (let y = 0; y < WORLD_HEIGHT; y++) {
       for (let x = 0; x < WORLD_WIDTH; x++) {
         [wpGrid, wpBackgroundGrid].forEach(grid => {
@@ -6164,10 +6164,23 @@ async function generateWPWorldPreview() {
           if (!bd) return;
           const bid = (typeof bd === 'object') ? bd.id : bd;
           const blk = wpBlockMap[bid];
-          if (blk && blk.framesPath && (typeof bd !== 'object' || bd.state === undefined)) {
-            const fs = blk.frameStart || 0;
-            const path = `${blk.framesPath}${fs}.png`;
-            const img = cache[path];
+          const isRainbow = bid && bid.includes('rainbow');
+          
+          // Draw animated blocks OR rainbow blocks
+          if ((blk && blk.framesPath && (typeof bd !== 'object' || bd.state === undefined)) || isRainbow) {
+            let path, img;
+            
+            if (isRainbow) {
+              // Rainbow blocks use their base image
+              path = blk.src;
+              img = cache[path];
+            } else {
+              // Regular animated blocks use first frame
+              const fs = blk.frameStart || 0;
+              path = `${blk.framesPath}${fs}.png`;
+              img = cache[path];
+            }
+            
             if (img) {
               const nw = img.naturalWidth, nh = img.naturalHeight;
               const px = (x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2 + (blk.xOffset || 0)) * scale;
@@ -6177,7 +6190,7 @@ async function generateWPWorldPreview() {
               offCtx.drawImage(img, px, py, nw * scale, nh * scale);
               
               // Add rainbow overlay for rainbow blocks in preview (multiply blend)
-              if (bid && bid.includes('rainbow')) {
+              if (isRainbow) {
                 const hue = ((x + y * 0.5) * 10) % 360;
                 offCtx.save();
                 offCtx.globalCompositeOperation = 'multiply';
@@ -7082,6 +7095,9 @@ function drawWPWorld(timestamp) {
       // Skip shadow for fluids (lava/water/acid/mud) — they don't cast shadows in-game
       const isFluid = bid === 'spr_fg_water_block' || bid === 'spr_fg_acid_block' || bid === 'spr_fg_mud_block' || bid === 'spr_fg_lava_block';
       if (isFluid) continue;
+      // Skip shadow for rainbow blocks (they're drawn with overlay, shadow looks doubled)
+      const isRainbow = bid && bid.includes('rainbow');
+      if (isRainbow) continue;
 
       const isDjBox = bid === 'spr_fg_xmas_dj_box';
       const isGemMachine = bid === 'spr_fg_gem_machine';
