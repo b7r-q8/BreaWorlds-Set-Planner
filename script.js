@@ -6395,6 +6395,28 @@ function setupWPEvents() {
       if (wpCurrentTool === 'move') {
         isPanning = true;
       } else {
+        // Smart Erase Check: If starting on a matching block, activate Smart Erase Mode
+        if (wpCurrentTool === 'pencil') {
+          const rect = wpCanvas.getBoundingClientRect();
+          const canvasTouchX = (e.touches[0].clientX - rect.left) / wpZoom - wpOffsetX;
+          const canvasTouchY = (e.touches[0].clientY - rect.top) / wpZoom - wpOffsetY;
+          const x = Math.floor(canvasTouchX / BLOCK_SIZE);
+          const y = Math.floor(canvasTouchY / BLOCK_SIZE);
+
+          if (x >= 0 && x < WORLD_WIDTH && y >= 0 && y < WORLD_HEIGHT) {
+            const newBlock = wpBlockMap[wpSelectedBlockId];
+            if (newBlock) {
+              const isBg = newBlock.type === 'background';
+              const targetGrid = isBg ? wpBackgroundGrid : wpGrid;
+              const currentData = targetGrid[y][x];
+              const currentId = (typeof currentData === 'object' && currentData !== null) ? currentData.id : currentData;
+
+              if (currentId === wpSelectedBlockId) {
+                isSmartEraserMode = true;
+              }
+            }
+          }
+        }
         // Start painting (will be completed on touchmove or touchend if no movement)
         isPainting = true;
       }
