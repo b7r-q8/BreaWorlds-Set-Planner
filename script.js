@@ -6176,11 +6176,12 @@ async function generateWPWorldPreview() {
                 ((y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0)) * scale;
               offCtx.drawImage(img, px, py, nw * scale, nh * scale);
               
-              // Add rainbow overlay for rainbow blocks in preview (multiply blend)
+              // Add rainbow overlay for rainbow blocks in preview (source-atop)
               if (bid && bid.includes('rainbow')) {
                 const hue = ((x + y * 0.5) * 10) % 360;
                 offCtx.save();
-                offCtx.globalCompositeOperation = 'multiply';
+                offCtx.globalCompositeOperation = 'source-atop';
+                offCtx.globalAlpha = 0.6;
                 offCtx.fillStyle = `hsl(${hue}, 100%, 50%)`;
                 offCtx.fillRect(px, py, nw * scale, nh * scale);
                 offCtx.restore();
@@ -7241,22 +7242,23 @@ function drawWPWorld(timestamp) {
       if (blk.verticalAlign === 'center' && !useStaticIcon) py = Math.round((cell.y * BLOCK_SIZE + (BLOCK_SIZE - nh) / 2 + wpOffsetY) * wpZoom);
       else py = Math.round(((cell.y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0) + wpOffsetY) * wpZoom);
 
-      // For rainbow blocks, draw with multiply blend mode for vibrant overlay
+      // For rainbow blocks, use source-atop to colorize only the block pixels
       if (isRainbow) {
-        // First draw the block at full opacity
-        wpCtx.drawImage(img, px, py, Math.round(nw * wpZoom), Math.round(nh * wpZoom));
-        
         const w = Math.round(nw * wpZoom);
         const h = Math.round(nh * wpZoom);
         
-        // Calculate hue based on block position + time (creates flowing rainbow across all blocks)
+        // Calculate hue based on block position + time
         const spatialOffset = (cell.x + cell.y * 0.5) * 10;
         const timeOffset = (now / 50);
         const hue = ((spatialOffset + timeOffset) % 360);
         
-        // Draw rainbow overlay with multiply blend for rich colors
+        // Draw block first at full opacity
+        wpCtx.drawImage(img, px, py, w, h);
+        
+        // Apply rainbow tint using source-atop (only affects existing pixels)
         wpCtx.save();
-        wpCtx.globalCompositeOperation = 'multiply';
+        wpCtx.globalCompositeOperation = 'source-atop';
+        wpCtx.globalAlpha = 0.6; // Control rainbow intensity
         wpCtx.fillStyle = `hsl(${hue}, 100%, 50%)`;
         wpCtx.fillRect(px, py, w, h);
         wpCtx.restore();
