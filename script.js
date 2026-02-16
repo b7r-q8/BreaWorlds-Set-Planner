@@ -6116,7 +6116,7 @@ async function generateWPWorldPreview() {
   const imageUrls = new Set();
   if (bgUrl) imageUrls.add(bgUrl);
 
-  // Animated blocks (first frame)
+  // Animated blocks (first frame) + rainbow blocks
   for (let y = 0; y < WORLD_HEIGHT; y++) {
     for (let x = 0; x < WORLD_WIDTH; x++) {
       [wpGrid, wpBackgroundGrid].forEach(grid => {
@@ -6124,8 +6124,12 @@ async function generateWPWorldPreview() {
         if (!bd) return;
         const bid = (typeof bd === 'object') ? bd.id : bd;
         const blk = wpBlockMap[bid];
-        // If it's effectively animated in this session (no static state yet)
-        if (blk && blk.framesPath && (typeof bd !== 'object' || bd.state === undefined)) {
+        const isRainbow = bid && bid.includes('rainbow');
+        
+        // Preload rainbow blocks OR animated blocks
+        if (isRainbow && blk) {
+          imageUrls.add(blk.src);
+        } else if (blk && blk.framesPath && (typeof bd !== 'object' || bd.state === undefined)) {
           const fs = blk.frameStart || 0;
           imageUrls.add(`${blk.framesPath}${fs}.png`);
         }
