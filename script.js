@@ -7234,25 +7234,19 @@ function drawWPWorld(timestamp) {
       // Draw the block
       wpCtx.drawImage(img, px, py, Math.round(nw * wpZoom), Math.round(nh * wpZoom));
 
-      // For rainbow blocks, draw gradient overlay directly (simpler and more reliable on mobile)
+      // For rainbow blocks, calculate color based on position in world (creates flowing gradient)
       if (isRainbow) {
         const w = Math.round(nw * wpZoom);
         const h = Math.round(nh * wpZoom);
         
-        // Create animated gradient
-        const gradient = wpCtx.createLinearGradient(px, py, px + w, py + h);
-        const offset = (now / 50) % 1; // Animation offset
+        // Calculate hue based on block position + time (creates flowing rainbow across all blocks)
+        // Use cell.x and cell.y to create spatial gradient, add time for animation
+        const spatialOffset = (cell.x + cell.y * 0.5) * 10; // Spatial component
+        const timeOffset = (now / 50); // Time component (matches player name speed)
+        const hue = ((spatialOffset + timeOffset) % 360);
         
-        // Rainbow gradient colors
-        gradient.addColorStop((0 + offset) % 1, 'rgba(255, 0, 0, 0.6)');
-        gradient.addColorStop((0.17 + offset) % 1, 'rgba(255, 165, 0, 0.6)');
-        gradient.addColorStop((0.33 + offset) % 1, 'rgba(255, 255, 0, 0.6)');
-        gradient.addColorStop((0.5 + offset) % 1, 'rgba(0, 128, 0, 0.6)');
-        gradient.addColorStop((0.67 + offset) % 1, 'rgba(0, 0, 255, 0.6)');
-        gradient.addColorStop((0.83 + offset) % 1, 'rgba(128, 0, 128, 0.6)');
-        gradient.addColorStop((1 + offset) % 1, 'rgba(255, 0, 0, 0.6)');
-        
-        wpCtx.fillStyle = gradient;
+        // Use HSL for smooth rainbow colors (matches CSS rainbow-fade animation)
+        wpCtx.fillStyle = `hsla(${hue}, 100%, 50%, 0.6)`;
         wpCtx.fillRect(px, py, w, h);
       }
     }
