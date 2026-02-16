@@ -7241,7 +7241,19 @@ function drawWPWorld(timestamp) {
     const cycleWidth = 1600;
     const offset = (now / 28) % cycleWidth;
     if (typeof DOMMatrix !== 'undefined') {
-      wpRainbowPattern.setTransform(new DOMMatrix().rotate(45).translate(-offset, 0));
+      // Anchor the rainbow pattern to world coordinates so it doesn't
+      // slide with the viewport. Apply pan (wpOffsetX/wpOffsetY) and
+      // zoom (wpZoom), then rotate and translate for the animated offset.
+      const m = new DOMMatrix();
+      // Translate to account for world pan (in screen pixels)
+      m.translateSelf(wpOffsetX * wpZoom, wpOffsetY * wpZoom);
+      // Apply rotation for diagonal rainbow
+      m.rotateSelf(45);
+      // Apply animated horizontal offset
+      m.translateSelf(-offset, 0);
+      // Scale pattern with zoom so it lines up with world blocks
+      m.scaleSelf(wpZoom, wpZoom);
+      wpRainbowPattern.setTransform(m);
     }
 
     // Simplified composite: Pattern -> Mask(dest-in) -> Screen(multiply)
