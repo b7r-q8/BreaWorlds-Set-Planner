@@ -7231,19 +7231,29 @@ function drawWPWorld(timestamp) {
       if (blk.verticalAlign === 'center' && !useStaticIcon) py = Math.round((cell.y * BLOCK_SIZE + (BLOCK_SIZE - nh) / 2 + wpOffsetY) * wpZoom);
       else py = Math.round(((cell.y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0) + wpOffsetY) * wpZoom);
 
+      // Draw the block
+      wpCtx.drawImage(img, px, py, Math.round(nw * wpZoom), Math.round(nh * wpZoom));
+
+      // For rainbow blocks, draw gradient overlay directly (simpler and more reliable on mobile)
       if (isRainbow) {
-        // Lazy clear: only clear the buffer once per frame, and only if we actually have rainbow blocks
-        if (!rainbowBufferCleared) {
-          wpRainbowAnimatedCtx.clearRect(0, 0, scaledWidth, scaledHeight);
-          rainbowBufferCleared = true;
-        }
-        hasRainbow = true;
-        // 1. Draw standard block PNG to main viewport (fixes gaps/divided lines)
-        wpCtx.drawImage(img, px, py, Math.round(nw * wpZoom), Math.round(nh * wpZoom));
-        // 2. Draw standard block PNG to effect mask (ensures perfect alignment)
-        wpRainbowAnimatedCtx.drawImage(img, px, py, Math.round(nw * wpZoom), Math.round(nh * wpZoom));
-      } else {
-        wpCtx.drawImage(img, px, py, Math.round(nw * wpZoom), Math.round(nh * wpZoom));
+        const w = Math.round(nw * wpZoom);
+        const h = Math.round(nh * wpZoom);
+        
+        // Create animated gradient
+        const gradient = wpCtx.createLinearGradient(px, py, px + w, py + h);
+        const offset = (now / 50) % 1; // Animation offset
+        
+        // Rainbow gradient colors
+        gradient.addColorStop((0 + offset) % 1, 'rgba(255, 0, 0, 0.6)');
+        gradient.addColorStop((0.17 + offset) % 1, 'rgba(255, 165, 0, 0.6)');
+        gradient.addColorStop((0.33 + offset) % 1, 'rgba(255, 255, 0, 0.6)');
+        gradient.addColorStop((0.5 + offset) % 1, 'rgba(0, 128, 0, 0.6)');
+        gradient.addColorStop((0.67 + offset) % 1, 'rgba(0, 0, 255, 0.6)');
+        gradient.addColorStop((0.83 + offset) % 1, 'rgba(128, 0, 128, 0.6)');
+        gradient.addColorStop((1 + offset) % 1, 'rgba(255, 0, 0, 0.6)');
+        
+        wpCtx.fillStyle = gradient;
+        wpCtx.fillRect(px, py, w, h);
       }
     }
   };
