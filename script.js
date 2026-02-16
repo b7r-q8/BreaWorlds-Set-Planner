@@ -7245,8 +7245,8 @@ function drawWPWorld(timestamp) {
         const timeOffset = (now / 50); // Time component (matches player name speed)
         const hue = ((spatialOffset + timeOffset) % 360);
         
-        // Use HSL for smooth rainbow colors (matches CSS rainbow-fade animation)
-        wpCtx.fillStyle = `hsla(${hue}, 100%, 50%, 0.6)`;
+        // Use HSL for smooth rainbow colors - darker/more vibrant (40% lightness instead of 50%)
+        wpCtx.fillStyle = `hsla(${hue}, 100%, 40%, 0.7)`;
         wpCtx.fillRect(px, py, w, h);
       }
     }
