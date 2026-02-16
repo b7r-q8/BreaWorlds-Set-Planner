@@ -6175,6 +6175,13 @@ async function generateWPWorldPreview() {
                 (y * BLOCK_SIZE + (BLOCK_SIZE - nh) / 2) * scale :
                 ((y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0)) * scale;
               offCtx.drawImage(img, px, py, nw * scale, nh * scale);
+              
+              // Add rainbow overlay for rainbow blocks in preview
+              if (bid && bid.includes('rainbow')) {
+                const hue = ((x + y * 0.5) * 10) % 360;
+                offCtx.fillStyle = `hsla(${hue}, 100%, 30%, 0.85)`;
+                offCtx.fillRect(px, py, nw * scale, nh * scale);
+              }
             }
           }
         });
@@ -7245,8 +7252,8 @@ function drawWPWorld(timestamp) {
         const timeOffset = (now / 50); // Time component (matches player name speed)
         const hue = ((spatialOffset + timeOffset) % 360);
         
-        // Use HSL for smooth rainbow colors - darker/more vibrant (40% lightness instead of 50%)
-        wpCtx.fillStyle = `hsla(${hue}, 100%, 40%, 0.7)`;
+        // Use HSL for smooth rainbow colors - much darker/more vibrant (30% lightness, higher opacity)
+        wpCtx.fillStyle = `hsla(${hue}, 100%, 30%, 0.85)`;
         wpCtx.fillRect(px, py, w, h);
       }
     }
