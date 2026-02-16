@@ -6303,10 +6303,12 @@ function setupWPEvents() {
   let wpTouchTimer = null;
   let wpTouchStartX = 0;
   let wpTouchStartY = 0;
+  let wpTouchDidMove = false;
 
   wpCanvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
     wpTouchActive = true;
+    wpTouchDidMove = false;
 
     // Reset timer on new touch
     if (wpTouchTimer) clearTimeout(wpTouchTimer);
@@ -6348,8 +6350,8 @@ function setupWPEvents() {
       if (wpCurrentTool === 'move') {
         isPanning = true;
       } else {
-        // Don't start painting yet - wait for long press timer or touchmove
-        // to determine if this is a hold (copy) or a drag (paint)
+        // Start painting (will be completed on touchmove or touchend if no movement)
+        isPainting = true;
       }
       wpLastTouchX = e.touches[0].clientX;
       wpLastTouchY = e.touches[0].clientY;
@@ -6364,6 +6366,7 @@ function setupWPEvents() {
       const moveX = Math.abs(e.touches[0].clientX - wpTouchStartX);
       const moveY = Math.abs(e.touches[0].clientY - wpTouchStartY);
       if (moveX > 10 || moveY > 10) {
+        wpTouchDidMove = true;
         clearTimeout(wpTouchTimer);
         wpTouchTimer = null;
       }
@@ -6411,14 +6414,9 @@ function setupWPEvents() {
         }
         wpLastTouchX = touch.clientX;
         wpLastTouchY = touch.clientY;
-      } else {
-        // Start painting on move if long press was cancelled
-        if (wpTouchTimer === null && !isPainting && wpCurrentTool !== 'move') {
-          isPainting = true;
-        }
-        if (isPainting) {
-          handleWPInteraction(e.touches[0]);
-        }
+      } else if (isPainting) {
+        // Paint while moving
+        handleWPInteraction(e.touches[0]);
       }
     }
   }, { passive: false });
@@ -6429,10 +6427,19 @@ function setupWPEvents() {
     if (e.touches.length === 0) {
       wpMultiTouchActive = false; // UNLOCK
       wpTouchActive = false;
+      
+      // If no movement occurred and long press didn't trigger, do a single paint action
+      if (!wpTouchDidMove && wpTouchTimer !== null && isPainting) {
+        clearTimeout(wpTouchTimer);
+        wpTouchTimer = null;
+        handleWPInteraction({ clientX: wpTouchStartX, clientY: wpTouchStartY });
+      }
+      
       // Trigger mouseup-style cleanup
       window.onmouseup();
       wpLastTouchX = undefined;
       wpLastTouchY = undefined;
+      wpTouchDidMove = false;
       wpMarkDirty(); // Final high-quality redraw
     }
   }, { passive: false });
