@@ -4854,146 +4854,94 @@
       "themes": [
             {
                   "id": "bg_desert",
-                  "name": "Desert",
+                  "name": "Desert Theme",
                   "src": "worldplanner/Blocks/bg_desert/bg_desert_0.png",
                   "type": "theme"
             },
             {
                   "id": "bg_forest",
-                  "name": "Forest",
+                  "name": "Forest Theme",
                   "src": "worldplanner/Blocks/bg_forest/bg_forest_0.png",
                   "type": "theme"
             },
             {
                   "id": "bg_halloween",
-                  "name": "Halloween",
+                  "name": "Halloween Theme",
                   "src": "worldplanner/Blocks/bg_halloween/bg_halloween_0.png",
                   "type": "theme"
             },
             {
                   "id": "bg_light",
-                  "name": "Light",
+                  "name": "Light Theme",
                   "src": "worldplanner/Blocks/bg_light/bg_light_0.png",
                   "type": "theme"
             },
-            {
-                  "id": "bg_menu",
-                  "name": "Menu",
-                  "src": "worldplanner/Blocks/bg_menu/bg_menu_0.png",
-                  "type": "theme"
-            },
-            {
-                  "id": "bg_menu_carnival",
-                  "name": "Menu Carnival",
-                  "src": "worldplanner/Blocks/bg_menu_carnival/bg_menu_carnival_0.png",
-                  "type": "theme"
-            },
-            {
-                  "id": "bg_menu_christmas",
-                  "name": "Menu Christmas",
-                  "src": "worldplanner/Blocks/bg_menu_christmas/bg_menu_christmas_0.png",
-                  "type": "theme"
-            },
-            {
-                  "id": "bg_menu_christmas_new",
-                  "name": "Menu Christmas New",
-                  "src": "worldplanner/Blocks/bg_menu_christmas_new/bg_menu_christmas_new_0.png",
-                  "type": "theme"
-            },
-            {
-                  "id": "bg_menu_halloween",
-                  "name": "Menu Halloween",
-                  "src": "worldplanner/Blocks/bg_menu_halloween/bg_menu_halloween_0.png",
-                  "type": "theme"
-            },
-            {
-                  "id": "bg_menu_main",
-                  "name": "Menu Main",
-                  "src": "worldplanner/Blocks/bg_menu_main/bg_menu_main_0.png",
-                  "type": "theme"
-            },
-            {
-                  "id": "bg_menu_space",
-                  "name": "Menu Space",
-                  "src": "worldplanner/Blocks/bg_menu_space/bg_menu_space_0.png",
-                  "type": "theme"
-            },
-            {
-                  "id": "bg_menu_valentines",
-                  "name": "Menu Valentines",
-                  "src": "worldplanner/Blocks/bg_menu_valentines/bg_menu_valentines_0.png",
-                  "type": "theme"
-            },
+
             {
                   "id": "bg_midnight",
-                  "name": "Midnight",
+                  "name": "Midnight Theme",
                   "src": "worldplanner/Blocks/bg_midnight/bg_midnight_0.png",
                   "type": "theme"
             },
             {
                   "id": "bg_newween",
-                  "name": "Newween",
+                  "name": "Volcano Theme",
                   "src": "worldplanner/Blocks/bg_newween/bg_newween_0.png",
                   "type": "theme"
             },
             {
                   "id": "bg_night",
-                  "name": "Night",
+                  "name": "Night Theme",
                   "src": "worldplanner/Blocks/bg_night/bg_night_0.png",
                   "type": "theme"
             },
-            {
-                  "id": "bg_prestige",
-                  "name": "Prestige",
-                  "src": "worldplanner/Blocks/bg_prestige/bg_prestige_0.png",
-                  "type": "theme"
-            },
+
             {
                   "id": "bg_retro",
-                  "name": "Retro",
+                  "name": "Retro Theme",
                   "src": "worldplanner/Blocks/bg_retro/bg_retro_0.png",
                   "type": "theme"
             },
             {
                   "id": "bg_space",
-                  "name": "Space",
+                  "name": "Space Theme",
                   "src": "worldplanner/Blocks/bg_space/bg_space_0.png",
                   "type": "theme"
             },
             {
-                  "id": "bg_spooky",
-                  "name": "Spooky",
-                  "src": "worldplanner/Blocks/bg_spooky/bg_spooky_0.png",
-                  "type": "theme"
-            },
-            {
                   "id": "bg_spooky_new",
-                  "name": "Spooky New",
+                  "name": "Spooky Theme",
                   "src": "worldplanner/Blocks/bg_spooky_new/bg_spooky_new_0.png",
                   "type": "theme"
             },
             {
                   "id": "bg_summer",
-                  "name": "Summer",
+                  "name": "Palm Theme",
                   "src": "worldplanner/Blocks/bg_summer/bg_summer_0.png",
                   "type": "theme"
             },
             {
                   "id": "bg_sunset",
-                  "name": "Sunset",
+                  "name": "Sunset Theme",
                   "src": "worldplanner/Blocks/bg_sunset/bg_sunset_0.png",
                   "type": "theme"
             },
             {
                   "id": "bg_valentines",
-                  "name": "Valentines",
+                  "name": "Aesthetic Theme",
                   "src": "worldplanner/Blocks/bg_valentines/bg_valentines_0.png",
                   "type": "theme"
             },
             {
                   "id": "bg_winter",
-                  "name": "Winter",
+                  "name": "Winter Theme",
                   "src": "worldplanner/Blocks/bg_winter/bg_winter_0.png",
+                  "type": "theme"
+            },
+            {
+                  "id": "bg_darkness",
+                  "name": "Darkness Theme",
+                  "src": "worldplanner/Blocks/bg_darkness/bg_darkness_0.png",
                   "type": "theme"
             }
       ]
