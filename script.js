@@ -6176,15 +6176,11 @@ async function generateWPWorldPreview() {
                 ((y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0)) * scale;
               offCtx.drawImage(img, px, py, nw * scale, nh * scale);
               
-              // Add rainbow overlay for rainbow blocks in preview (source-atop)
+              // Add rainbow overlay for rainbow blocks in preview
               if (bid && bid.includes('rainbow')) {
                 const hue = ((x + y * 0.5) * 10) % 360;
-                offCtx.save();
-                offCtx.globalCompositeOperation = 'source-atop';
-                offCtx.globalAlpha = 0.75;
-                offCtx.fillStyle = `hsl(${hue}, 100%, 40%)`;
+                offCtx.fillStyle = `hsla(${hue}, 100%, 40%, 0.5)`;
                 offCtx.fillRect(px, py, nw * scale, nh * scale);
-                offCtx.restore();
               }
             }
           }
@@ -7242,7 +7238,10 @@ function drawWPWorld(timestamp) {
       if (blk.verticalAlign === 'center' && !useStaticIcon) py = Math.round((cell.y * BLOCK_SIZE + (BLOCK_SIZE - nh) / 2 + wpOffsetY) * wpZoom);
       else py = Math.round(((cell.y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0) + wpOffsetY) * wpZoom);
 
-      // For rainbow blocks, use source-atop to colorize only the block pixels
+      // Draw the block at full opacity (always)
+      wpCtx.drawImage(img, px, py, Math.round(nw * wpZoom), Math.round(nh * wpZoom));
+      
+      // For rainbow blocks, add overlay AFTER drawing the block
       if (isRainbow) {
         const w = Math.round(nw * wpZoom);
         const h = Math.round(nh * wpZoom);
@@ -7252,19 +7251,9 @@ function drawWPWorld(timestamp) {
         const timeOffset = (now / 50);
         const hue = ((spatialOffset + timeOffset) % 360);
         
-        // Draw block first at full opacity
-        wpCtx.drawImage(img, px, py, w, h);
-        
-        // Apply rainbow tint using source-atop (only affects existing pixels)
-        wpCtx.save();
-        wpCtx.globalCompositeOperation = 'source-atop';
-        wpCtx.globalAlpha = 0.75; // Darker/more intense rainbow
-        wpCtx.fillStyle = `hsl(${hue}, 100%, 40%)`; // Darker lightness (40% instead of 50%)
+        // Draw rainbow overlay with normal alpha blending (not source-atop)
+        wpCtx.fillStyle = `hsla(${hue}, 100%, 40%, 0.5)`;
         wpCtx.fillRect(px, py, w, h);
-        wpCtx.restore();
-      } else {
-        // Non-rainbow blocks draw normally
-        wpCtx.drawImage(img, px, py, Math.round(nw * wpZoom), Math.round(nh * wpZoom));
       }
     }
   };
