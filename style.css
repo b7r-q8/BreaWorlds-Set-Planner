@@ -636,6 +636,8 @@ body {
 
 /* Pet floating animations */
 #pets[src*="spr_wa_pet_alien"],
+#pets[src*="spr_wa_pet_lunar_parrot"],
+#pets[src*="spr_wa_pet_moon_pet"],
 #pets[src*="pet3"],
 #pets[src*="spr_wa_pet_amethyst_lock"],
 #pets[src*="spr_wa_pet_ice_cream"],

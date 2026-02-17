@@ -696,6 +696,8 @@ function addToInventory(item) {
 }
 
 
+
+
 function startAnimation(layer, options) {
   stopAnimation(layer);
 
@@ -1130,7 +1132,7 @@ window.equipNormalCharacter = function (element) {
   const armElement = document.getElementById('arm');
   if (armElement) {
     armElement.style.display = 'block';
-    armElement.src = "arm.png";
+    armElement.src = isInvisSkinActive() ? "arm.png" : "specials/arm.png";
     armElement.style.opacity = "";
     // Note: transform will be applied by syncBodyParts -> applyArmRotation
   }
@@ -1269,10 +1271,10 @@ function syncBodyParts() {
 
   const parts = {
     'base': isRocker ? 'rockerbody/base.png' : (isSkate ? 'baseskate.png' : (isInvis ? 'base.png' : 'specials/base.png')),
-    'body': isRocker ? 'rockerbody/body.png' : 'body.png',
-    'arm': isRocker ? 'rockerbody/arm.png' : 'arm.png',
-    'leg': isRocker ? 'rockerbody/leg.png' : (isSkate ? 'legskate.png' : 'leg.png'),
-    'feet': isRocker ? 'rockerbody/feet.png' : 'feet.png'
+    'body': isRocker ? 'rockerbody/body.png' : (isInvis ? 'body.png' : 'specials/body.png'),
+    'arm': isRocker ? 'rockerbody/arm.png' : (isInvis ? 'arm.png' : 'specials/arm.png'),
+    'leg': isRocker ? 'rockerbody/leg.png' : (isSkate ? 'legskate.png' : (isInvis ? 'leg.png' : 'specials/leg.png')),
+    'feet': isRocker ? 'rockerbody/feet.png' : (isInvis ? 'feet.png' : 'specials/feet.png')
   };
 
   Object.entries(parts).forEach(([id, src]) => {
@@ -1705,8 +1707,9 @@ function equipItem(element) {
   if (element.classList.contains('equipped')) {
     // Unequipping Item
     element.classList.remove('equipped');
-    removeFromInventory(element);
 
+    // === UNIFIED UNEQUIP CLEANUP ===
+    // 1. Clear the main layer
     if (layer) {
       layer.style.display = 'none';
       stopAnimation(layer);
@@ -1721,6 +1724,40 @@ function equipItem(element) {
         }
       }
     }
+
+    // 2. Selective Accessory Cleanup (Multi-Layer / Glitch Fix)
+    // Only clear layers that this specific item actually provided
+    if (element.dataset.headgearSrc) {
+      const habove = document.getElementById('headgearsabove');
+      if (habove) { habove.style.display = 'none'; habove.src = ''; }
+    }
+    if (element.dataset.legSrc) {
+      const oshoes = document.getElementById('outfitshoes');
+      const orshoes = document.getElementById('outfitrightshoe');
+      if (oshoes) { oshoes.style.display = 'none'; oshoes.src = ''; }
+      if (orshoes) { orshoes.style.display = 'none'; orshoes.src = ''; }
+    }
+    if (actualLayerName === 'shirts' || actualLayerName === 'outfits') {
+      const sabove = document.getElementById('shirtsabove');
+      const stop = document.getElementById('shirtstop');
+      const sbehind = document.getElementById('shirtsbehind');
+      if (sabove) { sabove.style.display = 'none'; sabove.src = ''; }
+      if (stop) { stop.style.display = 'none'; stop.src = ''; }
+      if (sbehind) { sbehind.style.display = 'none'; sbehind.src = ''; }
+    }
+    if (actualLayerName === 'capes') {
+      const cabove = document.getElementById('capesabove');
+      if (cabove) { cabove.style.display = 'none'; cabove.src = ''; }
+    }
+    // ===============================
+
+    // sync state based on what's still equipped
+    syncBodyParts();
+    syncHeadSprite();
+    renderInventory();
+    isGhostOutfitActive();
+    applyArmRotation();
+
     saveState();
     return;
   }
@@ -2802,6 +2839,15 @@ function equipHat(imagePath, element) {
     }
   }
 
+  // Toggle off Ghost Outfit if it's active and we are EQUIPPING a new hat
+  if (!isSameHat && isGhostOutfitActive()) {
+    const ghostMenuItem = document.querySelector('[data-layer="outfits"][data-frames*="shirt52"].equipped') ||
+      document.querySelector('[data-layer="shirts"][data-frames*="shirt52"].equipped');
+    if (ghostMenuItem) {
+      equipItem(ghostMenuItem);
+    }
+  }
+
   // Check if reaper outfit (shirt63/shirt76) is currently equipped - unequip it first
   const shirtsLayer = document.getElementById('shirts');
   const reaperMenuItem = document.querySelector('[data-layer="outfits"][data-src*="shirt63"].equipped') ||
@@ -2901,9 +2947,21 @@ function equipHat(imagePath, element) {
     stopAnimation(hat);
     hat.src = "";
     element.classList.remove("equipped");
-    try { renderInventory(); } catch (e) { }
-    // Sync body parts after unequipped
+
+    // === SELECTIVE UNEQUIP CLEANUP ===
+    if (element.dataset.headgearSrc) {
+      const habove = document.getElementById('headgearsabove');
+      if (habove) { habove.style.display = 'none'; habove.src = ''; }
+    }
+    // ===============================
+
+    // sync state based on what's still equipped
     syncBodyParts();
+    syncHeadSprite();
+    renderInventory();
+    isGhostOutfitActive();
+    applyArmRotation();
+
     saveState();
     return;
   }
@@ -3293,9 +3351,9 @@ function overrideLayerOrder() {
     if (el) {
       let finalZ = config.z;
 
-      // SPECIAL OVERRIDE: Only Halloween Villain Knives (hand32) should be above arm (50) and sleeves (51, 52)
+      // SPECIAL OVERRIDE: Only Halloween Villain Knives (hand32) or Shiny Hammer (shiny_hammer) should be above arm (50) and sleeves (51, 52)
       if (id === 'hands') {
-        if (el.src && el.src.includes('hand32')) {
+        if (el.src && (el.src.includes('hand32') || el.src.includes('shiny_hammer'))) {
           finalZ = 53;
         } else {
           finalZ = 49;
@@ -5646,7 +5704,7 @@ function handleWPResize() {
       wpCanvas.style.height = viewport.clientHeight + 'px';
       wpCtx.scale(dpr, dpr);
       disableWPSmoothing(wpCtx);
-      
+
       if (wpRainbowAnimatedCanvas) {
         wpRainbowAnimatedCtx.setTransform(1, 0, 0, 1, 0, 0);
         wpRainbowAnimatedCanvas.width = viewport.clientWidth * dpr;
@@ -6125,7 +6183,7 @@ async function generateWPWorldPreview() {
         const bid = (typeof bd === 'object') ? bd.id : bd;
         const blk = wpBlockMap[bid];
         const isRainbow = bid && bid.includes('rainbow');
-        
+
         // Preload rainbow blocks OR animated blocks
         if (isRainbow && blk) {
           imageUrls.add(blk.src);
@@ -6169,11 +6227,11 @@ async function generateWPWorldPreview() {
           const bid = (typeof bd === 'object') ? bd.id : bd;
           const blk = wpBlockMap[bid];
           const isRainbow = bid && bid.includes('rainbow');
-          
+
           // Draw animated blocks OR rainbow blocks
           if ((blk && blk.framesPath && (typeof bd !== 'object' || bd.state === undefined)) || isRainbow) {
             let path, img;
-            
+
             if (isRainbow) {
               // Rainbow blocks use their base image
               path = blk.src;
@@ -6184,7 +6242,7 @@ async function generateWPWorldPreview() {
               path = `${blk.framesPath}${fs}.png`;
               img = cache[path];
             }
-            
+
             if (img) {
               const nw = img.naturalWidth, nh = img.naturalHeight;
               const px = (x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2 + (blk.xOffset || 0)) * scale;
@@ -6192,7 +6250,7 @@ async function generateWPWorldPreview() {
                 (y * BLOCK_SIZE + (BLOCK_SIZE - nh) / 2) * scale :
                 ((y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0)) * scale;
               offCtx.drawImage(img, px, py, nw * scale, nh * scale);
-              
+
               // Add rainbow overlay for rainbow blocks in preview (multiply blend)
               if (isRainbow) {
                 const hue = ((x + y * 0.5) * 10) % 360;
@@ -6494,14 +6552,14 @@ function setupWPEvents() {
     if (e.touches.length === 0) {
       wpMultiTouchActive = false; // UNLOCK
       wpTouchActive = false;
-      
+
       // If no movement occurred and long press didn't trigger, do a single paint action
       if (!wpTouchDidMove && wpTouchTimer !== null && isPainting) {
         clearTimeout(wpTouchTimer);
         wpTouchTimer = null;
         handleWPInteraction({ clientX: wpTouchStartX, clientY: wpTouchStartY });
       }
-      
+
       // Trigger mouseup-style cleanup
       window.onmouseup();
       wpLastTouchX = undefined;
@@ -6562,12 +6620,12 @@ function handleWPInteractionLine(x1, y1, x2, y2) {
   const iy1 = Math.round(y1);
   const ix2 = Math.round(x2);
   const iy2 = Math.round(y2);
-  
+
   const dx = Math.abs(ix2 - ix1);
   const dy = Math.abs(iy2 - iy1);
   const sx = ix1 < ix2 ? 1 : -1;
   const sy = iy1 < iy2 ? 1 : -1;
-  
+
   let minX = ix1, minY = iy1, maxX = ix1, maxY = iy1;
   let err = dx - dy;
   let x = ix1, y = iy1;
@@ -6575,12 +6633,12 @@ function handleWPInteractionLine(x1, y1, x2, y2) {
   // Bresenham line algorithm - guarantees visiting all cells in the line
   while (true) {
     handleWPInteractionAt(x, y, true);
-    
+
     minX = Math.min(minX, x); minY = Math.min(minY, y);
     maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
-    
+
     if (x === ix2 && y === iy2) break;
-    
+
     const e2 = 2 * err;
     if (e2 > -dy) {
       err -= dy;
@@ -7285,17 +7343,17 @@ function drawWPWorld(timestamp) {
 
       // Draw the block at full opacity (always)
       wpCtx.drawImage(img, px, py, Math.round(nw * wpZoom), Math.round(nh * wpZoom));
-      
+
       // For rainbow blocks, use multiply blend like PNG export (darker, richer colors)
       if (isRainbow) {
         const w = Math.round(nw * wpZoom);
         const h = Math.round(nh * wpZoom);
-        
+
         // Calculate hue based on block position + time (slower animation)
         const spatialOffset = (cell.x + cell.y * 0.5) * 10;
         const timeOffset = (now / 100); // Slower: 100ms instead of 50ms
         const hue = ((spatialOffset + timeOffset) % 360);
-        
+
         // Use multiply blend mode (matches PNG export method)
         wpCtx.save();
         wpCtx.globalCompositeOperation = 'multiply';
@@ -7500,7 +7558,7 @@ async function loadWPManifest() {
       const vw = viewport.clientWidth;
       const vh = viewport.clientHeight;
       const dpr = window.devicePixelRatio || 1;
-      
+
       // Reset transforms before resizing to avoid compounding
       wpRainbowAnimatedCtx.setTransform(1, 0, 0, 1, 0, 0);
       wpRainbowAnimatedCanvas.width = vw * dpr;
