@@ -4737,7 +4737,7 @@ window.addEventListener('load', () => {
 // ==========================================
 
 const WORLD_WIDTH = 100; // 0 to 99
-const WORLD_HEIGHT = 45; // 44 to 0 (flipped for rendering)
+const WORLD_HEIGHT = 50; // Increased from 45 to 50
 const BLOCK_SIZE = 32;
 
 window.selectPlanner = function (type) {
@@ -4969,13 +4969,13 @@ function loadActiveWorld() {
 
   if (savedGrid) {
     const loadedGrid = JSON.parse(savedGrid);
-    // Pad to full height with bedrock if needed
-    wpGrid = loadedGrid;
-    while (wpGrid.length < WORLD_HEIGHT) {
-      const y = wpGrid.length;
+    // Pad from TOP for existing 45-height saves
+    while (loadedGrid.length < WORLD_HEIGHT) {
+      const y = WORLD_HEIGHT - loadedGrid.length - 1;
       const isBedrock = y >= WORLD_HEIGHT - 5;
-      wpGrid[y] = new Array(WORLD_WIDTH).fill(isBedrock ? 'spr_fg_bedrock' : null);
+      loadedGrid.unshift(new Array(WORLD_WIDTH).fill(isBedrock ? 'spr_fg_bedrock' : null));
     }
+    wpGrid = loadedGrid;
 
     // Standardize IDs
     for (let y = 0; y < WORLD_HEIGHT; y++) {
@@ -4999,10 +4999,11 @@ function loadActiveWorld() {
   }
 
   if (savedBGGrid) {
-    wpBackgroundGrid = JSON.parse(savedBGGrid);
-    while (wpBackgroundGrid.length < WORLD_HEIGHT) {
-      wpBackgroundGrid.push(new Array(WORLD_WIDTH).fill(null));
+    const loadedBGGrid = JSON.parse(savedBGGrid);
+    while (loadedBGGrid.length < WORLD_HEIGHT) {
+      loadedBGGrid.unshift(new Array(WORLD_WIDTH).fill(null));
     }
+    wpBackgroundGrid = loadedBGGrid;
   } else {
     wpBackgroundGrid = [];
     for (let y = 0; y < WORLD_HEIGHT; y++) {
@@ -5334,22 +5335,22 @@ function getWPDefaultGrid() {
     }
   }
 
-  // 4. Fill common dirt area (rows 15 to 33)
-  for (let y = 15; y < WORLD_HEIGHT - 11; y++) {
+  // 4. Fill common dirt area (Adjusted for +5 height)
+  for (let y = 20; y < WORLD_HEIGHT - 11; y++) {
     for (let x = 0; x < WORLD_WIDTH; x++) {
       grid[y][x] = 'spr_fg_dirt';
     }
   }
 
-  // 5. Place Entrance at surface (Shifted to x=51 for layout consistency)
-  grid[14][51] = 'spr_fg_entrance';
-  grid[15][51] = 'spr_fg_bedrock';
+  // 5. Place Entrance at surface (Adjusted for +5 height)
+  grid[19][51] = 'spr_fg_entrance';
+  grid[20][51] = 'spr_fg_bedrock';
 
   // 6. Scattered Stone blocks (exactly 212)
   let stonesPlaced = 0;
   const targetStones = 212;
-  const dirtStartRow = 16;
-  const dirtEndRow = 33;
+  const dirtStartRow = 21;
+  const dirtEndRow = 38;
 
   // Use a pseudo-random seed or just random clusters
   // Ensure we place exactly 212 stones, starting from x=1
