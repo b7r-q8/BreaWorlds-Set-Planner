@@ -1127,7 +1127,7 @@
     {
       "id": "spr_fg_obsidian_block",
       "name": "Obsidian Block",
-      "src": "worldplanner/Blocks/spr_fg_obsidian_block/spr_fg_obsidian_block_0.png",
+      "src": "worldplanner/new/spr_fg_obsidian_block/spr_fg_obsidian_block_0.png",
       "type": "foreground",
       "group": "Basic Blocks"
     },
@@ -1211,7 +1211,7 @@
     {
       "id": "spr_fg_sand_block",
       "name": "Sand Block",
-      "src": "worldplanner/Blocks/spr_fg_sand_block/spr_fg_sand_block_0.png",
+      "src": "worldplanner/new/spr_fg_sand_block/spr_fg_sand_block_0.png",
       "type": "foreground",
       "group": "Basic Blocks"
     },
@@ -4196,8 +4196,10 @@
     {
       "id": "spr_fg_bedrock",
       "name": "Bedrock",
-      "src": "worldplanner/Blocks/spr_fg_bedrock/spr_fg_bedrock_0.png",
+      "src": "worldplanner/new/spr_fg_bedrock/spr_fg_bedrock_0.png",
       "type": "foreground",
+      "framesPath": "worldplanner/new/spr_fg_bedrock/spr_fg_bedrock_",
+      "frameCount": 5,
       "group": "Nature & Terrain"
     },
     {

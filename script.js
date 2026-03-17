@@ -7076,6 +7076,16 @@ function wpUpdateTilingAt(x, y) {
     }
   }
 
+  // 7. BEDROCK LOGIC (Depth-based frames 0 to 4)
+  if (bid === 'spr_fg_bedrock') {
+    const depthFromBottom = (WORLD_HEIGHT - 1) - y;
+    if (depthFromBottom === 0) newState = 4;
+    else if (depthFromBottom === 1) newState = 3;
+    else if (depthFromBottom === 2) newState = 2;
+    else if (depthFromBottom === 3) newState = 1;
+    else newState = 0; // Layer 5+ from bottom (or any other manually placed bedrock)
+  }
+
   // APPLY CHANGES
   let changed = false;
   let finalData = (typeof currentData === 'object') ? { ...currentData } : { id: bid };
