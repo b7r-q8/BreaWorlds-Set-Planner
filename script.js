@@ -3875,7 +3875,8 @@ window.openPlayerOptionsModal = async function () {
       'spr_role_4.png',
       'spr_role_5.png',
       'spr_role_6.png',
-      'spr_role_7.png'
+      'spr_role_7.png',
+      'spr_role_8.png'
     ];
 
     badgeFiles.forEach(filename => {
