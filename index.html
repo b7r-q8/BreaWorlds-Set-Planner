@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 
 <html>
 
@@ -58,7 +58,29 @@
 
 
 <body>
-
+  <!-- WHAT'S NEW MODAL -->
+  <div id="whats-new-overlay" class="wn-overlay" style="display: none;">
+    <div id="whats-new-modal" class="wn-modal">
+      <div class="wn-header">
+        <h1>Updates</h1>
+        <p>Recent updates and newly added items!</p>
+      </div>
+      <div id="whats-new-scroll-container" class="wn-body">
+        <div class="wn-section">
+          <h2>Set Planner - Valentine's Event</h2>
+          <div id="new-set-planner-list" class="wn-grid"></div>
+        </div>
+        <div class="wn-section">
+          <h2>World Planner - Valentine's Event</h2>
+          <div id="new-world-planner-list" class="wn-grid"></div>
+        </div>
+        <div class="wn-scroll-padding"></div>
+      </div>
+      <div class="wn-footer">
+        <button id="whats-new-confirm-btn" class="wn-confirm-btn" disabled>Confirm Changes</button>
+      </div>
+    </div>
+  </div>
   <div id="world-planner-container" style="display: none;">
 
     <!-- HEADER REMOVED AS REQUESTED -->
@@ -240,6 +262,18 @@
 
         </button>
 
+        <div class="wp-tool-divider"></div>
+
+        <button class="wp-tool-btn" onclick="document.getElementById('wp-image-import').click()" title="Import Image">
+
+          <i data-lucide="image"></i>
+
+          <span class="wp-tool-label">Image</span>
+
+        </button>
+        <input type="file" id="wp-image-import" accept="image/png, image/jpeg, image/webp" style="display:none;"
+          onchange="handleWPImageImport(event)">
+
       </div>
 
     </div>
@@ -262,6 +296,49 @@
 
         <!-- List of blocks and their counts will be injected here -->
 
+      </div>
+
+    </div>
+
+
+
+    <!-- IMAGE IMPORT MODAL -->
+
+    <div id="wp-import-modal" class="wp-popup hidden" style="width: 320px;">
+
+      <div class="wp-popup-header">
+
+        <h3>Import Image</h3>
+
+        <button class="wp-popup-close" onclick="toggleWPPopup('wp-import-modal')">&times;</button>
+
+      </div>
+
+      <div class="wp-import-content" style="padding: 15px; text-align: center;">
+        <canvas id="wp-import-preview-canvas"
+          style="max-width: 100%; max-height: 200px; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 15px; image-rendering: pixelated;"></canvas>
+
+        <div style="margin-bottom: 20px; text-align: left;">
+          <label style="display: block; margin-bottom: 5px; color: #a8dadc; font-size: 14px;">Size Mode:</label>
+          <select id="wp-import-resize"
+            style="width: 100%; padding: 8px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 5px; outline: none; margin-bottom: 15px;">
+            <option value="stretch">Stretch to Fit World</option>
+            <option value="scale">Keep Original Shape</option>
+          </select>
+
+          <label style="display: block; margin-bottom: 5px; color: #a8dadc; font-size: 14px;">Block Placement:</label>
+          <select id="wp-import-placement"
+            style="width: 100%; padding: 8px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 5px; outline: none;">
+            <option value="both">Foreground & Background</option>
+            <option value="foreground">Foreground Only</option>
+            <option value="background">Background Only</option>
+          </select>
+        </div>
+
+        <button onclick="confirmWPImageImport()"
+          style="width: 100%; padding: 10px; background: #457b9d; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; transition: background 0.2s;">
+          Convert into World
+        </button>
       </div>
 
     </div>
@@ -356,12 +433,9 @@
 
     <!-- DIRECT SET PLANNER TELEPORT -->
 
-    <button class="wp-teleport-btn" onclick="selectPlanner('set')" title="Go to Set Planner">
-
-      <img src="display/spr_wa_black_rocker_hair.png" alt="Set">
-
-      <span>Set Planner</span>
-
+    <button class="wp-teleport-btn main-menu-wrench-btn" onclick="backToSelection()" title="Back to Main Menu">
+      <img src="roadmap/spr_wrench.png" alt="Menu">
+      <span>Main Menu</span>
     </button>
 
     <!-- TUTORIAL POPUP -->
@@ -561,6 +635,7 @@
 
 
       <span class="version-tag">Early Access</span>
+      <button class="whats-new-trigger-btn" onclick="initWhatsNewModal()">See What's New</button>
 
 
 
@@ -647,7 +722,7 @@
 
 
 
-  <div id="set-planner-container">
+  <div id="set-planner-container" style="display: block;">
 
     <!-- TOP DRAWER MENU (PLATFORMS & BACKGROUNDS) -->
 
@@ -750,13 +825,9 @@
 
       </div>
 
-      <div class="roadmap-btn world-planner-teleport" onclick="selectPlanner('world')">
-
-        <div class="roadmap-icon-anim roadmap-icon-space"
-          style="background-image: url('worldplanner/Blocks/spr_fg_entrance.png'); background-size: contain;"></div>
-
-        World Planner
-
+      <div class="main-menu-wrench-btn" onclick="backToSelection()">
+        <img src="roadmap/spr_wrench.png" alt="Menu" class="main-menu-icon">
+        Main Menu
       </div>
 
       <!-- COMMUNITY POSTS TELEPORT (disabled for now)
@@ -847,6 +918,17 @@
 
 
 
+          <!-- UPDATES -->
+          <li class="menu-item-with-icon" onclick="toggleSubmenu('updatesMenu')">
+            <div class="roadmap-item-icon-container">
+              <img src="worldplanner/Blocks/spr_fg_crystal_love_lock/spr_fg_crystal_love_lock_0.png" class="roadmap-image-icon">
+            </div>
+            <span class="roadmap-item-text category-label" style="color: #ff4d94; font-weight: bold; text-shadow: 0 0 5px rgba(255, 77, 148, 0.5);">Valentine's</span>
+          </li>
+          <ul class="submenu" id="updatesMenu">
+            <!-- Items will be injected dynamically by script.js -->
+          </ul>
+
           <!-- SPECIALS -->
 
           <li class="menu-item-with-icon" onclick="toggleSubmenu('specialsMenu')">
@@ -925,9 +1007,9 @@
 
 
             <li data-layer="outfits" data-src="shirts/shirt63/spr_wa_reaper_set_body_1.png" data-scale="0.92"
-              data-x="-3" data-y="208"
+              data-x="-3" data-y="207"
               data-above-src="shirts/shirt63/spr_wa_reaper_set_body_hand/spr_wa_reaper_set_body_hand_0.png"
-              data-above-scale="0.273" data-above-x="-74.5" data-above-y="138"
+              data-above-scale="0.273" data-above-x="-74.5" data-above-y="137"
               data-headgear-src="shirts/shirt63/spr_wa_reaper_set_head.png" data-headgear-scale="1.2"
               data-headgear-x="-3" data-headgear-y="43.5">
 
@@ -1006,23 +1088,32 @@
 
 
 
-            <li data-hat="hats/hat3.png" data-scale="1.42" data-x="0" data-y="-19.8">
+            <li data-hat="hats/hat3.png" data-scale="1.42" data-x="0" data-y="-19">
 
               <img src="display/spr_wa_blue_cap.png" class="item-icon"> Blue Cap
 
             </li>
+			
+<li data-hat="hats/redcap.png" data-scale="1.42" data-x="0" data-y="-19">
+
+              <img src="hats/redcap.png" class="item-icon"> Red Cap
+
+            </li>
 
 
-
-            <li data-hat="hats/hat4.png" data-scale="1.42" data-x="0" data-y="-29.8">
+            <li data-hat="hats/hat4.png" data-scale="1.42" data-x="0" data-y="-29">
 
               <img src="display/spr_wa_black_cap.png" class="item-icon"> Black Cap
 
             </li>
 
+<li data-hat="hats/lover.png" data-scale="1.42" data-x="0" data-y="-29">
 
+              <img src="hats/loverd.png" class="item-icon"> Lovers Cap
 
-            <li data-hat="hats/hat5.png" data-scale="1.42" data-x="0" data-y="-19.8">
+            </li>
+
+            <li data-hat="hats/hat5.png" data-scale="1.42" data-x="0" data-y="-19">
 
               <img src="display/spr_wa_green_cap.png" class="item-icon"> Green Cap
 
@@ -1030,7 +1121,7 @@
 
 
 
-            <li data-hat="hats/hat6.png" data-scale="1.42" data-x="0" data-y="-19.8">
+            <li data-hat="hats/hat6.png" data-scale="1.42" data-x="0" data-y="-19">
 
               <img src="display/spr_wa_white_cap.png" class="item-icon"> White Cap
 
@@ -1038,7 +1129,7 @@
 
 
 
-            <li data-hat="hats/hat7.png" data-scale="1.42" data-x="0" data-y="-19.8">
+            <li data-hat="hats/hat7.png" data-scale="1.42" data-x="0" data-y="-19">
 
               <img src="display/spr_wa_yellow_cap.png" class="item-icon"> Yellow Cap
 
@@ -1046,7 +1137,7 @@
 
 
 
-            <li data-hat="hats/hat8.png" data-scale="1.42" data-x="0" data-y="-19.8">
+            <li data-hat="hats/hat8.png" data-scale="1.42" data-x="0" data-y="-19">
 
               <img src="display/spr_wa_brownpaw_cap.png" class="item-icon"> Brownpaw Cap
 
@@ -1092,7 +1183,17 @@
 
             </li>
 
+<li data-hat="hats/tang.png" data-scale="1.4" data-x="-36" data-y="-30">
 
+              <img src="hats/tangd.png" class="item-icon"> Tang Hat
+
+            </li>
+
+<li data-hat="hats/manchud.png" data-scale="1.4" data-x="-36" data-y="-30">
+
+              <img src="hats/manchu.png" class="item-icon"> Manchu Hat
+
+            </li>
 
             <li data-hat="hats/hat13/" data-animated="true" data-frames="hats/hat13/" data-frame-count="2" data-fps="5"
               data-scale="1.4" data-x="-26" data-y="-77">
@@ -1111,12 +1212,17 @@
 
 
 
-            <li data-hat="hats/hat15.png" data-scale="1.4" data-x="-7" data-y="-48">
+            <li data-hat="hats/hat15.png" data-scale="1.4" data-x="-7" data-y="-47">
 
               <img src="display/spr_wa_fedora.png" class="item-icon"> Fedora
 
             </li>
 
+<li data-hat="hats/fedora.png" data-scale="1.4" data-x="-7" data-y="-47">
+
+              <img src="hats/fedorad.png" class="item-icon"> Pink Fedora
+
+            </li>
 
 
             <li data-hat="hats/hat16.png" data-scale="1.85" data-x="-64" data-y="-11">
@@ -1206,6 +1312,12 @@
 
             </li>
 
+ <li data-hat="hats/alien/" data-animated="true" data-frames="hats/alien/" data-frame-count="4" data-fps="5"
+              data-scale="1.41" data-x="3" data-y="-40">
+
+              <img src="hats/aliend.png" class="item-icon"> Alien Hat
+
+            </li>
 
 
             <li data-hat="hats/hat27/" data-animated="true" data-frames="hats/hat27/" data-frame-count="2" data-fps="5"
@@ -1481,7 +1593,7 @@
               <img src="lunar/spr_wa_starry_halo/spr_wa_starry_halo_0.png" class="item-icon"> Starry Halo
             </li>
 
-            <li data-hat="hats/hat59.png" data-scale="1.4" data-x="0" data-y="-19.8">
+            <li data-hat="hats/hat59.png" data-scale="1.4" data-x="0" data-y="-19">
 
               <img src="display/spr_wa_frost_cap.png" class="item-icon"> Frost Cap
 
@@ -1489,7 +1601,7 @@
 
 
 
-            <li data-hat="hats/hat60.png" data-scale="1.4" data-x="0" data-y="-19.8">
+            <li data-hat="hats/hat60.png" data-scale="1.4" data-x="0" data-y="-19">
 
               <img src="display/spr_wa_lion_cap.png" class="item-icon"> Lion Cap
 
@@ -1497,7 +1609,7 @@
 
 
 
-            <li data-hat="hats/hat61.png" data-scale="1.4" data-x="0" data-y="-19.8">
+            <li data-hat="hats/hat61.png" data-scale="1.4" data-x="0" data-y="-19">
 
               <img src="display/spr_wa_polar_cap.png" class="item-icon"> Polar Cap
 
@@ -1505,7 +1617,7 @@
 
 
 
-            <li data-hat="hats/hat62.png" data-scale="1.4" data-x="0" data-y="-19.8">
+            <li data-hat="hats/hat62.png" data-scale="1.4" data-x="0" data-y="-19">
 
               <img src="display/spr_wa_trainer_cap.png" class="item-icon"> Trainer Cap
 
@@ -1513,7 +1625,7 @@
 
 
 
-            <li data-hat="hats/hat63.png" data-scale="1.4" data-x="0" data-y="-19.8">
+            <li data-hat="hats/hat63.png" data-scale="1.4" data-x="0" data-y="-19">
 
               <img src="display/spr_wa_year_cap.png" class="item-icon"> Year Cap
 
@@ -1565,23 +1677,13 @@
 
             </li>
 
-
-
-            <li data-layer="hair" data-src="hair/hair4.png" data-scale="1.45" data-x="-4" data-y="-22">
-
-              <img src="display/spr_wa_short_blonde_hair.png" class="item-icon"> Short Blonde Hair
-
+            <li data-layer="hair" data-src="hair/slimy.png" data-scale="1.4" data-x="-8" data-y="-27">
+              <img src="hair/slimyd.png" class="item-icon"> Black Slimy Hair
             </li>
 
-
-
-            <li data-layer="hair" data-src="hair/hair5.png" data-scale="1.4" data-x="-8" data-y="-30">
-
-              <img src="display/spr_wa_sidepart_brown_hair.png" class="item-icon"> Brown Sidepiece Hair
-
+            <li data-layer="hair" data-src="hair/hair22.png" data-scale="1.4" data-x="-7.5" data-y="20">
+              <img src="hair/hair22.png" class="item-icon"> Brown Kimpy Hair
             </li>
-
-
 
             <li data-layer="hair" data-src="hair/hair6.png" data-scale="1.4" data-x="-7.5" data-y="10">
 
@@ -1711,11 +1813,6 @@
 
 
 
-            <li data-layer="hair" data-src="hair/hair22.png" data-scale="1.389" data-x="-6.5" data-y="19">
-
-              <img src="display/spr_wa_brown_kimpy_hair.png" class="item-icon"> Brown Kimpy Hair
-
-            </li>
 
 
 
@@ -1842,7 +1939,11 @@
 
             </li>
 
+<li data-layer="hair" data-src="hair/pomp.png" data-scale="1.42" data-x="-5" data-y="-29.5">
 
+              <img src="hair/pompd.png" class="item-icon"> Pompadour Hair
+
+            </li>
 
             <li data-layer="hair" data-src="hair/hair38.png" data-scale="1.399" data-x="-17.65" data-y="48">
 
@@ -1912,7 +2013,37 @@
 
             </li>
 
+<li data-layer="faces" data-src="faces/shifu.png" data-scale="0.86" data-x="17" data-y="97">
 
+              <img src="faces/shifud.png" class="item-icon"> Shifu Beard
+
+            </li>
+
+<li data-layer="faces" data-src="faces/halfk.png" data-scale="1.4" data-x="-7" data-y="29">
+
+              <img src="faces/spr_wa_kitsune_headgear_0.png" class="item-icon"> Half Kitsune Mask
+
+            </li>
+
+<li data-layer="faces" data-src="faces/kitsune.png" data-scale="0.955" data-x="2" data-y="-50">
+
+              <img src="faces/kitsuned.png" class="item-icon"> Kitsune Mask
+
+            </li>
+			
+			
+
+<li data-layer="faces" data-src="faces/lions.png" data-scale="0.955" data-x="2" data-y="-98">
+
+              <img src="faces/lions.png" class="item-icon"> Southern Lion Mask
+
+            </li>
+
+<li data-layer="faces" data-src="faces/wushi.png" data-scale="1.39" data-x="2" data-y="39">
+
+              <img src="faces/wushi.png" class="item-icon"> Wushi Mask
+
+            </li>
 
             <li data-layer="faces" data-src="faces/faces61.png" data-scale="0.835" data-x="-2" data-y="158">
 
@@ -1968,7 +2099,11 @@
 
             </li>
 
+<li data-layer="faces" data-src="faces/paladin/paladin.png" data-scale="1.39" data-x="-8" data-y="-18.5">
 
+              <img src="faces/paladin/paladind.png" class="item-icon"> Paladin Helmet
+
+            </li>
 
             <li data-layer="faces" data-src="faces/faces28.png" data-scale="1.01" data-x="-2.5" data-y="-52">
 
@@ -2122,7 +2257,12 @@
 
             </li>
 
+<li data-layer="faces" data-animated="true" data-frames="faces/duckmask/" data-frame-count="10" data-fps="3"
+              data-scale="0.96" data-x="2" data-y="-88">
 
+              <img src="faces/duckm.png" class="item-icon"> Duck Mask
+
+            </li>
 
             <li data-layer="faces" data-animated="true" data-frames="faces/faces49/" data-frame-count="2" data-fps="5"
               data-scale="0.85" data-x="6" data-y="142">
@@ -2148,6 +2288,11 @@
 
             </li>
 
+<li data-layer="faces" data-src="faces/craven.png" data-scale="1.26" data-x="2" data-y="36">
+
+              <img src="faces/craven.png" class="item-icon"> Craven Mask
+
+            </li>
 
 
             <li data-layer="faces" data-src="faces/faces52.png" data-scale="1.4" data-x="-8" data-y="0">
@@ -2614,6 +2759,23 @@
               <img src="wings/spr_wa_spirit_wings.png" class="item-icon"> Spirit Wings
 
             </li>
+<li data-layer="wings" data-animated="true" data-frames="wings/c1/" data-frame-count="2" data-fps="3" data-scale="2.62" data-x="-21" data-y="160">
+
+              <img src="wings/c1.png" class="item-icon"> Cherub Wings
+
+            </li>
+
+<li data-layer="wings" data-animated="true" data-frames="wings/c2/" data-frame-count="2" data-fps="3" data-scale="2.62" data-x="-21" data-y="160">
+
+              <img src="wings/c2.png" class="item-icon"> Golden Cherub Wings
+
+            </li>
+
+<li data-layer="wings" data-animated="true" data-frames="wings/c3/" data-frame-count="2" data-fps="3" data-scale="2.62" data-x="-21" data-y="160">
+
+              <img src="wings/c3.png" class="item-icon"> Pink Cherub Wings
+
+            </li>
 
             <li data-layer="wings" data-animated="true" data-frames="wings/wing3/" data-frame-count="2" data-fps="5"
               data-scale="1.7" data-x="-12" data-y="163">
@@ -2818,8 +2980,17 @@
               <img src="display/spr_wa_gold_valk_wings.png" class="item-icon"> Golden Valkyrie Wings
 
             </li>
+<li data-layer="wings" data-animated="true" data-frames="wings/fallen/" data-frame-count="2" data-fps="3" data-scale="4.87" data-x="-8" data-y="190">
 
+              <img src="wings/fallen.png" class="item-icon"> Fallen Angel Wings
 
+            </li>
+			
+			<li data-layer="wings" data-animated="true" data-frames="wings/blissful/" data-frame-count="2" data-fps="3" data-scale="4.87" data-x="-8" data-y="190">
+
+              <img src="wings/blissful.png" class="item-icon"> Blissful Wings
+
+            </li>
 
             <li data-layer="wings" data-src="wings/wing27/1.png" data-scale="4.28" data-x="-12" data-y="245">
 
@@ -3158,7 +3329,7 @@
 
             <li data-layer="capes" data-src="capes/cape24/1.png" data-scale="1.66" data-x="-8" data-y="263">
 
-              <img src="capes/cape24/1.png" class="item-icon"> Mythical Cape
+              <img src="capes/cape24/1.png" class="item-icon"> Myth Cape
 
             </li>
 
@@ -3171,6 +3342,12 @@
 
             </li>
 
+ <li data-layer="capes" data-src="capes/mining/mining.png" data-scale="1.34" data-x="-96" data-y="109"
+              data-above-src="capes/mining/hand.png" data-above-scale="0.67" data-above-x="-2" data-above-y="189">
+
+              <img src="capes/mining/miningd.png" class="item-icon"> Mining Backpack
+
+            </li>
 
 
             <li data-layer="capes" data-src="capes/cape25/1.png" data-scale="4.3" data-x="-8" data-y="316">
@@ -3179,7 +3356,11 @@
 
             </li>
 
+<li data-layer="capes" data-src="capes/heart/1.png" data-scale="4.3" data-x="-8" data-y="317">
 
+              <img src="capes/heartd.png" class="item-icon"> Heart Jetpack
+
+            </li>
 
             <li data-layer="capes" data-src="capes/cape26/1.png" data-scale="4.3" data-x="-8" data-y="316">
 
@@ -3274,8 +3455,57 @@
               <img src="display/spr_wa_black_tuxedo_top.png" class="item-icon"> Black Tuxedo Top
 
             </li>
+			
+			<li data-layer="shirts" data-src="shirts/paladin/paladin.png" data-scale="0.74" data-x="-2.8" data-y="198"
+              data-above-src="shirts/paladin/hand.png" data-above-scale="0.273" data-above-x="-74.5" data-above-y="138">
 
+              <img src="shirts/paladin/paladind.png" class="item-icon"> Paladin Armor
 
+            </li>
+
+            <li data-layer="shirts" data-src="shirts/hanfu/hanfuskin.png" data-scale="0.74" data-x="-2.8" data-y="193"
+              data-invis-src="shirts/hanfu/hanfu.png" data-invis-scale="0.74" data-invis-x="-2.8" data-invis-y="193"
+              data-above-src="shirts/hanfu/hand.png" data-above-scale="0.182"
+              data-above-x="-74.5" data-above-y="52">
+
+              <img src="shirts/hanfu/hanfud.png" class="item-icon"> Hanfu Suit
+
+            </li>
+
+            <li data-layer="shirts" data-src="shirts/changshan/changshan.png" data-scale="0.74" data-x="-2.8" data-y="199"
+              data-above-src="shirts/changshan/hand.png" data-above-scale="0.182"
+              data-above-x="-74.5" data-above-y="52">
+
+              <img src="shirts/changshan/changshand.png" class="item-icon"> Changshan Shirt
+
+            </li>
+
+  <li data-layer="shirts" data-src="shirts/wedding1/weddingskin.png" data-scale="1.58" data-x="22" data-y="252"
+              data-invis-src="shirts/wedding1/wedding1.png" data-invis-scale="1.58" data-invis-x="22" data-invis-y="252"
+              data-above-src="shirts/wedding1/hand.png" data-above-scale="0.27"
+              data-above-x="-74.5" data-above-y="138">
+
+              <img src="shirts/wedding1/weddingd.png" class="item-icon"> Pink Wedding Dress
+
+            </li>
+			
+			<li data-layer="shirts" data-src="shirts/wedding2/weddingskin.png" data-scale="1.58" data-x="22" data-y="252"
+              data-invis-src="shirts/wedding2/wedding.png" data-invis-scale="1.58" data-invis-x="22" data-invis-y="252"
+              data-above-src="shirts/wedding2/hand.png" data-above-scale="0.27"
+              data-above-x="-74.5" data-above-y="138">
+
+              <img src="shirts/wedding2/weddingd.png" class="item-icon"> Red Wedding Dress
+
+            </li>
+			
+			<li data-layer="shirts" data-src="shirts/wedding3/weddingskin.png" data-scale="1.58" data-x="22" data-y="252"
+              data-invis-src="shirts/wedding3/wedding.png" data-invis-scale="1.58" data-invis-x="22" data-invis-y="252"
+              data-above-src="shirts/wedding3/hand.png" data-above-scale="0.27"
+              data-above-x="-74.5" data-above-y="138">
+
+              <img src="shirts/wedding3/weddingd.png" class="item-icon"> White Wedding Dress
+
+            </li>
 
             <li data-layer="shirts" data-src="shirts/shirt4/shirt4.png" data-scale="0.74" data-x="-2.8" data-y="198"
               data-above-src="shirts/shirt4/hand4.png" data-above-scale="0.273" data-above-x="-74.5" data-above-y="138">
@@ -3295,13 +3525,41 @@
 
             </li>
 
+<li data-layer="shirts" data-src="shirts/bbear/bbear.png" data-scale="1.55" data-x="21" data-y="193.7"
+              data-above-src="shirts/bbear/hand.png" data-above-scale="0.273" data-above-x="-74.5" data-above-y="138"
+              data-top-src="shirts/bbear/above.png" data-top-scale="1.142" data-top-x="-6" data-top-y="28">
 
+              <img src="shirts/bbear/beard.png" class="item-icon"> Blue Bear Hoodie
+
+            </li>
+
+<li data-layer="shirts" data-src="shirts/pbear/pbear.png" data-scale="1.55" data-x="21" data-y="193.7"
+              data-above-src="shirts/pbear/hand.png" data-above-scale="0.273" data-above-x="-74.5" data-above-y="138"
+              data-top-src="shirts/pbear/above.png" data-top-scale="1.142" data-top-x="-6" data-top-y="28">
+
+              <img src="shirts/pbear/beard.png" class="item-icon"> Pink Bear Hoodie
+
+            </li>
 
             <li data-layer="shirts" data-src="shirts/shirt5/shirt5body.png" data-scale="0.74" data-x="-2.8" data-y="199"
               data-invis-src="shirts/shirt5/shirt5.png" data-invis-scale="0.74" data-invis-x="-2.8" data-invis-y="199">
 
               <img src="display/spr_wa_black_short_shirt.png" class="item-icon"> Black Short Shirt
 
+            </li>
+
+            <li data-layer="shirts" data-src="worldplanner/new/spr_wa_mining_backpack/spr_wa_mining_backpack_0.png"
+              data-scale="0.8" data-x="-2.8" data-y="200"
+              data-back-src="worldplanner/new/spr_wa_mining_backpack_back1/spr_wa_mining_backpack_back1_0.png"
+              data-back-scale="0.8" data-back-x="-2.8" data-back-y="200">
+              <img src="worldplanner/new/spr_wa_mining_backpack/spr_wa_mining_backpack_0.png" class="item-icon"> Mining Backpack
+            </li>
+
+            <li data-layer="shirts" data-src="worldplanner/new/spr_wa_heart_jetpack/spr_wa_heart_jetpack_0.png"
+              data-scale="0.8" data-x="-2.8" data-y="200"
+              data-back-src="worldplanner/new/spr_wa_heart_jetpack_back1/spr_wa_heart_jetpack_back1_0.png"
+              data-back-scale="0.8" data-back-x="-2.8" data-back-y="200">
+              <img src="worldplanner/new/spr_wa_heart_jetpack/spr_wa_heart_jetpack_0.png" class="item-icon"> Heart Jetpack
             </li>
 
 
@@ -3390,8 +3648,42 @@
               <img src="display/spr_wa_black_dufflejacket.png" class="item-icon"> Black Dufflejacket
 
             </li>
+			
+			<li data-layer="shirts" data-src="shirts/yd/yd.png" data-scale="1.55" data-x="21" data-y="193.4"
+              data-above-src="shirts/yd/hand.png" data-above-scale="0.273" data-above-x="-74.5" data-above-y="138"
+              data-behind-src="shirts/yd/above.png" data-behind-scale="0.9"
+              data-behind-x="-33" data-behind-y="153">
 
+              <img src="shirts/yd/ydd.png" class="item-icon"> Yellow Dufflejacket
 
+            </li>
+			
+			<li data-layer="shirts" data-src="shirts/pd/pd.png" data-scale="1.55" data-x="21" data-y="193.4"
+              data-above-src="shirts/pd/hand.png" data-above-scale="0.273" data-above-x="-74.5" data-above-y="138"
+              data-behind-src="shirts/pd/above.png" data-behind-scale="0.9"
+              data-behind-x="-33" data-behind-y="153">
+
+              <img src="shirts/pd/pdd.png" class="item-icon"> Pink Dufflejacket
+
+            </li>
+			
+			<li data-layer="shirts" data-src="shirts/hd/hd.png" data-scale="1.55" data-x="21" data-y="193.4"
+              data-above-src="shirts/hd/hand.png" data-above-scale="0.273" data-above-x="-74.5" data-above-y="138"
+              data-behind-src="shirts/hd/above.png" data-behind-scale="0.9"
+              data-behind-x="-33" data-behind-y="153">
+
+              <img src="shirts/hd/hdd.png" class="item-icon"> Heart Dufflejacket
+
+            </li>
+			
+<li data-layer="shirts" data-src="shirts/rat/rat.png" data-scale="1.55" data-x="-24" data-y="194"
+              data-above-src="shirts/rat/hand.png" data-above-scale="0.273" data-above-x="-74.5" data-above-y="138"
+              data-behind-src="shirts/rat/above.png" data-behind-scale="0.9"
+              data-behind-x="-33" data-behind-y="153">
+
+              <img src="shirts/ratd.png" class="item-icon"> Rat Hoodie
+
+            </li>
 
             <li data-layer="shirts" data-src="shirts/shirt15/spr_wa_fisher_shirt_beige_2_body_1.png" data-scale="0.74"
               data-x="-2.8" data-y="197"
@@ -3721,7 +4013,14 @@
 
             </li>
 
+<li data-layer="shirts" data-src="shirts/ps/ps.png" data-scale="0.74"
+              data-x="-2.8" data-y="199"
+              data-above-src="shirts/ps/hand.png"
+              data-above-scale="0.273" data-above-x="-74.5" data-above-y="138">
 
+              <img src="shirts/ps/psd.png" class="item-icon"> Pink Shirt
+
+            </li>
 
             <li data-layer="shirts" data-src="shirts/shirt47/spr_wa_bronze_knight_suit_body_1.png" data-scale="0.74"
               data-x="-2.8" data-y="199"
@@ -3927,7 +4226,7 @@
               data-above-src="shirts/spr_wa_pink_velvet_suit_body/spr_wa_pink_velvet_suit_hand/spr_wa_pink_velvet_suit_hand_0.png"
               data-above-scale="0.273" data-above-x="-74.5" data-above-y="138">
 
-              <img src="display/spr_wa_pink_velvet_suit.png" class="item-icon"> Pink Velvet Suit
+              <img src="display/spr_wa_pink_velvet_suit.png" class="item-icon"> Love Suit
 
             </li>
 
@@ -3940,6 +4239,27 @@
 
               <img src="display/spr_wa_red_xmas_sweater.png" class="item-icon"> Red Festive Sweater
 
+            </li>
+
+            <li data-layer="shirts" data-src="shirts/hd/hd.png" data-scale="0.74"
+              data-x="-2.8" data-y="199"
+              data-above-src="shirts/hd/above.png"
+              data-above-scale="0.273" data-above-x="-74.5" data-above-y="138">
+              <img src="shirts/hd/hdd.png" class="item-icon"> Heart Dufflejacket
+            </li>
+
+            <li data-layer="shirts" data-src="shirts/pd/pd.png" data-scale="0.74"
+              data-x="-2.8" data-y="199"
+              data-above-src="shirts/pd/above.png"
+              data-above-scale="0.273" data-above-x="-74.5" data-above-y="138">
+              <img src="shirts/pd/pdd.png" class="item-icon"> Pink Dufflejacket
+            </li>
+
+            <li data-layer="shirts" data-src="shirts/yd/yd.png" data-scale="0.74"
+              data-x="-2.8" data-y="199"
+              data-above-src="shirts/yd/above.png"
+              data-above-scale="0.273" data-above-x="-74.5" data-above-y="138">
+              <img src="shirts/yd/ydd.png" class="item-icon"> Yellow Dufflejacket
             </li>
 
 
@@ -4059,8 +4379,24 @@
               <img src="pants/pants1.png" class="item-icon"> Black Tuxedo Pants
 
             </li>
+			
+			<li data-layer="pants" data-src="pants/paladind.png" data-scale="0.76" data-x="-4" data-y="303.8">
 
+              <img src="pants/paladin.png" class="item-icon"> Paladin Pants
 
+            </li>
+
+<li data-layer="pants" data-src="pants/redv/redv.png" data-scale="0.76" data-x="-4" data-y="303.8">
+
+              <img src="pants/redv/redd.png" class="item-icon"> Red Velvet Pants
+
+            </li>
+			
+			<li data-layer="pants" data-src="pants/pinkv/pinkv.png" data-scale="0.76" data-x="-4" data-y="303.8">
+
+              <img src="pants/pinkv/pinkd.png" class="item-icon"> Pink Velvet Pants
+
+            </li>
 
             <li data-layer="pants" data-src="pants/pants2.png" data-scale="0.76" data-x="-4" data-y="303.8">
 
@@ -4095,6 +4431,13 @@
               data-x="-4" data-y="303.8">
 
               <img src="pants/pants6/spr_wa_bronze_knight_pants_body_1.png" class="item-icon"> Bronze Knight Pants
+
+            </li>
+
+<li data-layer="pants" data-src="pants/wushi/wushi.png" data-scale="0.76"
+              data-x="-4" data-y="293">
+
+              <img src="pants/wushi/wushi.png" class="item-icon"> Wushi Pants
 
             </li>
 
@@ -4377,7 +4720,7 @@
 
             <li data-layer="hands" data-src="hands/sword2.png" data-scale="5" data-x="-188" data-y="291">
 
-              <img src="display/spr_wa_myth_sword.png" class="item-icon"> Mythical Sword
+              <img src="display/spr_wa_myth_sword.png" class="item-icon"> Myth Sword
 
             </li>
 
@@ -4438,9 +4781,7 @@
             </li>
 
             <li data-layer="hands" data-src="hands/hand5/1.png" data-scale="3.18" data-x="-75" data-y="246">
-
               <img src="display/spr_wa_soul_scythe.png" class="item-icon"> Soul Scythe
-
             </li>
 
             <li data-layer="hands" data-src="hands/hand6/1.png" data-scale="2.5" data-x="-74" data-y="276">
@@ -4714,6 +5055,18 @@
 
             </li>
 
+            <li data-layer="hands" data-src="hands/rose/rose.png" data-scale="2.75" data-x="-56" data-y="304">
+              <img src="hands/rose/rosed.png" class="item-icon"> Rose Bouquet
+            </li>
+
+            <li data-layer="hands" data-src="hands/florences/florences.png" data-scale="2.75" data-x="-56" data-y="304">
+              <img src="hands/florences/florence.png" class="item-icon"> Florence Bouquet
+            </li>
+
+            <li data-layer="hands" data-src="hands/candy.png" data-scale="4.83" data-x="60" data-y="301">
+              <img src="hands/candyd.png" class="item-icon"> Candy Love Sword
+            </li>
+
             <li data-layer="hands" data-src="hands/hand43/1.png" data-scale="2.53" data-x="-123" data-y="271">
 
               <img src="display/spr_wa_emerald_hammer.png" class="item-icon"> Emerald Hammer
@@ -4746,8 +5099,12 @@
 
             <li data-layer="hands" data-src="hands/hand49/1.png" data-scale="2.66" data-x="124" data-y="293">
 
-              <img src="display/spr_wa_red_lightsaber.png" class="item-icon"> Red Lightsaber
+              <img src="display/spr_wa_red_lightsaber.png" class="item-icon"> Double Red Lightsaber
 
+            </li>
+
+            <li data-layer="hands" data-src="hands/dual/dual.png" data-scale="2.9" data-x="149" data-y="283">
+              <img src="hands/dual/duald.png" class="item-icon"> Dual Pickaxe
             </li>
 
             <li data-layer="hands" data-src="hands/hand50/1.png" data-scale="2.66" data-x="-75" data-y="284.3">
@@ -4774,6 +5131,8 @@
               <img src="display/spr_wa_valentine_sword.png" class="item-icon"> Majestic Valentine Sword
 
             </li>
+			
+
 
             <li data-layer="hands" data-src="hands/hand53/1.png" data-scale="2.65" data-x="-57" data-y="302.5">
 
@@ -4973,6 +5332,13 @@
               data-x="-41" data-y="275" data-right-scale="0.312" data-right-x="55" data-right-y="275">
 
               <img src="display/spr_wa_bronze_knight_boots.png" class="item-icon"> Bronze Knight Boots
+
+            </li>
+			
+			<li data-layer="shoes" data-src="shoes/paladin/paladin.png" data-scale="0.5" data-x="-50.5"
+              data-y="321" data-right-scale="0.5" data-right-x="51.5" data-right-y="321">
+
+              <img src="shoes/paladin/paladind.png" class="item-icon"> Paladin Boots
 
             </li>
 
@@ -5351,6 +5717,13 @@
 
             </li>
 
+<li data-layer="pets" data-animated="true" data-frames="pets/paladin/" data-frame-count="3"
+              data-fps="5" data-scale="1.5" data-x="-239" data-y="170">
+
+              <img src="pets/paladind.png" class="item-icon"> Pet Paladin Bird
+
+            </li>
+
             <li data-layer="pets" data-animated="true" data-frames="pets/spr_wa_pet_blue_block_pet2/"
               data-frame-count="6" data-fps="5" data-scale="1.5" data-x="-243" data-y="104">
 
@@ -5402,11 +5775,48 @@
 
             </li>
 
+<li data-layer="pets" data-src="pets/heart.png"
+              data-scale="1.2" data-x="-220" data-y="151">
+
+              <img src="pets/heart.png" class="item-icon"> Pet Heart
+
+            </li>
+
+<li data-layer="pets" data-src="pets/dark.png"
+              data-scale="0.6" data-x="-220" data-y="151">
+
+              <img src="pets/darks.png" class="item-icon"> Pet Dark Heart
+
+            </li>
+
+<li data-layer="pets" data-src="pets/cloud.png" data-scale="0.6" data-x="-220" data-y="151">
+
+              <img src="pets/cloudd.png" class="item-icon"> Pet Cloud
+
+            </li>
+
+<li data-layer="pets" data-animated="true" data-frames="pets/cloud/" data-frame-count="10"
+              data-fps="5" data-scale="0.6" data-x="-220" data-y="151">
+
+              <img src="pets/beard.png" class="item-icon"> Pet Cloud
+
+            </li>
+
             <li data-layer="pets" data-animated="true" data-frames="pets/spr_wa_pet_dirt_pet2/" data-frame-count="2"
               data-fps="5" data-scale="1.4" data-x="-239" data-y="114">
 
               <img src="pets/spr_wa_pet_dirt_pet2/1.png" class="item-icon"> Pet Dirt
 
+            </li>
+
+            <li data-layer="pets" data-animated="true" data-frames="worldplanner/new/spr_wa_pet_dark_heart_pet1/" data-frame-count="1"
+              data-fps="5" data-scale="1.4" data-x="-239" data-y="114">
+              <img src="worldplanner/new/spr_wa_pet_dark_heart/spr_wa_pet_dark_heart_0.png" class="item-icon"> Pet Dark Heart
+            </li>
+
+            <li data-layer="pets" data-animated="true" data-frames="pets/bear/" data-frame-count="10"
+              data-fps="5" data-scale="0.5" data-x="-239" data-y="134">
+              <img src="pets/beard.png" class="item-icon"> Pet Love Bear
             </li>
 
             <li data-layer="pets" data-animated="true" data-frames="pets/spr_wa_pet_dj_parrot_pet2/"
@@ -5536,6 +5946,7 @@
 
             </li>
 
+
             <li data-layer="pets" data-animated="true" data-frames="pets/spr_wa_pet_gold_reindeer_pet2/"
               data-frame-count="6" data-fps="4" data-scale="1.455" data-x="-242" data-y="109">
 
@@ -5568,12 +5979,7 @@
 
             </li>
 
-            <li data-layer="pets-back" data-animated="true" data-frames="pets/pet01/" data-frame-count="7" data-fps="6"
-              data-scale="2.1" data-x="107" data-y="130">
 
-              <img src="display/lion.png" class="item-icon"> Circus Lion
-
-            </li>
 
             <li data-layer="pets" data-animated="true" data-frames="pets/spr_wa_pet_megalodon_pet2/"
               data-frame-count="4" data-fps="5" data-scale="1.16" data-x="-231" data-y="212">
@@ -5586,6 +5992,13 @@
               data-frame-count="18" data-fps="2" data-scale="1.3" data-x="-229" data-y="173">
 
               <img src="pets/spr_wa_pet_mini_brea_pet2/1.png" class="item-icon"> Pet Mini Brea
+
+            </li>
+
+<li data-layer="pets" data-animated="true" data-frames="pets/cupid/"
+              data-frame-count="5" data-fps="2" data-scale="2.3" data-x="-229" data-y="173">
+
+              <img src="pets/cupid.png" class="item-icon"> Pet Cupid
 
             </li>
 
@@ -5806,7 +6219,7 @@
 
             </div>
 
-            <span class="roadmap-item-text category-label">Cars</span>
+            <span class="roadmap-item-text category-label">Rides</span>
 
           </li>
 
@@ -5838,44 +6251,31 @@
 
             </li>
 
-            <li data-layer="cars" data-animated="true" data-frames="cars/spr_wa_pink_car_ride2/" data-frame-count="15"
-              data-fps="5" data-scale="1.8" data-x="0" data-y="265">
-
+            <li data-layer="cars" data-animated="true" data-frames="cars/spr_wa_pink_car_ride2/" data-frame-count="15" data-fps="5" data-scale="1.8" data-x="0" data-y="265">
               <img src="cars/spr_wa_pink_car_ride2/1.png" class="item-icon"> Pink Car
-
             </li>
 
             <li data-layer="cars" data-animated="true" data-frames="cars/spr_wa_police_cruiser_ride2/"
               data-frame-count="2" data-fps="5" data-scale="1.6" data-x="-7" data-y="101">
-
               <img src="cars/spr_wa_police_cruiser_ride2/1.png" class="item-icon"> Police Cruiser
-
             </li>
 
             <li data-layer="cars" data-src="cars/spr_wa_red_car_ride2.png" data-scale="1.4" data-x="-7" data-y="115">
-
               <img src="cars/spr_wa_red_car_ride2.png" class="item-icon"> Red Car
-
             </li>
 
             <li data-layer="cars" data-animated="true" data-frames="cars/spr_wa_tractor_ride2/" data-frame-count="4"
               data-fps="8" data-scale="1.4" data-x="-7" data-y="115">
-
               <img src="cars/spr_wa_tractor_ride2/1.png" class="item-icon"> Farm Tractor
-
             </li>
 
             <li data-layer="cars" data-src="cars/spr_wa_ventador_car_ride2.png" data-frame-count="15" data-fps="5"
               data-scale="1.98" data-x="-13" data-y="146">
-
               <img src="cars/spr_wa_ventador_car_ride2.png" class="item-icon"> Lambo Ventador
-
             </li>
 
             <li data-layer="cars" data-src="cars/spr_wa_yellow_car_ride2.png" data-scale="1.4" data-x="-7" data-y="115">
-
               <img src="cars/spr_wa_yellow_car_ride2.png" class="item-icon"> Yellow Car
-
             </li>
 
 
@@ -5902,6 +6302,13 @@
 
             </li>
 
+            <li data-layer="pets-back" data-animated="true" data-frames="pets/pet01/" data-frame-count="7" data-fps="6"
+              data-scale="2.1" data-x="107" data-y="130">
+
+              <img src="display/lion.png" class="item-icon"> Circus Lion
+
+            </li>
+
 
 
           </ul>
@@ -5918,7 +6325,7 @@
 
             </div>
 
-            <span class="roadmap-item-text category-label">Floaties</span>
+            <span class="roadmap-item-text category-label">Waist</span>
 
           </li>
 
@@ -5987,7 +6394,7 @@
 
             </div>
 
-            <span class="roadmap-item-text category-label">Scarfs</span>
+            <span class="roadmap-item-text category-label">Neck</span>
 
           </li>
 
@@ -6541,6 +6948,7 @@
     </div>
 
   </div>
+
 
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 

@@ -1,4 +1,4 @@
-﻿window.onload = function () {
+window.onload = function () {
   if (window.lucide) {
     lucide.createIcons();
   }
@@ -1065,14 +1065,24 @@ function searchItems() {
 
   // Filter submenu items
   allSubmenuItems.forEach(item => {
-    const text = item.textContent.trim().toLowerCase();
-    const isMatch = text.includes(searchTerm);
+    // Exclude Valentine updates items from search results to avoid duplicates
+    const isUpdateItem = item.closest('#updatesMenu') !== null;
+    
+    // Only search the item if it's not a duplicate category
+    if (!isUpdateItem) {
+      const text = item.textContent.trim().toLowerCase();
+      const isMatch = text.includes(searchTerm);
 
-    if (isMatch) {
-      item.style.display = ""; // Clears inline style, allowing CSS to take over
-      item.classList.add("highlight");
+      if (isMatch) {
+        item.style.display = ""; // Clears inline style, allowing CSS to take over
+        item.classList.add("highlight");
+      } else {
+        // Force hide using cssText to override any !important in CSS
+        item.style.setProperty('display', 'none', 'important');
+        item.classList.remove("highlight");
+      }
     } else {
-      // Force hide using cssText to override any !important in CSS
+      // Force hide duplicated items
       item.style.setProperty('display', 'none', 'important');
       item.classList.remove("highlight");
     }
@@ -1818,6 +1828,12 @@ function equipItem(element) {
         outfitRightShoeLayer.style.display = 'none';
       }
     }
+    
+    // Unequip Circus Lion if equipping another Car
+    const circusLionMenuItem = document.querySelector('[data-layer="pets-back"][data-frames*="pets/pet01/"].equipped');
+    if (circusLionMenuItem) {
+      equipItem(circusLionMenuItem); 
+    }
   }
 
   // If Nutcracker outfit (shirt24) is currently equipped and we're equipping
@@ -2019,7 +2035,8 @@ function equipItem(element) {
   // MUTUAL EXCLUSIVITY: Front and Back pets can't be equipped together
   if (layerName === 'pets') {
     const petsBackLayer = document.getElementById('pets-back');
-    if (petsBackLayer && petsBackLayer.style.display === 'block') {
+    const isCircusLionEquipped = document.querySelector('[data-layer="pets-back"][data-frames*="pets/pet01/"].equipped');
+    if (!isCircusLionEquipped && petsBackLayer && petsBackLayer.style.display === 'block') {
       petsBackLayer.style.display = 'none';
       stopAnimation(petsBackLayer);
       petsBackLayer.src = '';
@@ -2028,14 +2045,28 @@ function equipItem(element) {
       });
     }
   } else if (layerName === 'pets-back') {
+    const isEquippingCircusLion = (element.dataset.frames && element.dataset.frames.includes('pets/pet01/'));
     const petsLayer = document.getElementById('pets');
-    if (petsLayer && petsLayer.style.display === 'block') {
+    if (!isEquippingCircusLion && petsLayer && petsLayer.style.display === 'block') {
       petsLayer.style.display = 'none';
       stopAnimation(petsLayer);
       petsLayer.src = '';
       document.querySelectorAll('[data-layer="pets"]').forEach(item => {
         item.classList.remove('equipped');
       });
+    }
+    
+    // Unequip Cars if Equipping Circus Lion
+    if (isEquippingCircusLion) {
+      const carsLayer = document.getElementById('cars');
+      if (carsLayer && carsLayer.style.display === 'block') {
+        carsLayer.style.display = 'none';
+        stopAnimation(carsLayer);
+        carsLayer.src = '';
+        document.querySelectorAll('[data-layer="cars"]').forEach(item => {
+          item.classList.remove('equipped');
+        });
+      }
     }
   }
 
@@ -2539,6 +2570,7 @@ function equipItem(element) {
     }
 
     layer.src = actualSrc;
+
 
     // Handle dual cape system for static capes
     if (layerName === 'capes') {
@@ -4704,7 +4736,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Unified UI Application
   applyRoadmapStyleToSubmenus();
 });
-// Loading screen fade out with 3s minimum duration
+// Original Loading Logic Restored
 const loadingStartTime = Date.now();
 window.addEventListener('load', () => {
   const loadingScreen = document.getElementById('loading-screen');
@@ -4720,6 +4752,24 @@ window.addEventListener('load', () => {
       if (loaderInitial && loadingSelection) {
         loaderInitial.style.display = 'none';
         loadingSelection.style.display = 'flex';
+
+        // Show "See What's New" button with matching fade
+        const whatsNewBtn = document.querySelector('.whats-new-trigger-btn');
+        if (whatsNewBtn) {
+          whatsNewBtn.classList.add('visible');
+        }
+
+        // Auto-show modal if not seen this session
+        if (!sessionStorage.getItem('whats_new_seen')) {
+          if (typeof initWhatsNewModal === 'function') {
+            initWhatsNewModal();
+          }
+        }
+        
+        // Always populate the Updates/Valentines hamburger menu
+        if (typeof populateUpdatesMenu === 'function') {
+          populateUpdatesMenu();
+        }
       }
     }, remaining);
 
@@ -4727,7 +4777,7 @@ window.addEventListener('load', () => {
     if (!sessionStorage.getItem('counted')) {
       fetch('https://api.counterapi.dev/v1/breaworlds-set-planner/visits/up')
         .then(() => sessionStorage.setItem('counted', 'true'))
-        .catch(() => { /* silent fail */ });
+        .catch(() => { });
     }
   }
 });
@@ -4797,6 +4847,7 @@ let wpRainbowPattern, wpRainbowPatternCanvas;
 let wpRainbowAnimatedCanvas, wpRainbowAnimatedCtx; // Buffer for applying pattern to bases
 let isPainting = false;
 let isErasing = false;
+let wpEraserTargetLayer = null;
 let isSmartEraserMode = false; // New Mode: Smart Erase (paints only over same block to erase it)
 let isPanning = false;
 let wpMultiTouchActive = false; // Prevents "glitch drawing" when tapping/pinching
@@ -5841,6 +5892,14 @@ window.saveWPWorldToSlot = saveWPWorldToSlot;
 window.loadWPWorldFromSlot = loadWPWorldFromSlot;
 
 async function saveWPWorldToSlot(slotNumber) {
+  // Check if slot already has data and confirm override
+  const existingData = localStorage.getItem(`wpSaveSlot_${slotNumber}`);
+  if (existingData) {
+    if (!confirm('This slot already has a saved world. Are you sure you want to override it?')) {
+      return;
+    }
+  }
+
   const preview = await generateWPWorldPreview();
   const viewport = document.getElementById('wp-viewport');
 
@@ -6367,6 +6426,7 @@ function setupWPEvents() {
 
   window.onmouseup = () => {
     isSmartEraserMode = false; // Reset Smart Erase Mode
+    wpEraserTargetLayer = null; // Reset Eraser Layer Lock
     if (isPainting || isErasing) {
       // Defer heavy history and save operations to prevent UI freeze
       setTimeout(() => {
@@ -6789,9 +6849,18 @@ function handleWPInteractionAt(x, y, isBatched = false) {
       wpMarkDirty();
     }
   } else if (effectiveErasing) {
-    // Eraser priority: Foreground first, then Background
+    // Eraser priority: Foreground first, then Background. 
+    // Lock to the first layer erased to prevent destroying both layers on one stroke.
     let wasRemoved = false;
-    if (wpGrid[y][x] !== null) {
+
+    // Determine target layer on FIRST erase interaction of this stroke
+    if (wpEraserTargetLayer === null) {
+      if (wpGrid[y][x] !== null) wpEraserTargetLayer = 'fg';
+      else if (wpBackgroundGrid[y][x] !== null) wpEraserTargetLayer = 'bg';
+      else wpEraserTargetLayer = 'none'; // clicked empty space
+    }
+
+    if (wpEraserTargetLayer === 'fg' && wpGrid[y][x] !== null) {
       wpGrid[y][x] = null;
       // Only update immediate cardinal neighbors — no chain walk
       wpUpdateTilingAt(x, y + 1);
@@ -6799,7 +6868,7 @@ function handleWPInteractionAt(x, y, isBatched = false) {
       wpUpdateTilingAt(x + 1, y);
       wpUpdateTilingAt(x - 1, y);
       wasRemoved = true;
-    } else if (wpBackgroundGrid[y][x] !== null) {
+    } else if (wpEraserTargetLayer === 'bg' && wpBackgroundGrid[y][x] !== null) {
       wpBackgroundGrid[y][x] = null;
       wasRemoved = true;
     }
@@ -7084,7 +7153,8 @@ function drawWPWorld(timestamp) {
   const hasAnimatedBlocks = wpAnimatedCells && wpAnimatedCells.length > 0;
 
   // Skip frame if nothing changed and no animation tick due
-  if (!wpDirty && !(hasAnimatedBlocks && animTick)) {
+  // USER REQUEST: Always redraw if Wrench tool is active to keep wiggle animation smooth
+  if (!wpDirty && !(hasAnimatedBlocks && animTick) && wpCurrentTool !== 'wrench') {
     wpAnimationId = requestAnimationFrame(drawWPWorld);
     return;
   }
@@ -7615,13 +7685,32 @@ function renderWPCollection() {
 
   grid.innerHTML = '';
 
+  // Valentine block IDs for prioritized section
+  const valentineForegroundIds = [
+    'spr_fg_amethyst_ore_block', 'spr_bg_church_curtain', 'spr_fg_crystal_love_lock', 
+    'spr_fg_cupid_fountain', 'spr_fg_flamingo', 'spr_fg_flowery_bush', 'spr_fg_foliage_block', 
+    'spr_fg_goddess_trophy', 'spr_fg_heart_bush', 'spr_fg_heart_castle_block', 
+    'spr_fg_heart_ceiling_light', 'spr_fg_heart_checkpoint', 'spr_fg_love_table_block', 
+    'spr_fg_magma_block', 'spr_fg_pink_pillar', 'spr_fg_sakura_foliage_block', 
+    'spr_fg_tree_heart', 'spr_fg_tree_trunk_block', 'spr_fg_valentine_chair', 
+    'spr_fg_valentine_music_box', 'spr_fg_valentines_block', 'spr_fg_wedding_chair', 
+    'spr_fg_wedding_fountain', 'spr_bg_wedding_chandelier', 'spr_bg_love_lantern',
+    'spr_bg_heart_arrow_led_left', 'spr_bg_heart_arrow_led_right'
+  ];
+  const valentineBackgroundIds = [
+    'spr_bg_heart_castle_background', 'spr_bg_stained_glass', 'spr_bg_valentines_bg'
+  ];
+
   // Filter by current tab (foreground vs background)
   let itemsToRender = [];
+  let valentineIds = [];
   if (wpCurrentTab === 'background') {
     // Show only items that start with spr_bg_, are type background, and are not seeds
     itemsToRender = wpBlocks.filter(b => b.id.startsWith('spr_bg_') && b.type === 'background' && !b.id.toLowerCase().includes('seed'));
+    valentineIds = valentineBackgroundIds;
   } else {
     itemsToRender = wpBlocks.filter(b => b.type === wpCurrentTab);
+    valentineIds = valentineForegroundIds;
   }
 
   // Get search query
@@ -7633,11 +7722,16 @@ function renderWPCollection() {
     itemsToRender = itemsToRender.filter(b => b.name.toLowerCase().includes(query));
   }
 
-  // Sort alphabetically by name
-  itemsToRender.sort((a, b) => a.name.localeCompare(b.name));
+  // Separate Valentine items from the rest
+  const valentineItems = itemsToRender.filter(b => valentineIds.includes(b.id));
+  const otherItems = itemsToRender.filter(b => !valentineIds.includes(b.id));
 
-  // Render items
-  itemsToRender.forEach(block => {
+  // Sort each group alphabetically
+  valentineItems.sort((a, b) => a.name.localeCompare(b.name));
+  otherItems.sort((a, b) => a.name.localeCompare(b.name));
+
+  // Helper to create a block item element
+  function createBlockItem(block) {
     const item = document.createElement('div');
     item.className = 'wp-cat-item';
     if (wpSelectedBlockId === block.id) item.classList.add('active');
@@ -7659,7 +7753,32 @@ function renderWPCollection() {
     nameSpan.textContent = block.name;
     item.appendChild(nameSpan);
 
-    grid.appendChild(item);
+    return item;
+  }
+
+  // Render Valentine section first (only if there are matching items)
+  if (valentineItems.length > 0) {
+    const header = document.createElement('div');
+    header.className = 'wp-cat-section-header';
+    header.innerHTML = 'VALENTINE\'S';
+    grid.appendChild(header);
+
+    valentineItems.forEach(block => {
+      grid.appendChild(createBlockItem(block));
+    });
+
+    // Add separator before the rest
+    if (otherItems.length > 0) {
+      const separator = document.createElement('div');
+      separator.className = 'wp-cat-section-header';
+      separator.innerHTML = wpCurrentTab === 'background' ? 'ALL BACKGROUNDS' : 'ALL BLOCKS';
+      grid.appendChild(separator);
+    }
+  }
+
+  // Render remaining items
+  otherItems.forEach(block => {
+    grid.appendChild(createBlockItem(block));
   });
 }
 
@@ -7743,4 +7862,1005 @@ function loadImage(src) {
     img.src = src;
   });
 }
+
+/* ========================================= */
+/* IMAGE TO WORLD CONVERTER LOGIC (v2)       */
+/* ========================================= */
+
+let wpBlockColorMap = null;
+
+// ── CIE Lab Color Space Utilities ──
+
+// Convert sRGB [0-255] to linear RGB [0-1]
+function srgbToLinear(c) {
+  c /= 255;
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+}
+
+// Convert RGB [0-255] to CIE Lab
+function rgbToLab(r, g, b) {
+  // RGB → linear → XYZ (D65 illuminant)
+  const rl = srgbToLinear(r), gl = srgbToLinear(g), bl = srgbToLinear(b);
+  let x = (rl * 0.4124564 + gl * 0.3575761 + bl * 0.1804375) / 0.95047;
+  let y = (rl * 0.2126729 + gl * 0.7151522 + bl * 0.0721750);
+  let z = (rl * 0.0193339 + gl * 0.1191920 + bl * 0.9503041) / 1.08883;
+  // XYZ → Lab
+  const f = (t) => t > 0.008856 ? Math.cbrt(t) : (7.787 * t + 16 / 116);
+  x = f(x); y = f(y); z = f(z);
+  return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+}
+
+// CIE76 ΔE distance (perceptual)
+function labColorDistance(lab1, lab2) {
+  const dL = lab1[0] - lab2[0];
+  const dA = lab1[1] - lab2[1];
+  const dB = lab1[2] - lab2[2];
+  return Math.sqrt(dL * dL + dA * dA + dB * dB);
+}
+
+// Full-resolution average color of an image source (samples all opaque pixels)
+async function getFullResImageColor(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      c.width = w;
+      c.height = h;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const data = ctx.getImageData(0, 0, w, h).data;
+
+      let rSum = 0, gSum = 0, bSum = 0, count = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] > 128) { // Only count opaque pixels
+          rSum += data[i];
+          gSum += data[i + 1];
+          bSum += data[i + 2];
+          count++;
+        }
+      }
+      if (count === 0) {
+        resolve({ rgb: [0, 0, 0, 0], lab: [0, 0, 0], opaqueRatio: 0 });
+      } else {
+        const r = Math.round(rSum / count);
+        const g = Math.round(gSum / count);
+        const b = Math.round(bSum / count);
+        const lab = rgbToLab(r, g, b);
+        const opaqueRatio = count / (w * h);
+        resolve({ rgb: [r, g, b, 255], lab, opaqueRatio });
+      }
+    };
+    img.onerror = () => {
+      resolve({ rgb: [0, 0, 0, 0], lab: [0, 0, 0], opaqueRatio: 0 });
+    };
+    img.src = src;
+  });
+}
+
+// Pre-compute colors of all available blocks (v2: full-res + Lab)
+async function computeWPBlockColors() {
+  if (wpBlockColorMap) return wpBlockColorMap;
+
+  // Show loading indicator
+  const btn = document.querySelector('.wp-tool-btn[onclick*="wp-image-import"]');
+  if (btn) {
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i data-lucide="loader" class="spin"></i><span class="wp-tool-label">Loading</span>';
+    if (window.lucide) lucide.createIcons();
+    btn.dataset.originalHtml = originalHtml;
+  }
+
+  wpBlockColorMap = [];
+
+  for (const block of wpBlocks) {
+    const colorData = await getFullResImageColor(block.src);
+    // Only add blocks that have meaningful opaque pixels
+    if (colorData.opaqueRatio > 0.02) {
+      const group = (block.group || "").toLowerCase();
+      const name = block.name.toLowerCase();
+      const id = block.id.toLowerCase();
+
+      // Aesthetic score: higher is better for "solid wall/tile" blocks
+      let score = 100;
+
+      // STRONG boost for solid block types ideal for image conversion
+      if (name.includes("block") && !name.includes("display") && !name.includes("arrow")) score += 80;
+      if (name.includes("brick")) score += 70;
+      if (name.includes("metal panel")) score += 60;
+      if (name.includes("plastic block")) score += 60;
+      if (group.includes("bricks")) score += 50;
+      if (group.includes("basic blocks")) score += 40;
+
+      // Moderate boost for terrain/natural
+      if (group.includes("terrain") || group.includes("nature")) score += 30;
+      if (name.includes("dirt") || name.includes("grass") || name.includes("stone") || name.includes("sand")) score += 30;
+      if (name.includes("obsidian") || name.includes("marble") || name.includes("granite")) score += 30;
+      if (name.includes("wood block") || name.includes("ice block") || name.includes("snow block")) score += 25;
+
+      // Backgrounds that are solid colored get a boost
+      if (block.type === 'background' && name.includes("background")) score += 40;
+      if (block.type === 'background' && name.includes("brick")) score += 30;
+
+      // Penalize blocks that don't fill the full tile
+      if (colorData.opaqueRatio < 0.5) score -= 80;  // Less than half-filled
+      else if (colorData.opaqueRatio < 0.7) score -= 40;
+
+      // Penalize animated/framed blocks
+      if (block.framesPath) score -= 50;
+
+      // Penalize decorative/furniture items heavily
+      if (name.includes("seed") || name.includes("curtain") || name.includes("window")) score -= 40;
+      if (id.includes("border") || id.includes("corner") || id.includes("slope")) score -= 30;
+      if (name.includes("platform") || name.includes("ladder") || name.includes("fence")) score -= 60;
+      if (name.includes("pillar") || name.includes("vine") || name.includes("rope")) score -= 60;
+      if (name.includes("lamp") || name.includes("torch") || name.includes("chandelier")) score -= 70;
+      if (name.includes("chair") || name.includes("bed") || name.includes("table")) score -= 70;
+      if (name.includes("door") || name.includes("entrance")) score -= 70;
+      if (name.includes("tree") || name.includes("bush") || name.includes("plant") || name.includes("flower")) score -= 60;
+      if (name.includes("chest") || name.includes("box") || name.includes("crate")) score -= 50;
+      if (name.includes("sign") || name.includes("display")) score -= 50;
+      if (name.includes("spike") || name.includes("trap")) score -= 60;
+      if (name.includes("checkpoint") || name.includes("spawn")) score -= 70;
+      if (name.includes("portal")) score -= 50;
+      if (name.includes("jelly")) score -= 30;
+
+      wpBlockColorMap.push({
+        id: block.id,
+        name: block.name,
+        group: block.group,
+        type: block.type,
+        color: colorData.rgb,
+        lab: colorData.lab,
+        opaqueRatio: colorData.opaqueRatio,
+        hasFrames: !!block.framesPath,
+        isDirt: !!block.isDirt,
+        defaultState: block.defaultState,
+        score: score
+      });
+    }
+  }
+
+  // Restore button
+  if (btn && btn.dataset.originalHtml) {
+    btn.innerHTML = btn.dataset.originalHtml;
+    if (window.lucide) lucide.createIcons();
+  }
+
+  return wpBlockColorMap;
+}
+
+// Check if a block is "obtainable" based on user criteria (v2: expanded exclusions)
+function isWPBlockObtainable(block) {
+  const id = block.id.toLowerCase();
+  const name = block.name.toLowerCase();
+  const group = (block.group || "").toLowerCase();
+
+  // EXTREME NPC/ENTITY EXCLUSIONS
+  const entityKeywords = ["npc", "bot", "droid", "scientist", "doctor", "guard", "person", "character", "security", "assistant", "merchant", "villager", "citizen", "non player character"];
+  if (entityKeywords.some(kw => id.includes(kw) || name.includes(kw) || group.includes(kw))) return false;
+
+  // EXTREME LOCK EXCLUSIONS
+  if (id.includes("lock") || name.includes("lock") || group.includes("locks")) return false;
+
+  // EXTREME ACID/LAVA EXCLUSIONS
+  if (id.includes("acid") || id.includes("lava") || name.includes("acid") || name.includes("lava")) return false;
+
+  // EXTREME ORE EXCLUSIONS (allow natural dirt/stone/basic blocks, but block these specific ores)
+  const oreKeywords = ["ore copper", "ore diamond", "ore emerald", "ore gold", "ore iron", "ore lithium", "ore ruby", "blood ore block", "nightmare ore block"];
+  if (oreKeywords.some(kw => id.includes(kw) || name.includes(kw))) return false;
+
+  // ARCADE / CASINO / CARNIVAL 
+  const gamblingKeywords = ["arcade", "casino", "slot machine", "poker", "roulette", "carnival"];
+  if (gamblingKeywords.some(kw => id.includes(kw) || name.includes(kw) || group.includes(kw))) return false;
+
+  // TROPHIES & PODIUMS
+  if (name.includes("trophy") || name.includes("podium") || group.includes("trophy")) return false;
+
+  // HOLIDAYS / EVENTS (Halloween, Christmas, Valentine, Easter, Summer)
+  const holidayKeywords = ["halloween", "xmas", "christmas", "valentine", "easter", "summer"];
+  if (holidayKeywords.some(kw => name.includes(kw) || id.includes(kw))) return false;
+
+  // REWARDS
+  if (name.includes("reward") || name.includes("gift") || name.includes("prize")) return false;
+
+  // META / SYSTEM
+  if (name.includes("bedrock") || id.includes("bedrock") || name.includes("barrier") || id.includes("barrier")) return false;
+
+  // MISC EXCLUSIONS SPECIFIED BY USER
+  const specificExclusions = [
+    "anti talk block", "anti drop block", "anti punch block",
+    "blue mushroom", "box of candy crate", "brewing cup", 
+    "collector block", "cupid fountain", "disco", "electric pole", 
+    "elf potrait", "elf portrait", "entrance", "exclamation sign", "ferris wheel", 
+    "fountain", "game leaderboard", "garment suitcase", "go left sign", "go right sign", 
+    "grumpy bunny", "heart checkpoint", "heart led sign", "jump sign", "lead rope", 
+    "lion cage", "marketplace box", "mine block", "popcorn machine", "pot o gold", 
+    "prestige wheel", "pumpkin candy block", "pumpkin block", "recycle bin", 
+    "signal button", "small tree", "snow wall", "time block", "vip box", 
+    "vip entrance", "vip sign", "world indicator", "music", "boomin box", "nano"
+  ];
+  if (specificExclusions.some(ex => id.includes(ex) || name.includes(ex))) return false;
+
+  // Filter Signs strictly (only allow basic ones)
+  if (name.includes("sign")) {
+    const allowedSigns = ["candy sign", "wooden sign", "iron sign", "blank sign"];
+    return allowedSigns.some(s => name.includes(s));
+  }
+
+  return true;
+}
+
+// Find closest block using CIE Lab perceptual distance (v2)
+function getClosestWPBlock(r, g, b, placementPolicy, obtainableOnly = true) {
+  let closestDist = Infinity;
+  let bestCandidate = null;
+  const targetLab = rgbToLab(r, g, b);
+
+  for (const blockData of wpBlockColorMap) {
+    if (placementPolicy === 'foreground' && blockData.type !== 'foreground') continue;
+    if (placementPolicy === 'background' && blockData.type !== 'background') continue;
+    if (obtainableOnly && !isWPBlockObtainable(blockData)) continue;
+
+    // Use perceptual Lab distance
+    let dist = labColorDistance(targetLab, blockData.lab);
+
+    // Light aesthetic penalty (disabled as per user request to maximize block variety)
+    // const penaltyValue = Math.max(0, (150 - blockData.score)) * 0.15;
+    // dist += penaltyValue;
+
+    if (dist < closestDist) {
+      closestDist = dist;
+      bestCandidate = blockData;
+    }
+  }
+
+  return bestCandidate;
+}
+
+window.handleWPImageImport = function (event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    const img = new Image();
+    img.onload = function () {
+      // Store loaded image globally for the confirm step
+      window.wpImportImageCurrent = img;
+
+      // Update preview canvas
+      const canvas = document.getElementById('wp-import-preview-canvas');
+      const ctx = canvas.getContext('2d');
+
+      // Calculate display scale
+      const maxWidth = 300;
+      const maxHeight = 200;
+      let w = img.width;
+      let h = img.height;
+      if (w > maxWidth) {
+        h = Math.round((maxWidth / w) * h);
+        w = maxWidth;
+      }
+      if (h > maxHeight) {
+        w = Math.round((maxHeight / h) * w);
+        h = maxHeight;
+      }
+
+      canvas.width = w;
+      canvas.height = h;
+      ctx.drawImage(img, 0, 0, w, h);
+
+      // Show modal
+      toggleWPPopup('wp-import-modal');
+
+      // Pre-compute block colors in background if not done yet
+      computeWPBlockColors();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+
+  // Clear the input so it can be re-used
+  event.target.value = '';
+};
+
+window.confirmWPImageImport = async function () {
+  if (!window.wpImportImageCurrent) return;
+
+  const img = window.wpImportImageCurrent;
+  const placement = document.getElementById('wp-import-placement').value;
+  const resizeLogic = document.getElementById('wp-import-resize').value;
+  
+  // Enforce obtainable default
+  const obtainableOnly = true;
+
+  // Force re-compute if cached data is stale (v1 format without lab)
+  if (wpBlockColorMap && wpBlockColorMap.length > 0 && !wpBlockColorMap[0].lab) {
+    wpBlockColorMap = null;
+  }
+
+  await computeWPBlockColors();
+  toggleWPPopup('wp-import-modal');
+
+  const pCanvas = document.createElement('canvas');
+  let targetW = img.width;
+  let targetH = img.height;
+
+  if (resizeLogic === 'stretch') {
+    // Stretched across the whole world
+    targetW = WORLD_WIDTH;
+    targetH = WORLD_HEIGHT - 5;
+  } else if (resizeLogic === 'scale') {
+    // Proportional scaling to ensure the image is NEVER squished or stretched
+    const maxW = WORLD_WIDTH;
+    const maxH = WORLD_HEIGHT - 5;
+    const ratio = Math.min(maxW / img.width, maxH / img.height);
+    
+    targetW = Math.max(1, Math.round(img.width * ratio));
+    targetH = Math.max(1, Math.round(img.height * ratio));
+  }
+
+  pCanvas.width = targetW;
+  pCanvas.height = targetH;
+  const pCtx = pCanvas.getContext('2d');
+  pCtx.drawImage(img, 0, 0, targetW, targetH);
+
+  const imageData = pCtx.getImageData(0, 0, targetW, targetH).data;
+  const startX = Math.floor((WORLD_WIDTH - targetW) / 2);
+  const startY = (WORLD_HEIGHT - 5) - targetH;
+
+  // v2: NO palette reduction — match each pixel directly against ALL blocks
+  // This is more accurate than the old 16-color palette system
+
+  // Determine if we should also fill backgrounds (for "both" mode)
+  const fillBothLayers = (placement === 'both');
+
+  for (let y = 0; y < targetH; y++) {
+    for (let x = 0; x < targetW; x++) {
+      const i = (y * targetW + x) * 4;
+      const r = imageData[i];
+      const g = imageData[i + 1];
+      const b = imageData[i + 2];
+      const a = imageData[i + 3];
+
+      const worldX = startX + x;
+      const worldY = startY + y;
+
+      if (worldX < 0 || worldX >= WORLD_WIDTH || worldY < 0 || worldY >= WORLD_HEIGHT) continue;
+
+      if (a > 128) {
+        if (fillBothLayers) {
+          // "Foreground & Background" mode: 
+          // Find the absolute best match across BOTH layers.
+          const bestOverall = getClosestWPBlock(r, g, b, 'both', obtainableOnly);
+
+          if (bestOverall) {
+            const isBg = (bestOverall.type === 'background');
+            const blockDataToSet = (bestOverall.defaultState !== undefined) ? { id: bestOverall.id, state: bestOverall.defaultState } : bestOverall.id;
+
+            if (isBg) {
+              // Best match is a background block. No foreground needed.
+              wpBackgroundGrid[worldY][worldX] = blockDataToSet;
+              wpGrid[worldY][worldX] = null;
+            } else {
+              // Best match is a foreground block.
+              wpGrid[worldY][worldX] = blockDataToSet;
+
+              // Check if it's a partial block (doesn't cover the full grid)
+              if (bestOverall.opaqueRatio < 0.95) {
+                // Find a background to place behind it
+                const bestBG = getClosestWPBlock(r, g, b, 'background', obtainableOnly);
+                if (bestBG) {
+                  const bgDataToSet = (bestBG.defaultState !== undefined) ? { id: bestBG.id, state: bestBG.defaultState } : bestBG.id;
+                  wpBackgroundGrid[worldY][worldX] = bgDataToSet;
+                } else {
+                  wpBackgroundGrid[worldY][worldX] = null;
+                }
+              } else {
+                // It's a solid block, clear background behind it to prevent unnecessary blocks
+                wpBackgroundGrid[worldY][worldX] = null;
+              }
+            }
+          }
+        } else {
+          // Single-layer mode (foreground only or background only)
+          const bestBlock = getClosestWPBlock(r, g, b, placement, obtainableOnly);
+
+          if (bestBlock) {
+            const blockId = bestBlock.id;
+            const isBg = (bestBlock.type === 'background');
+            const blockDataToSet = (bestBlock.defaultState !== undefined) ? { id: blockId, state: bestBlock.defaultState } : blockId;
+
+            if (isBg) {
+              wpBackgroundGrid[worldY][worldX] = blockDataToSet;
+              wpGrid[worldY][worldX] = null;
+            } else {
+              wpGrid[worldY][worldX] = blockDataToSet;
+              wpBackgroundGrid[worldY][worldX] = null;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // v2: Apply tiling for dirt states, pillars, vines, barrier rope, gingerbread, spikes etc.
+  // This makes dirt behave the same as when drawn manually (grass top vs underground)
+  for (let y = 0; y < targetH; y++) {
+    for (let x = 0; x < targetW; x++) {
+      const worldX = startX + x;
+      const worldY = startY + y;
+      if (worldX >= 0 && worldX < WORLD_WIDTH && worldY >= 0 && worldY < WORLD_HEIGHT) {
+        wpUpdateTilingAt(worldX, worldY);
+      }
+    }
+  }
+
+  // Finalize
+  saveWPHistory();
+  saveActiveWorld();
+  updateWPAnimatedCellList();
+  updateWPBlockCount();
+  wpMarkStaticDirty();
+  wpMarkDirty();
+};
+
+/* WHAT'S NEW MODAL LOGIC */
+function initWhatsNewModal() {
+  const overlay = document.getElementById('whats-new-overlay');
+  const scrollContainer = document.getElementById('whats-new-scroll-container');
+  const confirmBtn = document.getElementById('whats-new-confirm-btn');
+  const setList = document.getElementById('new-set-planner-list');
+  const worldList = document.getElementById('new-world-planner-list');
+
+  if (!overlay || !scrollContainer || !confirmBtn) {
+    return;
+  }
+
+  // Data to populate
+  const newItems = {
+    "set_planner": [
+      "spr_wa_blissful_wings", "spr_wa_blue_bear_hoodie", "spr_wa_candy_love_sword",
+      "spr_wa_cherub_wings_gold", "spr_wa_cherub_wings_normal", "spr_wa_cherub_wings_pink",
+      "spr_wa_dual_pickaxe", "spr_wa_fallen_angel_wings",
+      "spr_wa_florence_bouquet", 
+      "spr_wa_heart_jetpack", 
+      "spr_wa_lovers_cap", "spr_wa_mining_backpack", "spr_wa_paladin_armor",
+      "spr_wa_paladin_boots", "spr_wa_paladin_helmet", "spr_wa_paladin_pants",
+      "spr_wa_pet_cupid", "spr_wa_pet_dark_heart", 
+      "spr_wa_pet_love_bear", 
+      "spr_wa_pet_paladin_bird", "spr_wa_pink_bear_hoodie",
+      "spr_wa_pink_fedora", "spr_wa_pink_velvet_pants", "spr_wa_pink_wedding_dress",
+      "spr_wa_red_velvet_pants", "spr_wa_red_wedding_dress",
+      "spr_wa_rose_bouquet", 
+      "spr_wa_white_wedding_dress",
+      "spr_wa_red_velvet_suit", "spr_wa_pink_velvet_suit", "spr_wa_pink_shoes",
+      "spr_wa_heart_dufflejacket", "spr_wa_pink_dufflejacket", "spr_wa_yellow_dufflejacket",
+      "spr_wa_lucious_hair_blonde", "spr_wa_black_slimy_hair", "spr_wa_brown_kimpy_hair",
+      "spr_wa_pompadour_hair", "spr_wa_pink_eyes", "spr_wa_pink_headphones",
+      "spr_wa_pink_car", "spr_wa_golden_car", "spr_wa_heart_cape",
+      "spr_wa_heart_glasses", "spr_wa_water_tube_flamingo_waist2"
+    ],
+    "world_planner": [
+      "spr_bg_heart_castle_background", "spr_bg_stained_glass", "spr_bg_church_curtain",
+      "spr_bg_heart_arrow_led_left", "spr_bg_heart_arrow_led_right", "spr_bg_love_lantern",
+      "spr_bg_wedding_chandelier", "spr_fg_amethyst_ore_block", "spr_fg_crystal_love_lock",
+      "spr_fg_flowery_bush", "spr_fg_foliage_block", "spr_fg_heart_bush",
+      "spr_fg_heart_castle_block", "spr_fg_love_table_block", "spr_fg_magma_block",
+      "spr_fg_sakura_foliage_block", "spr_fg_tree_heart", "spr_fg_tree_trunk_block",
+      "spr_fg_valentine_chair", "spr_fg_wedding_chair", "spr_fg_wedding_fountain",
+      "spr_fg_flamingo", "spr_bg_heart_led", "spr_fg_valentine_music_box",
+      "spr_fg_valentines_block", "spr_fg_cupid_fountain",
+      "spr_fg_heart_ceiling_light", "spr_fg_pink_pillar", "spr_fg_heart_checkpoint",
+      "spr_fg_goddess_trophy", "spr_bg_valentines_bg"
+    ]
+  };
+
+  function createItemCard(id, type) {
+    const card = document.createElement('div');
+    card.className = 'wn-item-card';
+    
+    const img = document.createElement('img');
+    let imgSrc = null;
+
+    if (type === 'set_planner') {
+      const menuListItems = Array.from(document.querySelectorAll('.menu-list .submenu li')).filter(li => !li.closest('#updatesMenu'));
+      const idWords = id.replace(/^spr_(wa|fg|bg)_/, '').replace(/_/g, ' ').toLowerCase().split(' ').filter(w => w.length > 1);
+      
+      for (const li of menuListItems) {
+        const liImg = li.querySelector('img.item-icon');
+        if (!liImg) continue;
+        
+        const itemText = li.textContent.trim().toLowerCase();
+        const textWords = itemText.replace(/[^a-z0-9 ]/g, '').split(' ').filter(w => w.length > 1);
+        const imgSrcAttr = liImg.getAttribute('src');
+
+        // Robust match: Check if all significant words from ID are in the item text, or vice versa
+        const matchesWords = (idWords.length > 0 && idWords.every(w => textWords.includes(w))) ||
+                            (textWords.length > 0 && textWords.every(w => idWords.includes(w)));
+        
+        // Match by filename fallback
+        const matchesFile = imgSrcAttr && (imgSrcAttr.includes(id) || imgSrcAttr.includes(id.replace('spr_wa_', '')));
+
+        if (matchesWords || matchesFile || (id.includes('slimy') && itemText.includes('slimy'))) {
+          imgSrc = imgSrcAttr;
+          break;
+        }
+      }
+
+      // Final fallbacks for Set Planner items
+      if (!imgSrc) {
+        if (id.includes('slimy')) imgSrc = 'hair/slimyd.png';
+        else imgSrc = `worldplanner/new/${id}/${id}_0.png`;
+      }
+
+      img.onerror = () => {
+        if (id.includes('slimy')) img.src = 'hair/slimyd.png'; 
+        else {
+          img.src = `display/${id}.png`;
+          img.onerror = () => { img.style.display = 'none'; };
+        }
+      };
+    } else {
+      // world_planner: priority worldplanner/Blocks
+      if (id === 'spr_bg_valentines_bg') {
+        imgSrc = 'worldplanner/Blocks/spr_fg_valentines_bg/spr_fg_valentines_bg_0.png';
+      } else {
+        imgSrc = `worldplanner/Blocks/${id}/${id}_0.png`;
+      }
+      img.onerror = () => {
+        img.src = `worldplanner/Blocks/${id}/${id}.png`;
+        img.onerror = () => {
+          img.src = `worldplanner/new/${id}/${id}_0.png`;
+          img.onerror = () => {
+            img.src = `display/${id}.png`;
+            img.onerror = () => { img.style.display = 'none'; };
+          };
+        };
+      };
+    }
+
+    img.src = imgSrc;
+    
+    const label = document.createElement('span');
+    
+    // Custom name mappings to exact user strings
+    const customNames = {
+      'spr_wa_cherub_wings_gold': 'Golden Cherub Wings',
+      'spr_wa_cherub_wings_pink': 'Pink Cherub Wings',
+      'spr_wa_cherub_wings_normal': 'Cherub Wings',
+      'spr_wa_red_velvet_suit': 'Velvet Suit',
+      'spr_wa_pink_velvet_suit': 'Love Suit',
+      'spr_wa_pink_shoes': 'Pink Shoes',
+      'spr_wa_heart_dufflejacket': 'Heart Dufflejacket',
+      'spr_wa_pink_dufflejacket': 'Pink Dufflejacket',
+      'spr_wa_yellow_dufflejacket': 'Yellow Dufflejacket',
+      'spr_wa_lucious_hair_blonde': 'Luscious Blonde Hair',
+      'spr_wa_brown_kimpy_hair': 'Brown Kimpy Hair',
+      'spr_wa_black_slimy_hair': 'Black Slimy Hair',
+      'slimy': 'Black Slimy Hair',
+      'slimyd': 'Black Slimy Hair',
+      'spr_wa_pink_eyes': 'Pink Eyes',
+      'spr_wa_pink_headgear': 'Pink Headgear',
+      'spr_wa_pink_headphones': 'Pink Headgear',
+      'spr_wa_pink_car': 'Pink Car',
+      'spr_wa_golden_car': 'Golden Car',
+      'spr_wa_heart_glasses': 'Hearted Glasses',
+      'spr_wa_water_tube_flamingo_waist2': 'Flamingo Water Tube',
+      'spr_fg_valentines_block': 'Heart Block',
+      'spr_fg_pink_pillar': 'Love Pillar',
+      'spr_fg_heart_ceiling_light': 'Love Ceiling Light',
+      'spr_bg_heart_led': 'Heart Led Sign',
+      'spr_bg_valentines_bg': 'Heart Background'
+    };
+
+    let nameText = id.replace(/^spr_(wa|fg|bg)_/, '').replace(/_/g, ' ');
+    if (customNames[id]) {
+      label.textContent = customNames[id];
+    } else {
+      label.textContent = nameText.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
+    
+    card.appendChild(img);
+    card.appendChild(label);
+    return card;
+  }
+
+  // Clear and populate
+  if (setList) {
+    setList.innerHTML = '';
+    newItems.set_planner.forEach(id => setList.appendChild(createItemCard(id, 'set_planner')));
+  }
+  if (worldList) {
+    worldList.innerHTML = '';
+    newItems.world_planner.forEach(id => worldList.appendChild(createItemCard(id, 'world_planner')));
+  }
+
+  // Auto-trigger on init
+  overlay.style.display = 'flex';
+  scrollContainer.scrollTop = 0;
+  confirmBtn.disabled = true;
+  confirmBtn.classList.remove('enabled');
+  confirmBtn.textContent = 'Scroll to read more';
+
+  // Scroll logic
+  scrollContainer.onscroll = () => {
+    const threshold = 100; 
+    const isAtBottom = scrollContainer.scrollHeight - scrollContainer.scrollTop <= scrollContainer.clientHeight + threshold;
+    if (isAtBottom && confirmBtn.disabled) {
+      confirmBtn.disabled = false;
+      confirmBtn.classList.add('enabled');
+      confirmBtn.textContent = 'Confirm Changes';
+    }
+  };
+
+  confirmBtn.onclick = () => {
+    if (!confirmBtn.disabled) {
+      overlay.style.display = 'none';
+      if (sessionStorage.getItem('whats_new_seen') !== 'true') {
+        sessionStorage.setItem('whats_new_seen', 'true');
+      }
+    }
+  };
+  
+  // Populate the Updates hamburger menu in Set Planner
+  populateUpdatesMenu();
+}
+
+function populateUpdatesMenu() {
+  const updatesMenu = document.getElementById('updatesMenu');
+  if (!updatesMenu) return;
+
+  // The Valentine items have very inconsistent naming and many don't exist as <li>s in other menus.
+  // We explicitly define the HTML for the menu here acting as redirects to the original items.
+  // Using the premium "boxed" design to match other menus.
+  updatesMenu.innerHTML = `
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="hats/loverd.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Lovers Cap</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="hats/fedorad.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Pink Fedora</span>
+    </li>
+    
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="hair/pompd.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Pompadour Hair</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="hair/hair22.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Brown Kimpy Hair</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="hair/slimyd.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Black Slimy Hair</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="display/spr_wa_lucious_hair_blonde.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Lucious Blonde Hair</span>
+    </li>
+
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="display/spr_wa_pink_eyes.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Pink Eyes</span>
+    </li>
+
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="wings/fallen.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Fallen Angel Wings</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="wings/blissful.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Blissful Wings</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="capes/heartd.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Heart Jetpack</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="display/spr_wa_heart_cape.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Heart Cape</span>
+    </li>
+
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="shirts/bbear/beard.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Blue Bear Hoodie</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="shirts/pbear/beard.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Pink Bear Hoodie</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="shirts/wedding1/weddingd.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Pink Wedding Dress</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="shirts/wedding2/weddingd.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Red Wedding Dress</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="shirts/wedding3/weddingd.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">White Wedding Dress</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="shirts/yd/ydd.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Yellow Dufflejacket</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="shirts/pd/pdd.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Pink Dufflejacket</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="shirts/hd/hdd.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Heart Dufflejacket</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="display/spr_wa_red_velvet_suit.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Velvet Suit</span>
+    </li>
+
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="pants/redv/redd.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Red Velvet Pants</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="pants/pinkv/pinkd.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Pink Velvet Pants</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="display/spr_wa_pink_shoes.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Pink Shoes</span>
+    </li>
+
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="hands/rose/rosed.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Rose Bouquet</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="hands/florences/florence.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Florence Bouquet</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="hands/dual/duald.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Dual Pickaxe</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="worldplanner/new/spr_wa_candy_love_sword/spr_wa_candy_love_sword_0.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Candy Love Sword</span>
+    </li>
+
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="cars/spr_wa_golden_car_ride2/1.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Golden Car</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="cars/spr_wa_pink_car_ride2/1.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Pink Car</span>
+    </li>
+    
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="wings/c1.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Cherub Wings</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="wings/c2.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Golden Cherub Wings</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="wings/c3.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Pink Cherub Wings</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="capes/mining/miningd.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Mining Backpack</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="shirts/paladin/paladind.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Paladin Armor</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="shoes/paladin/paladind.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Paladin Boots</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="faces/paladin/paladind.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Paladin Helmet</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="pants/paladin.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Paladin Pants</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="pets/cupid.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Pet Cupid</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="worldplanner/new/spr_wa_pet_dark_heart/spr_wa_pet_dark_heart_0.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Pet Dark Heart</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="worldplanner/new/spr_wa_pet_love_bear/spr_wa_pet_love_bear_0.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Pet Love Bear</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="pets/paladind.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Pet Paladin Bird</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="display/spr_wa_pink_headphones.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Pink Headgear</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="display/spr_wa_heart_glasses.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Hearted Glasses</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="floaties/spr_wa_water_tube_flamingo_waist2.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Flamingo Water Tube</span>
+    </li>
+  `;
+}
+
+window.redirectOriginal = function(element) {
+  const imgEl = element.querySelector('img');
+  if (!imgEl) return;
+  
+  const imgSrc = imgEl.getAttribute('src');
+  const itemName = element.textContent.trim().toLowerCase();
+  
+  // Find all li items that are NOT in updatesMenu and specialsMenu
+  const allSubmenuItems = document.querySelectorAll(".submenu:not(#updatesMenu):not(#specialsMenu) li");
+  
+  let matched = false;
+  for (const item of allSubmenuItems) {
+    const itemImg = item.querySelector('img');
+    const itemText = item.textContent.trim().toLowerCase();
+    
+    // Match by image src (strongest) or exact text name
+    if ((itemImg && itemImg.getAttribute('src') === imgSrc) || itemText === itemName) {
+      item.click();
+      matched = true;
+      break;
+    }
+  }
+  
+  // Fallback for items with slightly different names
+  if (!matched) {
+    for (const item of allSubmenuItems) {
+      const itemText = item.textContent.trim().toLowerCase();
+      if (itemText.includes(itemName) || itemName.includes(itemText)) {
+        item.click();
+        matched = true;
+        break;
+      }
+    }
+  }
+  
+  if (!matched) {
+    console.log("Could not find original item for redirect:", itemName);
+    return;
+  }
+  
+  // After equipping, sync ALL Valentine menu highlights based on actual equipped states
+  setTimeout(() => {
+    const updatesMenu = document.getElementById('updatesMenu');
+    if (!updatesMenu) return;
+    
+    updatesMenu.querySelectorAll('li').forEach(valItem => {
+      const valName = valItem.textContent.trim().toLowerCase();
+      const valImg = valItem.querySelector('img');
+      const valImgSrc = valImg ? valImg.getAttribute('src') : '';
+      
+      // Find the corresponding original item and check if it's equipped
+      let isOrigEquipped = false;
+      for (const origItem of allSubmenuItems) {
+        const origImg = origItem.querySelector('img');
+        const origText = origItem.textContent.trim().toLowerCase();
+        if ((origImg && origImg.getAttribute('src') === valImgSrc) || origText === valName) {
+          isOrigEquipped = origItem.classList.contains('equipped');
+          break;
+        }
+      }
+      
+      if (isOrigEquipped) {
+        valItem.classList.add('equipped');
+      } else {
+        valItem.classList.remove('equipped');
+      }
+    });
+  }, 50);
+};
+
 
