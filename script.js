@@ -1290,31 +1290,39 @@ function syncBodyParts() {
   Object.entries(parts).forEach(([id, src]) => {
     const el = document.getElementById(id);
     if (el) {
+      if (src === '') {
+        el.style.display = 'none';
+        el.style.visibility = 'hidden';
+        return;
+      }
       el.src = src;
       // If ghost is NOT active, ensure the part is visible (unless specific item hides it)
       if (!isGhost) {
         // Fix: Check if corresponding layer has an item equipped before showing base part
         let shouldHide = false;
-        if (id === 'feet') {
-          const shoesLayer = document.getElementById('shoes');
-          const carsLayer = document.getElementById('cars');
-          const isSkate = carsLayer && carsLayer.style.display === 'block' && carsLayer.src && (carsLayer.src.includes('skate.png') || carsLayer.src.includes('dcirc.png') || carsLayer.src.includes('circ.png'));
-          const carIsEquipped = carsLayer && carsLayer.style.display === 'block' && !isSkate;
+        // Exception: Rocker makeup base body never hides
+        if (!isRocker) {
+          if (id === 'feet') {
+            const shoesLayer = document.getElementById('shoes');
+            const carsLayer = document.getElementById('cars');
+            const isSkate = carsLayer && carsLayer.style.display === 'block' && carsLayer.src && (carsLayer.src.includes('skate.png') || carsLayer.src.includes('dcirc.png') || carsLayer.src.includes('circ.png'));
+            const carIsEquipped = carsLayer && carsLayer.style.display === 'block' && !isSkate;
 
-          if ((shoesLayer && (shoesLayer.style.display === 'block' || shoesLayer.classList.contains('active'))) || carIsEquipped) {
-            shouldHide = true;
-          }
-        } else if (id === 'leg') {
-          const pantsLayer = document.getElementById('pants');
-          if (pantsLayer && (pantsLayer.style.display === 'block' || pantsLayer.classList.contains('active'))) {
-            shouldHide = true;
-          }
-        } else if (id === 'body') {
-          const shirtsLayer = document.getElementById('shirts');
-          const outfitsLayer = document.getElementById('outfits');
-          if ((shirtsLayer && (shirtsLayer.style.display === 'block' || shirtsLayer.classList.contains('active'))) ||
-            (outfitsLayer && (outfitsLayer.style.display === 'block' || outfitsLayer.classList.contains('active')))) {
-            shouldHide = true;
+            if ((shoesLayer && (shoesLayer.style.display === 'block' || shoesLayer.classList.contains('active'))) || carIsEquipped) {
+              shouldHide = true;
+            }
+          } else if (id === 'leg') {
+            const pantsLayer = document.getElementById('pants');
+            if (pantsLayer && (pantsLayer.style.display === 'block' || pantsLayer.classList.contains('active'))) {
+              shouldHide = true;
+            }
+          } else if (id === 'body') {
+            const shirtsLayer = document.getElementById('shirts');
+            const outfitsLayer = document.getElementById('outfits');
+            if ((shirtsLayer && (shirtsLayer.style.display === 'block' || shirtsLayer.classList.contains('active'))) ||
+              (outfitsLayer && (outfitsLayer.style.display === 'block' || outfitsLayer.classList.contains('active')))) {
+              shouldHide = true;
+            }
           }
         }
 
@@ -1331,8 +1339,8 @@ function syncBodyParts() {
     }
   });
 
-  // === ROCKER VARIANT SYNC ===
-  // If Rocker is toggled, we need to update currently equipped variant-supporting items
+  // === VARIANT SYNC (Invis / Rocker) ===
+  // If either Invis or Rocker is active, we use the no-skin version (invisSrc) if available.
   ['shirts', 'pants', 'shoes'].forEach(layerId => {
     const layer = document.getElementById(layerId);
     if (layer && layer.style.display === 'block' && layer.src) {
@@ -1342,28 +1350,26 @@ function syncBodyParts() {
 
       if (equippedItem) {
         const baseSrc = equippedItem.dataset.src;
-        if (baseSrc && rockerVariants[baseSrc]) {
-          let targetSrc;
-          // Rocker variants only apply to the base character (not when invisible skin is active)
-          if (isRocker && !isInvis) {
-            targetSrc = rockerVariants[baseSrc];
-          } else {
-            // Respect invis skin variant when Rocker is disabled OR when Invis is ON (Invis takes precedence)
-            targetSrc = (isInvis && equippedItem.dataset.invisSrc) ? equippedItem.dataset.invisSrc : baseSrc;
+        let targetSrc = baseSrc;
+
+        // If either Invis or Rocker is active, prefer the no-skin version (invisSrc)
+        if (isInvis || isRocker) {
+          if (equippedItem.dataset.invisSrc) {
+            targetSrc = equippedItem.dataset.invisSrc;
           }
+        }
 
-          if (layer.src && !layer.src.includes(targetSrc)) {
-            console.log(`Syncing Rocker/Invis variant for ${layerId}: ${layer.src} -> ${targetSrc}`);
-            layer.src = targetSrc;
+        if (layer.src && !layer.src.includes(targetSrc)) {
+          console.log(`Syncing variant for ${layerId}: ${layer.src} -> ${targetSrc}`);
+          layer.src = targetSrc;
 
-            // If shoes, also update rightshoe counterpart
-            if (layerId === 'shoes') {
-              const rightShoeLayer = document.getElementById('rightshoe');
-              if (rightShoeLayer && rightShoeLayer.style.display === 'block') {
-                const baseRightSrc = equippedItem.dataset.rightSrc || baseSrc;
-                const targetRightSrc = isRocker ? (rockerVariants[baseRightSrc] || rockerVariants[baseSrc]) : (isInvis ? equippedItem.dataset.invisRightSrc || equippedItem.dataset.invisSrc || baseRightSrc : baseRightSrc);
-                rightShoeLayer.src = targetRightSrc;
-              }
+          // If shoes, also update rightshoe counterpart
+          if (layerId === 'shoes') {
+            const rightShoeLayer = document.getElementById('rightshoe');
+            if (rightShoeLayer && rightShoeLayer.style.display === 'block') {
+              const baseRightSrc = equippedItem.dataset.rightSrc || baseSrc;
+              const targetRightSrc = (isInvis || isRocker) ? (equippedItem.dataset.invisRightSrc || equippedItem.dataset.invisSrc || baseRightSrc) : baseRightSrc;
+              rightShoeLayer.src = targetRightSrc;
             }
           }
         }
@@ -2126,20 +2132,10 @@ function equipItem(element) {
 
       // === SPACE SUIT UNEQUIP LOGIC ===
       if (layerName === 'pants' && element.dataset.src && element.dataset.src.includes('pants28')) {
-        console.log('Space Suit Pants unequipped - removing Space Boots...');
         const spaceBoots = document.getElementById('space-boots-data');
-        if (spaceBoots) {
-          const shoesLayer = document.getElementById('shoes');
-          const rightShoeLayer = document.getElementById('rightshoe');
-          if (shoesLayer) {
-            shoesLayer.style.display = 'none';
-            shoesLayer.src = '';
-          }
-          if (rightShoeLayer) {
-            rightShoeLayer.style.display = 'none';
-            rightShoeLayer.src = '';
-          }
-          spaceBoots.classList.remove('equipped');
+        if (spaceBoots && spaceBoots.classList.contains('equipped')) {
+          console.log('Space Suit Pants unequipped - toggling off Space Boots...');
+          equipItem(spaceBoots);
         }
       }
       // ================================
@@ -2454,8 +2450,17 @@ function equipItem(element) {
     const bodyLayer = document.getElementById('body');
     const legLayer = document.getElementById('leg');
 
-    if (bodyLayer) bodyLayer.style.filter = 'brightness(0)';
-    if (legLayer) legLayer.style.filter = 'brightness(0)';
+    if (bodyLayer) {
+      bodyLayer.style.filter = 'brightness(0)';
+      bodyLayer.style.display = 'block';
+      bodyLayer.style.visibility = 'visible';
+    }
+    if (legLayer) {
+      legLayer.style.filter = 'brightness(0)';
+      legLayer.style.display = 'block';
+      legLayer.style.visibility = 'visible';
+    }
+
   }
 
   // If equipping faces29 (mech face), swap head sprite to facemech (root)
@@ -2538,35 +2543,22 @@ function equipItem(element) {
     let actualX = element.dataset.x ?? 0;
     let actualY = element.dataset.y ?? 0;
 
-    // Shirts already supported: switch to invis variant when invis skin is active
-    if (layerName === 'shirts' && isInvisSkinActive() && element.dataset.invisSrc) {
+    // Switch to no-skin variant (invisSrc) when invis skin OR rocker makeup is active
+    if ((layerName === 'shirts' || layerName === 'shoes' || layerName === 'pants') && (isInvisSkinActive() || isRockerMakeupActive()) && element.dataset.invisSrc) {
       actualSrc = element.dataset.invisSrc;
       actualScale = element.dataset.invisScale ?? actualScale;
       actualX = element.dataset.invisX ?? actualX;
       actualY = element.dataset.invisY ?? actualY;
-    }
 
-    // Shoes: support invis variant for slippers/etc. (and right shoe variants)
-    if (layerName === 'shoes' && isInvisSkinActive() && element.dataset.invisSrc) {
-      actualSrc = element.dataset.invisSrc;
-      actualScale = element.dataset.invisScale ?? actualScale;
-      actualX = element.dataset.invisX ?? actualX;
-      actualY = element.dataset.invisY ?? actualY;
-    }
-
-    // Pants: support invis variant
-    if (layerName === 'pants' && isInvisSkinActive() && element.dataset.invisSrc) {
-      actualSrc = element.dataset.invisSrc;
-      actualScale = element.dataset.invisScale ?? actualScale;
-      actualX = element.dataset.invisX ?? actualX;
-      actualY = element.dataset.invisY ?? actualY;
-    }
-
-    // Rocker Makeup variants: override source if Rocker is active and item has a variant
-    // ONLY apply if invisible skin is NOT active (per user request)
-    if (isRockerMakeupActive() && !isInvisSkinActive() && rockerVariants[actualSrc]) {
-      console.log(`Applying Rocker variant for ${layerName}: ${actualSrc} -> ${rockerVariants[actualSrc]}`);
-      actualSrc = rockerVariants[actualSrc];
+      // Special case for shoes: right shoe variant
+      if (layerName === 'shoes') {
+        const rightShoeLayer = document.getElementById('rightshoe');
+        if (rightShoeLayer) {
+          const baseRightSrc = element.dataset.rightSrc || actualSrc;
+          const targetRightSrc = element.dataset.invisRightSrc || element.dataset.invisSrc || baseRightSrc;
+          rightShoeLayer.src = targetRightSrc;
+        }
+      }
     }
 
     layer.src = actualSrc;
@@ -8353,7 +8345,8 @@ function initWhatsNewModal() {
       "spr_wa_lucious_hair_blonde", "spr_wa_black_slimy_hair", "spr_wa_brown_kimpy_hair",
       "spr_wa_pompadour_hair", "spr_wa_pink_eyes", "spr_wa_pink_headphones",
       "spr_wa_pink_car", "spr_wa_golden_car", "spr_wa_heart_cape",
-      "spr_wa_heart_glasses", "spr_wa_water_tube_flamingo_waist2"
+      "spr_wa_heart_glasses", "spr_wa_water_tube_flamingo_waist2",
+      "spr_wa_pink_heart_shirt"
     ],
     "world_planner": [
       "spr_bg_heart_castle_background", "spr_bg_stained_glass", "spr_bg_church_curtain",
@@ -8465,7 +8458,8 @@ function initWhatsNewModal() {
       'spr_fg_pink_pillar': 'Love Pillar',
       'spr_fg_heart_ceiling_light': 'Love Ceiling Light',
       'spr_bg_heart_led': 'Heart Led Sign',
-      'spr_bg_valentines_bg': 'Heart Background'
+      'spr_bg_valentines_bg': 'Heart Background',
+      'spr_wa_pink_heart_shirt': 'Love Shirt'
     };
 
     let nameText = id.replace(/^spr_(wa|fg|bg)_/, '').replace(/_/g, ' ');
@@ -8652,6 +8646,12 @@ function populateUpdatesMenu() {
         <img src="display/spr_wa_red_velvet_suit.png" class="roadmap-image-icon">
       </div>
       <span class="roadmap-item-text">Velvet Suit</span>
+    </li>
+    <li onclick="redirectOriginal(this)">
+      <div class="roadmap-item-icon-container">
+        <img src="display/spr_wa_pink_heart_shirt.png" class="roadmap-image-icon">
+      </div>
+      <span class="roadmap-item-text">Love Shirt</span>
     </li>
 
     <li onclick="redirectOriginal(this)">
