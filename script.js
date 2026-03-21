@@ -4872,7 +4872,14 @@ window.calcFishTotals = function () {
     const gems = parseInt(row.dataset.gems) || 0;
     const wlMin = parseFloat(row.dataset.wlMin) || 0;
     const wlMax = parseFloat(row.dataset.wlMax) || 0;
-    const qty = parseInt(row.querySelector('.fish-qty').value) || 0;
+    
+    let inputEl = row.querySelector('.fish-qty');
+    let qty = parseInt(inputEl.value) || 0;
+
+    if (qty > 99999) {
+      qty = 99999;
+      inputEl.value = 99999;
+    }
 
     const rowGems = gems * qty;
     totalGems += rowGems;
@@ -4908,7 +4915,7 @@ window.calcFishTotals = function () {
 window.changeFishQty = function (btn, delta) {
   const input = btn.parentElement.querySelector('.fish-qty');
   let val = parseInt(input.value) || 0;
-  val = Math.max(0, val + delta);
+  val = Math.max(0, Math.min(99999, val + delta));
   input.value = val;
   calcFishTotals();
 };
