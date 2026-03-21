@@ -618,6 +618,14 @@
 
           </div>
 
+          <div class="selection-card" onclick="selectPlanner('fish')">
+
+            <div class="card-icon"><img src="worldplanner/Blocks/spr_ca_fish_clown/spr_ca_fish_clown_0.png" alt="Fish"></div>
+
+            <h2>Fish Calculator</h2>
+
+          </div>
+
           <div class="selection-card" onclick="selectPlanner('world')">
 
             <div class="card-icon"><img src="worldplanner/Blocks/spr_fg_entrance.png" alt="World"></div>
@@ -721,6 +729,586 @@
   </div>
 
 
+
+  <!-- FISH GEMS CALCULATOR -->
+  <div id="fish-calculator-container" style="display: none;">
+    <div class="fish-calc-wrapper">
+      <div class="fish-calc-header">
+        <h1>Fish Gems Calculator</h1>
+        <div style="display: flex; gap: 10px;">
+          <button class="fish-calc-reset-btn" onclick="resetFishCalc()">Reset All</button>
+          <button class="fish-calc-reset-btn" onclick="backToSelection()" style="background: rgba(168,218,220,0.12); border-color: rgba(168,218,220,0.25); color: #a8dadc;">Main Menu</button>
+        </div>
+      </div>
+
+      <!-- TOTALS BAR -->
+      <div class="fish-calc-totals">
+        <div class="fish-total-item">
+          <span class="fish-total-label">Total Gems</span>
+          <span class="fish-total-value" id="fish-total-gems">
+            0 <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" class="fish-gem-icon" alt="Gems">
+          </span>
+        </div>
+        <div class="fish-total-divider"></div>
+        <div class="fish-total-item">
+          <span class="fish-total-label">Locks</span>
+          <span class="fish-total-value" id="fish-total-wls">
+            0 <img src="worldplanner/new/spr_fg_lock/spr_fg_lock_0.png" class="fish-lock-icon" alt="WL">
+          </span>
+        </div>
+      </div>
+
+      <div style="text-align: center; padding: 12px 20px 4px; font-family: 'Poppins', sans-serif; font-size: 11px; color: rgba(168, 218, 220, 0.6); font-style: italic;">
+        * Final lock amount isn't fixed, its tied to the community pricing and its value may go up or down during certain events.
+      </div>
+
+      <div class="fish-calc-scroll">
+        <!-- UNIQUE FISH -->
+        <div class="fish-group">
+          <div class="fish-group-title" onclick="toggleFishGroup(this)">
+            <span>Unique Fish</span>
+            <svg class="fish-group-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="fish-group-items">
+            <div class="fish-row" data-gems="160" data-wl-min="0.2" data-wl-max="0.333">
+              <img src="worldplanner/Blocks/spr_ca_fish_clown/spr_ca_fish_clown_0.png" alt="Clownfish">
+              <div class="fish-info">
+                <span class="fish-name">Clownfish</span>
+                <span class="fish-meta">160 gems · 3-5/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="300" data-wl-min="0.333" data-wl-max="0.5">
+              <img src="worldplanner/Blocks/spr_ca_fish_crab/spr_ca_fish_crab_0.png" alt="Crab">
+              <div class="fish-info">
+                <span class="fish-name">Crab</span>
+                <span class="fish-meta">300 gems · 2-3/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="400" data-wl-min="0.5" data-wl-max="1">
+              <img src="worldplanner/Blocks/spr_ca_fish_bottle/spr_ca_fish_bottle_0.png" alt="Blowfish">
+              <div class="fish-info">
+                <span class="fish-name">Blowfish</span>
+                <span class="fish-meta">400 gems · 1-2/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="500" data-wl-min="0.5" data-wl-max="1">
+              <img src="worldplanner/Blocks/spr_ca_fish_marlin/spr_ca_fish_marlin_0.png" alt="Marlin">
+              <div class="fish-info">
+                <span class="fish-name">Marlin</span>
+                <span class="fish-meta">500 gems · 1-2/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="800" data-wl-min="1" data-wl-max="1">
+              <img src="worldplanner/Blocks/spr_ca_fish_shark/spr_ca_fish_shark_0.png" alt="Shark">
+              <div class="fish-info">
+                <span class="fish-name">Shark</span>
+                <span class="fish-meta">800 gems · 1 WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="1200" data-wl-min="1" data-wl-max="2">
+              <img src="worldplanner/Blocks/spr_ca_fishing_stingray/spr_ca_fishing_stingray_0.png" alt="Stingray">
+              <div class="fish-info">
+                <span class="fish-name">Stingray</span>
+                <span class="fish-meta">1,200 gems · 1-2 WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="1800" data-wl-min="2" data-wl-max="3">
+              <img src="worldplanner/Blocks/spr_ca_fish_lobster/spr_ca_fish_lobster_0.png" alt="Lobster">
+              <div class="fish-info">
+                <span class="fish-name">Lobster</span>
+                <span class="fish-meta">1,800 gems · 2-3 WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TUNA -->
+        <div class="fish-group">
+          <div class="fish-group-title" onclick="toggleFishGroup(this)">
+            <span>Tuna</span>
+            <svg class="fish-group-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="fish-group-items">
+            <div class="fish-row" data-gems="120" data-wl-min="2" data-wl-max="3">
+              <img src="worldplanner/Blocks/spr_ca_fish_tuna_small/spr_ca_fish_tuna_small_0.png" alt="Small Tuna">
+              <div class="fish-info">
+                <span class="fish-name">Small Tuna</span>
+                <span class="fish-meta">120 gems · 2-3 WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="600" data-wl-min="2" data-wl-max="3">
+              <img src="worldplanner/Blocks/spr_ca_fish_tuna/spr_ca_fish_tuna_0.png" alt="Medium Tuna">
+              <div class="fish-info">
+                <span class="fish-name">Medium Tuna</span>
+                <span class="fish-meta">600 gems · 2-3 WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="3000" data-wl-min="3" data-wl-max="3">
+              <img src="worldplanner/Blocks/spr_ca_fish_tuna_big/spr_ca_fish_tuna_big_0.png" alt="Big Tuna">
+              <div class="fish-info">
+                <span class="fish-name">Big Tuna</span>
+                <span class="fish-meta">3,000 gems · 3 WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SQUID -->
+        <div class="fish-group">
+          <div class="fish-group-title" onclick="toggleFishGroup(this)">
+            <span>Squid</span>
+            <svg class="fish-group-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="fish-group-items">
+            <div class="fish-row" data-gems="100" data-wl-min="1.5" data-wl-max="2">
+              <img src="worldplanner/Blocks/spr_ca_fish_squid_small/spr_ca_fish_squid_small_0.png" alt="Small Squid">
+              <div class="fish-info">
+                <span class="fish-name">Small Squid</span>
+                <span class="fish-meta">100 gems · 1.5-2 WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="480" data-wl-min="1" data-wl-max="2">
+              <img src="worldplanner/Blocks/spr_ca_fish_squid/spr_ca_fish_squid_0.png" alt="Medium Squid">
+              <div class="fish-info">
+                <span class="fish-name">Medium Squid</span>
+                <span class="fish-meta">480 gems · 1-2 WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="2200" data-wl-min="2" data-wl-max="2">
+              <img src="worldplanner/Blocks/spr_ca_fish_squid_big/spr_ca_fish_squid_big_0.png" alt="Big Squid">
+              <div class="fish-info">
+                <span class="fish-name">Big Squid</span>
+                <span class="fish-meta">2,200 gems · 2 WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- PIRANHA -->
+        <div class="fish-group">
+          <div class="fish-group-title" onclick="toggleFishGroup(this)">
+            <span>Piranha</span>
+            <svg class="fish-group-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="fish-group-items">
+            <div class="fish-row" data-gems="40" data-wl-min="0.333" data-wl-max="0.5">
+              <img src="worldplanner/Blocks/spr_ca_fish_piranha_small/spr_ca_fish_piranha_small_0.png" alt="Small Piranha">
+              <div class="fish-info">
+                <span class="fish-name">Small Piranha</span>
+                <span class="fish-meta">40 gems · 2-3/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="300" data-wl-min="0.333" data-wl-max="0.5">
+              <img src="worldplanner/Blocks/spr_ca_fish_piranha/spr_ca_fish_piranha_0.png" alt="Medium Piranha">
+              <div class="fish-info">
+                <span class="fish-name">Medium Piranha</span>
+                <span class="fish-meta">300 gems · 2-3/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="900" data-wl-min="1" data-wl-max="1">
+              <img src="worldplanner/Blocks/spr_ca_fish_piranha_big/spr_ca_fish_piranha_big_0.png" alt="Big Piranha">
+              <div class="fish-info">
+                <span class="fish-name">Big Piranha</span>
+                <span class="fish-meta">900 gems · 1 WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TROPICAL FISH -->
+        <div class="fish-group">
+          <div class="fish-group-title" onclick="toggleFishGroup(this)">
+            <span>Tropical Fish</span>
+            <svg class="fish-group-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="fish-group-items">
+            <div class="fish-row" data-gems="24" data-wl-min="0.333" data-wl-max="0.333">
+              <img src="worldplanner/Blocks/spr_ca_fish_tropical_small/spr_ca_fish_tropical_small_0.png" alt="Small Tropical">
+              <div class="fish-info">
+                <span class="fish-name">Small Tropical</span>
+                <span class="fish-meta">24 gems · 3/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="180" data-wl-min="0.333" data-wl-max="0.333">
+              <img src="worldplanner/Blocks/spr_ca_fish_tropical/spr_ca_fish_tropical_0.png" alt="Medium Tropical">
+              <div class="fish-info">
+                <span class="fish-name">Medium Tropical</span>
+                <span class="fish-meta">180 gems · 3/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="600" data-wl-min="0.5" data-wl-max="1">
+              <img src="worldplanner/Blocks/spr_ca_fish_tropical_big/spr_ca_fish_tropical_big_0.png" alt="Big Tropical">
+              <div class="fish-info">
+                <span class="fish-name">Big Tropical</span>
+                <span class="fish-meta">600 gems · 1-2/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- GOLDFISH -->
+        <div class="fish-group">
+          <div class="fish-group-title" onclick="toggleFishGroup(this)">
+            <span>Goldfish</span>
+            <svg class="fish-group-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="fish-group-items">
+            <div class="fish-row" data-gems="20" data-wl-min="0.333" data-wl-max="0.333">
+              <img src="worldplanner/Blocks/spr_ca_fish_goldfish_small/spr_ca_fish_goldfish_small_0.png" alt="Small Goldfish">
+              <div class="fish-info">
+                <span class="fish-name">Small Goldfish</span>
+                <span class="fish-meta">20 gems · 3/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="120" data-wl-min="0.333" data-wl-max="0.333">
+              <img src="worldplanner/Blocks/spr_ca_fish_goldfish/spr_ca_fish_goldfish_0.png" alt="Medium Goldfish">
+              <div class="fish-info">
+                <span class="fish-name">Medium Goldfish</span>
+                <span class="fish-meta">120 gems · 3/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="600" data-wl-min="1" data-wl-max="1">
+              <img src="worldplanner/Blocks/spr_ca_fish_goldfish_big/spr_ca_fish_goldfish_big_0.png" alt="Big Goldfish">
+              <div class="fish-info">
+                <span class="fish-name">Big Goldfish</span>
+                <span class="fish-meta">600 gems · 1 WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SALMON -->
+        <div class="fish-group">
+          <div class="fish-group-title" onclick="toggleFishGroup(this)">
+            <span>Salmon</span>
+            <svg class="fish-group-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="fish-group-items">
+            <div class="fish-row" data-gems="24" data-wl-min="0.333" data-wl-max="0.333">
+              <img src="worldplanner/Blocks/spr_ca_fish_salmon_small/spr_ca_fish_salmon_small_0.png" alt="Small Salmon">
+              <div class="fish-info">
+                <span class="fish-name">Small Salmon</span>
+                <span class="fish-meta">24 gems · 3/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="120" data-wl-min="0.333" data-wl-max="0.333">
+              <img src="worldplanner/Blocks/spr_ca_fish_salmon/spr_ca_fish_salmon_0.png" alt="Medium Salmon">
+              <div class="fish-info">
+                <span class="fish-name">Medium Salmon</span>
+                <span class="fish-meta">120 gems · 3/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="600" data-wl-min="1" data-wl-max="1">
+              <img src="worldplanner/Blocks/spr_ca_fish_salmon_big/spr_ca_fish_salmon_big_0.png" alt="Big Salmon">
+              <div class="fish-info">
+                <span class="fish-name">Big Salmon</span>
+                <span class="fish-meta">600 gems · 1 WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- CATFISH -->
+        <div class="fish-group">
+          <div class="fish-group-title" onclick="toggleFishGroup(this)">
+            <span>Catfish</span>
+            <svg class="fish-group-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="fish-group-items">
+            <div class="fish-row" data-gems="15" data-wl-min="0.1" data-wl-max="0.2">
+              <img src="worldplanner/Blocks/spr_ca_fish_catfish_small/spr_ca_fish_catfish_small_0.png" alt="Small Catfish">
+              <div class="fish-info">
+                <span class="fish-name">Small Catfish</span>
+                <span class="fish-meta">15 gems · 5-10/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="80" data-wl-min="0.1" data-wl-max="0.2">
+              <img src="worldplanner/Blocks/spr_ca_fish_catfish/spr_ca_fish_catfish_0.png" alt="Medium Catfish">
+              <div class="fish-info">
+                <span class="fish-name">Medium Catfish</span>
+                <span class="fish-meta">80 gems · 5-10/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="400" data-wl-min="0.5" data-wl-max="1">
+              <img src="worldplanner/Blocks/spr_ca_fish_catfish_big/spr_ca_fish_catfish_big_0.png" alt="Big Catfish">
+              <div class="fish-info">
+                <span class="fish-name">Big Catfish</span>
+                <span class="fish-meta">400 gems · 1-2/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TROUT -->
+        <div class="fish-group">
+          <div class="fish-group-title" onclick="toggleFishGroup(this)">
+            <span>Trout</span>
+            <svg class="fish-group-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="fish-group-items">
+            <div class="fish-row" data-gems="16" data-wl-min="0.1" data-wl-max="0.2">
+              <img src="worldplanner/Blocks/spr_ca_fish_trout_small/spr_ca_fish_trout_small_0.png" alt="Small Trout">
+              <div class="fish-info">
+                <span class="fish-name">Small Trout</span>
+                <span class="fish-meta">16 gems · 5-10/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="80" data-wl-min="0.1" data-wl-max="0.2">
+              <img src="worldplanner/Blocks/spr_ca_fish_trout/spr_ca_fish_trout_0.png" alt="Medium Trout">
+              <div class="fish-info">
+                <span class="fish-name">Medium Trout</span>
+                <span class="fish-meta">80 gems · 5-10/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="400" data-wl-min="0.5" data-wl-max="1">
+              <img src="worldplanner/Blocks/spr_ca_fish_trout_big/spr_ca_fish_trout_big_0.png" alt="Big Trout">
+              <div class="fish-info">
+                <span class="fish-name">Big Trout</span>
+                <span class="fish-meta">400 gems · 1-2/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARP -->
+        <div class="fish-group">
+          <div class="fish-group-title" onclick="toggleFishGroup(this)">
+            <span>Carp</span>
+            <svg class="fish-group-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <div class="fish-group-items">
+            <div class="fish-row" data-gems="12" data-wl-min="0.067" data-wl-max="0.1">
+              <img src="worldplanner/Blocks/spr_ca_fish_carp_small/spr_ca_fish_carp_small_0.png" alt="Small Carp">
+              <div class="fish-info">
+                <span class="fish-name">Small Carp</span>
+                <span class="fish-meta">12 gems · 10-15/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="60" data-wl-min="0.067" data-wl-max="0.1">
+              <img src="worldplanner/Blocks/spr_ca_fish_carp/spr_ca_fish_carp_0.png" alt="Medium Carp">
+              <div class="fish-info">
+                <span class="fish-name">Medium Carp</span>
+                <span class="fish-meta">60 gems · 10-15/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+            <div class="fish-row" data-gems="300" data-wl-min="0.333" data-wl-max="0.5">
+              <img src="worldplanner/Blocks/spr_ca_fish_carp_big/spr_ca_fish_carp_big_0.png" alt="Big Carp">
+              <div class="fish-info">
+                <span class="fish-name">Big Carp</span>
+                <span class="fish-meta">300 gems · 2-3/WL</span>
+              </div>
+              <div class="fish-qty-wrap">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,-1)">−</button>
+                <input type="number" class="fish-qty" value="0" min="0" oninput="calcFishTotals()">
+                <button class="fish-qty-btn" onclick="changeFishQty(this,1)">+</button>
+              </div>
+              <span class="fish-row-gems">0</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="height: 40px;"></div>
+      </div>
+    </div>
+  </div>
 
   <div id="set-planner-container" style="display: block;">
 

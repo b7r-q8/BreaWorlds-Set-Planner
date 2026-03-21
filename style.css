@@ -4684,8 +4684,9 @@ body.ghost-active #skin {
   /* Fix Update Modal "tightness" */
   .wn-modal {
     width: 94% !important;
-    max-width: 94vw !important;
-    max-height: 88vh !important;
+    max-width: 750px !important;
+    max-height: 90vh !important;
+    max-height: calc(100svh - 40px) !important;
   }
   
   .wn-grid {
@@ -4775,8 +4776,10 @@ body.ghost-active #skin {
 
   /* Update Modal landscape refinement */
   .wn-modal {
-    max-height: 96vh !important;
+    max-height: 92vh !important;
+    max-height: calc(100svh - 20px) !important;
     width: 94% !important;
+    max-width: 750px !important;
     margin: 0 auto !important;
   }
   
@@ -4822,3 +4825,406 @@ body.ghost-active #skin {
   }
 }
 
+/* ==========================================
+   FISH GEMS CALCULATOR
+   ========================================== */
+#fish-calculator-container {
+  position: fixed;
+  inset: 0;
+  background: #0a0a1a;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.fish-calc-wrapper {
+  max-width: 650px;
+  margin: 0 auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.fish-calc-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 18px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: rgba(10,10,26,0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 10;
+}
+
+.fish-calc-header h1 {
+  flex: 1;
+  font-family: 'Poppins', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #f1faee;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.fish-calc-back {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #a8dadc;
+  transition: all 0.2s ease;
+}
+
+.fish-calc-back:hover {
+  background: rgba(255,255,255,0.12);
+  transform: scale(1.05);
+}
+
+.fish-calc-reset-btn {
+  background: rgba(230,57,70,0.12);
+  border: 1px solid rgba(230,57,70,0.25);
+  border-radius: 10px;
+  padding: 8px 16px;
+  color: #e63946;
+  font-family: 'Poppins', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.fish-calc-reset-btn:hover {
+  background: rgba(230,57,70,0.25);
+}
+
+/* TOTALS BAR */
+.fish-calc-totals {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(110,142,251,0.08), rgba(167,119,227,0.08));
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.fish-total-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.fish-total-label {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: #a8dadc;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  opacity: 0.7;
+}
+
+.fish-total-value {
+  font-family: 'Poppins', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  color: #f1faee;
+  line-height: 1;
+  transition: transform 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.fish-total-value.bump {
+  transform: scale(1.15);
+}
+
+.fish-gem-icon, .fish-lock-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));
+}
+
+.fish-total-divider {
+  width: 1px;
+  height: 40px;
+  background: rgba(255,255,255,0.1);
+}
+
+/* SCROLLABLE AREA */
+.fish-calc-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.fish-calc-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.fish-calc-scroll::-webkit-scrollbar-thumb {
+  background: rgba(168,218,220,0.15);
+  border-radius: 4px;
+}
+
+/* FISH GROUPS */
+.fish-group {
+  margin-bottom: 10px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.02);
+}
+
+.fish-group-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background 0.2s ease;
+  background: rgba(255,255,255,0.03);
+}
+
+.fish-group-title:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+.fish-group-title span {
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #a8dadc;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+.fish-group-arrow {
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  color: #a8dadc;
+  opacity: 0.5;
+}
+
+.fish-group.collapsed .fish-group-arrow {
+  transform: rotate(-90deg);
+}
+
+.fish-group-items {
+  max-height: 1000px;
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease;
+  opacity: 1;
+}
+
+.fish-group.collapsed .fish-group-items {
+  max-height: 0;
+  opacity: 0;
+}
+
+/* FISH ROW */
+.fish-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid rgba(255,255,255,0.03);
+  transition: background 0.15s ease;
+}
+
+.fish-row:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.fish-row img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 6px rgba(255,255,255,0.15));
+}
+
+.fish-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fish-name {
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1faee;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fish-meta {
+  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  color: #a8dadc;
+  opacity: 0.5;
+}
+
+/* QUANTITY CONTROLS */
+.fish-qty-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.fish-qty-btn {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  color: #a8dadc;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.fish-qty-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: #f1faee;
+}
+
+.fish-qty-btn:active {
+  background: rgba(110,142,251,0.2);
+}
+
+.fish-qty {
+  width: 40px;
+  text-align: center;
+  background: transparent;
+  border: none;
+  border-left: 1px solid rgba(255,255,255,0.06);
+  border-right: 1px solid rgba(255,255,255,0.06);
+  color: #f1faee;
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  height: 32px;
+  outline: none;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.fish-qty::-webkit-outer-spin-button,
+.fish-qty::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ROW GEM TOTAL */
+.fish-row-gems {
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #6e8efb;
+  min-width: 50px;
+  text-align: right;
+  flex-shrink: 0;
+  transition: color 0.2s ease;
+}
+
+.fish-row-gems.active {
+  color: #a777e3;
+}
+
+/* MOBILE RESPONSIVE */
+@media (max-width: 600px) {
+  .fish-calc-header h1 {
+    font-size: 16px;
+  }
+
+  .fish-total-value {
+    font-size: 22px;
+  }
+
+  .fish-calc-totals {
+    gap: 20px;
+    padding: 12px 16px;
+  }
+
+  .fish-row {
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .fish-row img {
+    width: 32px;
+    height: 32px;
+  }
+
+  .fish-name {
+    font-size: 12px;
+  }
+
+  .fish-meta {
+    font-size: 10px;
+  }
+
+  .fish-qty {
+    width: 34px;
+    font-size: 13px;
+  }
+
+  .fish-qty-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+  }
+
+  .fish-row-gems {
+    font-size: 12px;
+    min-width: 40px;
+  }
+
+  .fish-calc-reset-btn {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .fish-group-title {
+    padding: 12px 14px;
+  }
+
+  .fish-group-title span {
+    font-size: 12px;
+  }
+}

@@ -4786,14 +4786,20 @@ const BLOCK_SIZE = 32;
 window.selectPlanner = function (type) {
   const wpContainer = document.getElementById('world-planner-container');
   const setContainer = document.getElementById('set-planner-container');
+  const fishContainer = document.getElementById('fish-calculator-container');
   const loadingScreen = document.getElementById('loading-screen');
+
+  // Hide all first
+  wpContainer.style.display = 'none';
+  if (setContainer) setContainer.style.display = 'none';
+  if (fishContainer) fishContainer.style.display = 'none';
 
   if (type === 'world') {
     wpContainer.style.display = 'flex';
-    if (setContainer) setContainer.style.display = 'none';
     initWorldPlanner();
+  } else if (type === 'fish') {
+    if (fishContainer) fishContainer.style.display = 'block';
   } else {
-    wpContainer.style.display = 'none';
     if (setContainer) setContainer.style.display = 'block';
   }
 
@@ -4810,12 +4816,14 @@ window.selectPlanner = function (type) {
 window.backToSelection = function () {
   const wpContainer = document.getElementById('world-planner-container');
   const setContainer = document.getElementById('set-planner-container');
+  const fishContainer = document.getElementById('fish-calculator-container');
   const loadingScreen = document.getElementById('loading-screen');
   const loaderInitial = document.getElementById('loader-initial');
   const loadingSelection = document.getElementById('loading-selection');
 
   wpContainer.style.display = 'none';
   if (setContainer) setContainer.style.display = 'none';
+  if (fishContainer) fishContainer.style.display = 'none';
 
   if (loadingScreen) {
     loadingScreen.style.display = 'flex';
@@ -4823,6 +4831,98 @@ window.backToSelection = function () {
     if (loaderInitial) loaderInitial.style.display = 'none';
     if (loadingSelection) loadingSelection.style.display = 'flex';
   }
+};
+
+// ==================== FISH GEMS CALCULATOR ====================
+window.formatLocksHTML = function(wlAmount) {
+  if (wlAmount === 0 || isNaN(wlAmount)) {
+    return `0 <img src="worldplanner/new/spr_fg_lock/spr_fg_lock_0.png" class="fish-lock-icon" alt="WL">`;
+  }
+  
+  let html = '';
+  let amount = wlAmount;
+  
+  const CL = Math.floor(amount / 100000);
+  amount -= CL * 100000;
+  
+  const AL = Math.floor(amount / 10000);
+  amount -= AL * 10000;
+  
+  const TL = Math.floor(amount / 100);
+  let WL = amount - TL * 100;
+  WL = Math.round(WL * 100) / 100; 
+  
+  if (CL > 0) html += `${CL} <img src="worldplanner/new/spr_fg_crystal_lock/spr_fg_crystal_lock_0.png" class="fish-lock-icon" alt="CL">`;
+  if (AL > 0) html += `${html ? ' ' : ''}${AL} <img src="worldplanner/new/spr_fg_amethyst_lock/spr_fg_amethyst_lock_0.png" class="fish-lock-icon" alt="AL">`;
+  if (TL > 0) html += `${html ? ' ' : ''}${TL} <img src="worldplanner/new/spr_fg_titanium_lock/spr_fg_titanium_lock_0.png" class="fish-lock-icon" alt="TL">`;
+  if (WL > 0 || html === '') {
+    const wlStr = WL % 1 === 0 ? WL.toString() : WL.toFixed(2).replace(/\.?0+$/, '');
+    html += `${html ? ' ' : ''}${wlStr} <img src="worldplanner/new/spr_fg_lock/spr_fg_lock_0.png" class="fish-lock-icon" alt="WL">`;
+  }
+  
+  return html;
+};
+
+window.calcFishTotals = function () {
+  let totalGems = 0;
+  let totalWLMin = 0;
+  let totalWLMax = 0;
+
+  document.querySelectorAll('.fish-row').forEach(row => {
+    const gems = parseInt(row.dataset.gems) || 0;
+    const wlMin = parseFloat(row.dataset.wlMin) || 0;
+    const wlMax = parseFloat(row.dataset.wlMax) || 0;
+    const qty = parseInt(row.querySelector('.fish-qty').value) || 0;
+
+    const rowGems = gems * qty;
+    totalGems += rowGems;
+    totalWLMin += wlMin * qty;
+    totalWLMax += wlMax * qty;
+
+    // Update per-row gem display
+    const rowGemEl = row.querySelector('.fish-row-gems');
+    rowGemEl.textContent = rowGems > 0 ? rowGems.toLocaleString() : '0';
+    rowGemEl.classList.toggle('active', rowGems > 0);
+  });
+
+  // Update totals
+  const gemsEl = document.getElementById('fish-total-gems');
+  const wlsEl = document.getElementById('fish-total-wls');
+
+  gemsEl.innerHTML = `${totalGems.toLocaleString()} <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" class="fish-gem-icon" alt="Gems">`;
+
+  // Show WL average
+  const avgWL = (totalWLMin + totalWLMax) / 2;
+  const roundedWL = Math.round(avgWL * 100) / 100;
+  wlsEl.innerHTML = formatLocksHTML(roundedWL);
+
+  // Micro-animation bump
+  gemsEl.classList.add('bump');
+  wlsEl.classList.add('bump');
+  setTimeout(() => {
+    gemsEl.classList.remove('bump');
+    wlsEl.classList.remove('bump');
+  }, 150);
+};
+
+window.changeFishQty = function (btn, delta) {
+  const input = btn.parentElement.querySelector('.fish-qty');
+  let val = parseInt(input.value) || 0;
+  val = Math.max(0, val + delta);
+  input.value = val;
+  calcFishTotals();
+};
+
+window.resetFishCalc = function () {
+  document.querySelectorAll('.fish-qty').forEach(input => {
+    input.value = 0;
+  });
+  calcFishTotals();
+};
+
+window.toggleFishGroup = function (titleEl) {
+  const group = titleEl.closest('.fish-group');
+  group.classList.toggle('collapsed');
 };
 
 let wpBlocks = []; // Will be populated from manifest
