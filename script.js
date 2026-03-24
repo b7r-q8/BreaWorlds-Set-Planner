@@ -6936,7 +6936,19 @@ function handleWPInteractionAt(x, y, isBatched = false) {
 
     if (currentId === wpSelectedBlockId) return;
 
-    targetGrid[y][x] = wpSelectedBlockId;
+    let blockData = { id: wpSelectedBlockId };
+    if (newBlock.defaultState !== undefined) {
+      blockData.state = newBlock.defaultState;
+    }
+    // Track placement time for per-block animation desync
+    if (newBlock.framesPath || wpSelectedBlockId === 'spr_fg_gem_machine') {
+      blockData.placedAt = performance.now();
+    }
+    
+    // Store object if we added metadata, otherwise plain ID
+    const finalData = (blockData.state !== undefined || blockData.placedAt !== undefined) ? blockData : wpSelectedBlockId;
+    
+    targetGrid[y][x] = finalData;
     wasUpdated = true;
 
     // Prefetch frames
@@ -6953,15 +6965,6 @@ function handleWPInteractionAt(x, y, isBatched = false) {
       wpUpdateTilingAt(x, y - 1); // Above
       wpUpdateTilingAt(x + 1, y); // Right
       wpUpdateTilingAt(x - 1, y); // Left
-    }
-
-    // Apply default state if defined (e.g. Ceiling Lights -> State 1)
-    if (newBlock.defaultState !== undefined) {
-      if (targetGrid === wpGrid) {
-        wpGrid[y][x] = { id: wpSelectedBlockId, state: newBlock.defaultState };
-      } else {
-        wpBackgroundGrid[y][x] = { id: wpSelectedBlockId, state: newBlock.defaultState };
-      }
     }
 
     updateWPAnimatedCellList(x, y); // Incremental update
@@ -7352,8 +7355,7 @@ function drawWPWorld(timestamp) {
   }
 
   // 2. Animated Shadows (Direct Draw Optimization - skipping buffer clear/blit)
-  // PERF: Skip animated shadows during active pan to reduce GPU load
-  if (wpZoom >= 0.5 && !wpIsPanningActive) {
+  if (wpZoom >= 0.5) {
     // We draw directly to wpCtx with alpha 0.4
     // This avoids:
     // 1. Clearing full screen rainbow buffer
@@ -7403,11 +7405,20 @@ function drawWPWorld(timestamp) {
         let fps = blk.fps || 10;
         if (blk.frameCount === 2) fps = 1; // 2-frame blocks always use 1 FPS (matches game sway speed)
 
+        // Speed up specific flowers and grass
+        if (bid === 'spr_fg_tulips' || bid === 'spr_fg_roses' || bid === 'spr_fg_begonias' ||
+            bid === 'spr_fg_grass' || bid === 'spr_fg_snow_grass' || bid === 'spr_fg_withered_grass') {
+          fps = 2;
+        }
+
+        const placedAt = (typeof bd === 'object' && bd.placedAt) ? bd.placedAt : 0;
+        const blockNow = now - placedAt;
+
         let frameIndex;
         // Fix: Support frameDurations for shadows (Bear Trap, etc.)
         if (blk.frameDurations && Array.isArray(blk.frameDurations)) {
           const totalDuration = blk.frameDurations.reduce((a, b) => a + b, 0);
-          const elapsed = now % totalDuration;
+          const elapsed = blockNow % totalDuration;
           let cumulative = 0;
           frameIndex = 0;
           for (let i = 0; i < blk.frameDurations.length; i++) {
@@ -7422,15 +7433,15 @@ function drawWPWorld(timestamp) {
           fps = 3;
           const state = (typeof bd === 'object' && bd.state !== undefined) ? bd.state : 0;
           if (state === 1) {
-            frameIndex = 4 + (Math.floor(now / (1000 / fps)) % 5); // Frames 4-8 (9th frame _9 is missing)
+            frameIndex = 4 + (Math.floor(blockNow / (1000 / fps)) % 5); // Frames 4-8 (9th frame _9 is missing)
           } else {
-            frameIndex = Math.floor(now / (1000 / fps)) % 4; // Frames 0-3
+            frameIndex = Math.floor(blockNow / (1000 / fps)) % 4; // Frames 0-3
           }
         } else if (bid === 'spr_fg_gem_machine') {
           const state = (typeof bd === 'object' && bd.state !== undefined) ? bd.state : 0;
           frameIndex = (state === 1) ? 11 : 0;
         } else {
-          frameIndex = (Math.floor(now / (1000 / fps)) % blk.frameCount) + (blk.frameStart || 0);
+          frameIndex = (Math.floor(blockNow / (1000 / fps)) % blk.frameCount) + (blk.frameStart || 0);
         }
         imgPath = `${blk.framesPath}${frameIndex}.png`;
       } else {
@@ -7485,12 +7496,22 @@ function drawWPWorld(timestamp) {
           fps = fps / 2;
         }
 
+        // Speed up specific flowers and grass
+        if (bid === 'spr_fg_tulips' || bid === 'spr_fg_roses' || bid === 'spr_fg_begonias' ||
+            bid === 'spr_fg_grass' || bid === 'spr_fg_snow_grass' || bid === 'spr_fg_withered_grass') {
+          fps = 2; // Double the default sway speed (1 -> 2)
+        }
+
+        // Use block's placement time to offset animation if available
+        const placedAt = (typeof bd === 'object' && bd.placedAt) ? bd.placedAt : 0;
+        const blockNow = now - placedAt;
+
         let frameIndex;
         const isFluid = bid === 'spr_fg_water_block' || bid === 'spr_fg_acid_block' || bid === 'spr_fg_mud_block' || bid === 'spr_fg_lava_block';
 
         if (blk.frameDurations && Array.isArray(blk.frameDurations)) {
           const totalDuration = blk.frameDurations.reduce((a, b) => a + b, 0);
-          const elapsed = now % totalDuration;
+          const elapsed = blockNow % totalDuration;
           let cumulative = 0;
           frameIndex = 0;
           for (let i = 0; i < blk.frameDurations.length; i++) {
@@ -7506,10 +7527,10 @@ function drawWPWorld(timestamp) {
           const state = (typeof bd === 'object' && bd.state !== undefined) ? bd.state : 0;
           if (state === 1) {
             // State 1 (Wrenched): Frames 4-8 (spr_fg_xmas_dj_box_9.png is missing)
-            frameIndex = 4 + (Math.floor(now / (1000 / fps)) % 5);
+            frameIndex = 4 + (Math.floor(blockNow / (1000 / fps)) % 5);
           } else {
             // State 0 (Default): Frames 0-3
-            frameIndex = Math.floor(now / (1000 / fps)) % 4;
+            frameIndex = Math.floor(blockNow / (1000 / fps)) % 4;
           }
         } else if (bid === 'spr_fg_gem_machine') {
           const state = (typeof bd === 'object' && bd.state !== undefined) ? bd.state : 0;
@@ -7522,13 +7543,13 @@ function drawWPWorld(timestamp) {
 
           if (!isSameFluidAbove) {
             // Surface animation (First 4 frames: 0-3)
-            frameIndex = Math.floor(now / (1000 / fps)) % 4;
+            frameIndex = Math.floor(blockNow / (1000 / fps)) % 4;
           } else {
             // Submerged animation (Frames 4-7)
-            frameIndex = 4 + (Math.floor(now / (1000 / fps)) % 4);
+            frameIndex = 4 + (Math.floor(blockNow / (1000 / fps)) % 4);
           }
         } else {
-          frameIndex = (Math.floor(now / (1000 / fps)) % blk.frameCount) + (blk.frameStart || 0);
+          frameIndex = (Math.floor(blockNow / (1000 / fps)) % blk.frameCount) + (blk.frameStart || 0);
         }
 
         imgPath = `${blk.framesPath}${frameIndex}.png`;
@@ -7576,17 +7597,14 @@ function drawWPWorld(timestamp) {
   };
 
   // 4. Animated Blocks (Unified Y-sorted pass)
-  // PERF: Skip animated blocks during active pan to reduce GPU load
-  if (!wpIsPanningActive) {
-    for (const cell of wpAnimatedCells) {
-      if (cell.x < vStartX || cell.x > vEndX || cell.y < vStartY || cell.y > vEndY) continue;
-      drawAnimBlock(cell);
-    }
+  for (const cell of wpAnimatedCells) {
+    if (cell.x < vStartX || cell.x > vEndX || cell.y < vStartY || cell.y > vEndY) continue;
+    drawAnimBlock(cell);
   }
 
   // â”€â”€ RAINBOW EFFECT â”€â”€
   // PERF: Skip rainbow effect during active pan
-  if (hasRainbow && !wpIsPanningActive) {
+  if (hasRainbow) {
     const cycleWidth = 1600;
     const offset = (now / 28) % cycleWidth;
 
