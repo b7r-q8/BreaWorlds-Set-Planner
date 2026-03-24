@@ -4752,8 +4752,8 @@ window.addEventListener('load', () => {
           whatsNewBtn.classList.add('visible');
         }
 
-        // Auto-show modal if not seen this session
-        if (!sessionStorage.getItem('whats_new_seen')) {
+        // Auto-show modal if not confirmed yet
+        if (!localStorage.getItem('whats_new_confirmed')) {
           if (typeof initWhatsNewModal === 'function') {
             initWhatsNewModal();
           }
@@ -5198,6 +5198,8 @@ let wpShadowStagingCtx = null;
 let wpLastGridX = -1;
 let wpLastGridY = -1;
 let wpNeedsPostProcess = false;
+let wpPanPending = false; // rAF coalescing for pan redraws
+let wpIsPanningActive = false; // Skip expensive animated processing during active pan
 
 function wpMarkDirty() { wpDirty = true; }
 function wpMarkStaticDirty() { wpStaticDirty = true; wpDirty = true; }
@@ -5289,6 +5291,7 @@ function updateWPStaticCacheAt(x, y, pass, shouldClear = true) {
           const nh = img.naturalHeight;
           const px = x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2;
           const py = (y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0);
+
           wpStaticBGCtx.drawImage(img, px, py, nw, nh);
         }
       }
@@ -5314,7 +5317,8 @@ function updateWPStaticCacheAt(x, y, pass, shouldClear = true) {
             const nh = img.naturalHeight;
             const px = x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2;
             const py = (y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0);
-            wpStaticBlockCtx.drawImage(img, px, py, nw, nh);
+
+              wpStaticBlockCtx.drawImage(img, px, py, nw, nh);
           }
         }
       }
@@ -6493,6 +6497,7 @@ function setupWPEvents() {
     }
     if (wpCurrentTool === 'move' || e.button === 2) {
       isPanning = true;
+      wpIsPanningActive = true;
       return;
     }
     if (e.button === 0) {
@@ -6544,13 +6549,24 @@ function setupWPEvents() {
     isPainting = false;
     isErasing = false;
     isPanning = false;
+    if (wpIsPanningActive) {
+      wpIsPanningActive = false;
+      wpMarkDirty(); // Final full-quality redraw with animations
+    }
   };
 
   wpCanvas.onmousemove = (e) => {
     if (isPanning) {
       wpOffsetX += e.movementX / wpZoom;
       wpOffsetY += e.movementY / wpZoom;
-      applyWPTransform();
+      // Coalesce pan redraws: only trigger one redraw per animation frame
+      if (!wpPanPending) {
+        wpPanPending = true;
+        requestAnimationFrame(() => {
+          wpPanPending = false;
+          applyWPTransform();
+        });
+      }
       return;
     }
     handleWPInteraction(e);
@@ -6613,6 +6629,7 @@ function setupWPEvents() {
       wpLastGridX = -1; wpLastGridY = -1; // Reset on every new stroke
       if (wpCurrentTool === 'move') {
         isPanning = true;
+        wpIsPanningActive = true;
       } else {
         // Smart Erase Check: If starting on a matching block, activate Smart Erase Mode
         if (wpCurrentTool === 'pencil') {
@@ -6673,11 +6690,17 @@ function setupWPEvents() {
       const centerX = (t1.clientX + t2.clientX) / 2;
       const centerY = (t1.clientY + t2.clientY) / 2;
 
-      // Pan while Pinching
+      // Pan while Pinching (rAF coalesced)
       if (wpLastTouchX !== undefined && wpLastTouchY !== undefined) {
         wpOffsetX += (centerX - wpLastTouchX) / wpZoom;
         wpOffsetY += (centerY - wpLastTouchY) / wpZoom;
-        applyWPTransform();
+        if (!wpPanPending) {
+          wpPanPending = true;
+          requestAnimationFrame(() => {
+            wpPanPending = false;
+            applyWPTransform();
+          });
+        }
       }
       wpLastTouchX = centerX;
       wpLastTouchY = centerY;
@@ -6689,14 +6712,18 @@ function setupWPEvents() {
       lastPinchDist = dist;
     } else if (e.touches.length === 1) {
       if (isPanning) {
-        // We lack movementX/Y on touch, so we track it manually if needed, 
-        // but for now we can just use handleWPInteraction style logic 
-        // or add a lastTouchX/Y tracker.
         const touch = e.touches[0];
         if (wpLastTouchX !== undefined && wpLastTouchY !== undefined) {
           wpOffsetX += (touch.clientX - wpLastTouchX) / wpZoom;
           wpOffsetY += (touch.clientY - wpLastTouchY) / wpZoom;
-          applyWPTransform();
+          // Coalesce pan redraws
+          if (!wpPanPending) {
+            wpPanPending = true;
+            requestAnimationFrame(() => {
+              wpPanPending = false;
+              applyWPTransform();
+            });
+          }
         }
         wpLastTouchX = touch.clientX;
         wpLastTouchY = touch.clientY;
@@ -7132,10 +7159,11 @@ function wpUpdateTilingAt(x, y) {
     newState = isAboveSame ? 1 : 0;
   }
 
-  // 4. SPIKES (Attachment: Above=1, Below/None=0)
-  if (bid && bid.includes('spikes')) {
+  // 4. SPIKES (Attachment: Above+NoBelow=1, otherwise=0)
+  if (bid && bid.includes('spike')) {
     const isAboveSolid = getID(x, y - 1) !== null;
-    newState = isAboveSolid ? 1 : 0;
+    const isBelowSolid = getID(x, y + 1) !== null;
+    newState = (isAboveSolid && !isBelowSolid) ? 1 : 0;
   }
 
   // 5. PILLARS (4 Frames: 0=Alone, 1=Top/Ceiling, 2=Middle, 3=Bottom)
@@ -7194,6 +7222,7 @@ function wpUpdateTilingAt(x, y) {
     finalData.state = newState;
     changed = true;
   }
+
   if (newDirtState !== -1 && finalData.dirtState !== newDirtState) {
     finalData.dirtState = newDirtState;
     changed = true;
@@ -7323,7 +7352,8 @@ function drawWPWorld(timestamp) {
   }
 
   // 2. Animated Shadows (Direct Draw Optimization - skipping buffer clear/blit)
-  if (wpZoom >= 0.5) {
+  // PERF: Skip animated shadows during active pan to reduce GPU load
+  if (wpZoom >= 0.5 && !wpIsPanningActive) {
     // We draw directly to wpCtx with alpha 0.4
     // This avoids:
     // 1. Clearing full screen rainbow buffer
@@ -7546,13 +7576,17 @@ function drawWPWorld(timestamp) {
   };
 
   // 4. Animated Blocks (Unified Y-sorted pass)
-  for (const cell of wpAnimatedCells) {
-    if (cell.x < vStartX || cell.x > vEndX || cell.y < vStartY || cell.y > vEndY) continue;
-    drawAnimBlock(cell);
+  // PERF: Skip animated blocks during active pan to reduce GPU load
+  if (!wpIsPanningActive) {
+    for (const cell of wpAnimatedCells) {
+      if (cell.x < vStartX || cell.x > vEndX || cell.y < vStartY || cell.y > vEndY) continue;
+      drawAnimBlock(cell);
+    }
   }
 
   // â”€â”€ RAINBOW EFFECT â”€â”€
-  if (hasRainbow) {
+  // PERF: Skip rainbow effect during active pan
+  if (hasRainbow && !wpIsPanningActive) {
     const cycleWidth = 1600;
     const offset = (now / 28) % cycleWidth;
 
@@ -8612,9 +8646,8 @@ function initWhatsNewModal() {
   confirmBtn.onclick = () => {
     if (!confirmBtn.disabled) {
       overlay.style.display = 'none';
-      if (sessionStorage.getItem('whats_new_seen') !== 'true') {
-        sessionStorage.setItem('whats_new_seen', 'true');
-      }
+      // Set confirmation flag in localStorage
+      localStorage.setItem('whats_new_confirmed', 'true');
     }
   };
   

@@ -3512,6 +3512,7 @@ body.ghost-active #skin {
   display: flex;
   align-items: center;
   justify-content: center;
+  contain: strict;
   /* Removed solid background to allow ::before theme to show */
 }
 
@@ -3546,13 +3547,7 @@ body.ghost-active #skin {
   transition: background-image 0.5s ease;
 }
 
-#worldCanvas,
-#wpCanvas,
-#wpTempCanvas,
-#wpRainbowAnimatedCanvas,
-#wpStaticBGCanvas,
-#wpStaticBlockCanvas,
-#wpStaticShadowCanvas {
+#worldCanvas {
   will-change: transform;
 }
 
