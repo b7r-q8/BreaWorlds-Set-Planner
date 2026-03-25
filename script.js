@@ -7418,7 +7418,8 @@ function drawWPWorld(timestamp) {
         // Fix: Support frameDurations for shadows (Bear Trap, etc.)
         if (blk.frameDurations && Array.isArray(blk.frameDurations)) {
           const totalDuration = blk.frameDurations.reduce((a, b) => a + b, 0);
-          const elapsed = blockNow % totalDuration;
+          let elapsed = blockNow % totalDuration;
+          if (elapsed < 0) elapsed += totalDuration;
           let cumulative = 0;
           frameIndex = 0;
           for (let i = 0; i < blk.frameDurations.length; i++) {
@@ -7433,15 +7434,19 @@ function drawWPWorld(timestamp) {
           fps = 3;
           const state = (typeof bd === 'object' && bd.state !== undefined) ? bd.state : 0;
           if (state === 1) {
-            frameIndex = 4 + (Math.floor(blockNow / (1000 / fps)) % 5); // Frames 4-8 (9th frame _9 is missing)
+            const m = Math.floor(blockNow / (1000 / fps));
+            frameIndex = 4 + ((m % 5 + 5) % 5); // Frames 4-8 (9th frame _9 is missing)
           } else {
-            frameIndex = Math.floor(blockNow / (1000 / fps)) % 4; // Frames 0-3
+            const m = Math.floor(blockNow / (1000 / fps));
+            frameIndex = ((m % 4 + 4) % 4); // Frames 0-3
           }
         } else if (bid === 'spr_fg_gem_machine') {
           const state = (typeof bd === 'object' && bd.state !== undefined) ? bd.state : 0;
           frameIndex = (state === 1) ? 11 : 0;
         } else {
-          frameIndex = (Math.floor(blockNow / (1000 / fps)) % blk.frameCount) + (blk.frameStart || 0);
+          const m = Math.floor(blockNow / (1000 / fps));
+          const fc = blk.frameCount;
+          frameIndex = ((m % fc + fc) % fc) + (blk.frameStart || 0);
         }
         imgPath = `${blk.framesPath}${frameIndex}.png`;
       } else {
@@ -7511,7 +7516,8 @@ function drawWPWorld(timestamp) {
 
         if (blk.frameDurations && Array.isArray(blk.frameDurations)) {
           const totalDuration = blk.frameDurations.reduce((a, b) => a + b, 0);
-          const elapsed = blockNow % totalDuration;
+          let elapsed = blockNow % totalDuration;
+          if (elapsed < 0) elapsed += totalDuration;
           let cumulative = 0;
           frameIndex = 0;
           for (let i = 0; i < blk.frameDurations.length; i++) {
@@ -7527,10 +7533,12 @@ function drawWPWorld(timestamp) {
           const state = (typeof bd === 'object' && bd.state !== undefined) ? bd.state : 0;
           if (state === 1) {
             // State 1 (Wrenched): Frames 4-8 (spr_fg_xmas_dj_box_9.png is missing)
-            frameIndex = 4 + (Math.floor(blockNow / (1000 / fps)) % 5);
+            const m = Math.floor(blockNow / (1000 / fps));
+            frameIndex = 4 + ((m % 5 + 5) % 5);
           } else {
             // State 0 (Default): Frames 0-3
-            frameIndex = Math.floor(blockNow / (1000 / fps)) % 4;
+            const m = Math.floor(blockNow / (1000 / fps));
+            frameIndex = ((m % 4 + 4) % 4);
           }
         } else if (bid === 'spr_fg_gem_machine') {
           const state = (typeof bd === 'object' && bd.state !== undefined) ? bd.state : 0;
@@ -7543,13 +7551,17 @@ function drawWPWorld(timestamp) {
 
           if (!isSameFluidAbove) {
             // Surface animation (First 4 frames: 0-3)
-            frameIndex = Math.floor(blockNow / (1000 / fps)) % 4;
+            const m = Math.floor(blockNow / (1000 / fps));
+            frameIndex = ((m % 4 + 4) % 4);
           } else {
             // Submerged animation (Frames 4-7)
-            frameIndex = 4 + (Math.floor(blockNow / (1000 / fps)) % 4);
+            const m = Math.floor(blockNow / (1000 / fps));
+            frameIndex = 4 + ((m % 4 + 4) % 4);
           }
         } else {
-          frameIndex = (Math.floor(blockNow / (1000 / fps)) % blk.frameCount) + (blk.frameStart || 0);
+          const m = Math.floor(blockNow / (1000 / fps));
+          const fc = blk.frameCount;
+          frameIndex = ((m % fc + fc) % fc) + (blk.frameStart || 0);
         }
 
         imgPath = `${blk.framesPath}${frameIndex}.png`;
