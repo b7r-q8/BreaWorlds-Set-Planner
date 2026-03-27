@@ -1,4 +1,4 @@
-window.onload = function () {
+﻿window.onload = function () {
   if (window.lucide) {
     lucide.createIcons();
   }
@@ -4784,52 +4784,80 @@ const WORLD_HEIGHT = 50; // Increased from 45 to 50
 const BLOCK_SIZE = 32;
 
 window.selectPlanner = function (type) {
-  const wpContainer = document.getElementById('world-planner-container');
-  const setContainer = document.getElementById('set-planner-container');
-  const fishContainer = document.getElementById('fish-calculator-container');
-  const loadingScreen = document.getElementById('loading-screen');
+  const wpContainer = document.getElementById("world-planner-container");
+  const setContainer = document.getElementById("set-planner-container");
+  const fishContainer = document.getElementById("fish-calculator-container");
+  const loadingScreen = document.getElementById("loading-screen");
+
+  // Set Planner Specific UI
+  const hamburger = document.querySelector(".hamburger");
+  const inventory = document.querySelector(".inventory");
+  const zoomControls = document.querySelector(".zoom-controls");
+  const roadmapBtn = document.querySelector(".selection-roadmap-btn");
+  const spTeleport = document.getElementById("sp-main-menu-btn");
 
   // Hide all first
-  wpContainer.style.display = 'none';
-  if (setContainer) setContainer.style.display = 'none';
-  if (fishContainer) fishContainer.style.display = 'none';
+  wpContainer.style.display = "none";
+  if (setContainer) setContainer.style.display = "none";
+  if (fishContainer) fishContainer.style.display = "none";
 
-  if (type === 'world') {
-    wpContainer.style.display = 'flex';
+  // Toggle mode-specific UI
+  if (hamburger) hamburger.style.display = (type === "set") ? "flex" : "none";
+  if (inventory) inventory.style.display = (type === "set") ? "flex" : "none";
+  if (zoomControls) zoomControls.style.display = (type === "set") ? "flex" : "none";
+  if (roadmapBtn) roadmapBtn.style.display = "none";
+  if (spTeleport) spTeleport.style.display = (type === "set") ? "flex" : "none";
+
+  if (type === "world") {
+    wpContainer.style.display = "flex";
     initWorldPlanner();
-  } else if (type === 'fish') {
-    if (fishContainer) fishContainer.style.display = 'block';
+  } else if (type === "fish") {
+    if (fishContainer) fishContainer.style.display = "block";
   } else {
-    if (setContainer) setContainer.style.display = 'block';
+    if (setContainer) setContainer.style.display = "block";
   }
 
   // Fade out loading screen after selection (if not already hidden)
-  if (loadingScreen && loadingScreen.style.display !== 'none') {
-    loadingScreen.classList.add('fade-out');
+  if (loadingScreen && loadingScreen.style.display !== "none") {
+    loadingScreen.classList.add("fade-out");
     setTimeout(() => {
-      loadingScreen.style.display = 'none';
-      loadingScreen.classList.remove('fade-out');
+      loadingScreen.style.display = "none";
+      loadingScreen.classList.remove("fade-out");
     }, 800);
   }
 };
 
 window.backToSelection = function () {
-  const wpContainer = document.getElementById('world-planner-container');
-  const setContainer = document.getElementById('set-planner-container');
-  const fishContainer = document.getElementById('fish-calculator-container');
-  const loadingScreen = document.getElementById('loading-screen');
-  const loaderInitial = document.getElementById('loader-initial');
-  const loadingSelection = document.getElementById('loading-selection');
+  const wpContainer = document.getElementById("world-planner-container");
+  const setContainer = document.getElementById("set-planner-container");
+  const fishContainer = document.getElementById("fish-calculator-container");
+  const loadingScreen = document.getElementById("loading-screen");
+  const loaderInitial = document.getElementById("loader-initial");
+  const loadingSelection = document.getElementById("loading-selection");
 
-  wpContainer.style.display = 'none';
-  if (setContainer) setContainer.style.display = 'none';
-  if (fishContainer) fishContainer.style.display = 'none';
+  // Set Planner Specific UI
+  const hamburger = document.querySelector(".hamburger");
+  const inventory = document.querySelector(".inventory");
+  const zoomControls = document.querySelector(".zoom-controls");
+  const roadmapBtn = document.querySelector(".selection-roadmap-btn");
+  const spTeleport = document.getElementById("sp-main-menu-btn");
+
+  wpContainer.style.display = "none";
+  if (setContainer) setContainer.style.display = "none";
+  if (fishContainer) fishContainer.style.display = "none";
+
+  // Hide SP UI
+  if (hamburger) hamburger.style.display = "none";
+  if (inventory) inventory.style.display = "none";
+  if (zoomControls) zoomControls.style.display = "none";
+  if (roadmapBtn) roadmapBtn.style.display = "block";
+  if (spTeleport) spTeleport.style.display = "none";
 
   if (loadingScreen) {
-    loadingScreen.style.display = 'flex';
-    loadingScreen.classList.remove('fade-out');
-    if (loaderInitial) loaderInitial.style.display = 'none';
-    if (loadingSelection) loadingSelection.style.display = 'flex';
+    loadingScreen.style.display = "flex";
+    loadingScreen.classList.remove("fade-out");
+    if (loaderInitial) loaderInitial.style.display = "none";
+    if (loadingSelection) loadingSelection.style.display = "flex";
   }
 };
 
@@ -6935,7 +6963,7 @@ function setupWPEvents() {
     handleWPInteraction(e);
   };
 
-  // Centralized mouseup handler — runs on document to catch releases outside canvas
+  // Centralized mouseup handler â€” runs on document to catch releases outside canvas
   function wpHandleMouseUp(e) {
     // If right mouse was released, clear panning
     if (e && e.button === 2) {
@@ -7501,7 +7529,7 @@ function handleWPInteractionAt(x, y, isBatched = false) {
     }
 
     if (!isBackground) {
-      // Only update immediate cardinal neighbors — no chain walk
+      // Only update immediate cardinal neighbors â€” no chain walk
       wpUpdateTilingAt(x, y);     // Self
       wpUpdateTilingAt(x, y + 1); // Below
       wpUpdateTilingAt(x, y - 1); // Above
@@ -7534,7 +7562,7 @@ function handleWPInteractionAt(x, y, isBatched = false) {
 
     if (wpEraserTargetLayer === 'fg' && wpGrid[y][x] !== null) {
       wpGrid[y][x] = null;
-      // Only update immediate cardinal neighbors — no chain walk
+      // Only update immediate cardinal neighbors â€” no chain walk
       wpUpdateTilingAt(x, y + 1);
       wpUpdateTilingAt(x, y - 1);
       wpUpdateTilingAt(x + 1, y);
@@ -7886,7 +7914,7 @@ function drawWPWorld(timestamp) {
 
   // Sorting removed (now handled incrementally in updateWPAnimatedCellList)
 
-  // ── BLIT STATIC CACHE (Separate passes for layering) ──
+  // â”€â”€ BLIT STATIC CACHE (Separate passes for layering) â”€â”€
   const sx = vStartX * BLOCK_SIZE;
   const sy = vStartY * BLOCK_SIZE;
   const sw = (vEndX - vStartX + 1) * BLOCK_SIZE;
@@ -7946,7 +7974,7 @@ function drawWPWorld(timestamp) {
       const bid = (typeof bd === 'object') ? bd.id : bd;
       const blk = wpBlockMap[bid];
       if (!blk || blk.noShadow || blk.verticalAlign === 'center') continue;
-      // Skip shadow for fluids (lava/water/acid/mud/bloody water) — they don't cast shadows in-game
+      // Skip shadow for fluids (lava/water/acid/mud/bloody water) â€” they don't cast shadows in-game
       const isFluid = bid === 'spr_fg_water_block' || bid === 'spr_fg_acid_block' || bid === 'spr_fg_mud_block' || bid === 'spr_fg_lava_block' || bid === 'spr_fg_bloody_water_block';
       if (isFluid) continue;
       // Skip shadow for rainbow blocks (they're drawn with overlay, shadow looks doubled)
@@ -8189,7 +8217,7 @@ function drawWPWorld(timestamp) {
     drawAnimBlock(cell);
   }
 
-  // â”€â”€ RAINBOW EFFECT â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬ RAINBOW EFFECT Ã¢â€â‚¬Ã¢â€â‚¬
   // PERF: Skip rainbow effect during active pan
   if (hasRainbow) {
     const cycleWidth = 1600;
@@ -8225,7 +8253,7 @@ function drawWPWorld(timestamp) {
     wpCtx.restore();
   }
 
-  // â”€â”€ GRID (LOD: Skip if zoomed out too far) â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬ GRID (LOD: Skip if zoomed out too far) Ã¢â€â‚¬Ã¢â€â‚¬
   if (wpShowGrid && wpZoom > 0.3) {
     wpCtx.save();
     wpCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
@@ -8245,8 +8273,8 @@ function drawWPWorld(timestamp) {
     wpCtx.restore();
   }
 
-  // ── WRENCH INDICATOR ──
-  // ── WRENCH INDICATOR ──
+  // â”€â”€ WRENCH INDICATOR â”€â”€
+  // â”€â”€ WRENCH INDICATOR â”€â”€
   if (wpCurrentTool === 'wrench') {
     // Ensure wrench icon is loaded
     if (!window.wpWrenchIcon) {
@@ -8303,7 +8331,7 @@ function drawWPWorld(timestamp) {
     }
   }
 
-  // ── SELECTION TOOL DRAWING ──
+  // â”€â”€ SELECTION TOOL DRAWING â”€â”€
   if (wpCurrentTool === 'select' || wpPasteMode) {
     drawWPSelection(wpCtx, wpZoom, wpOffsetX, wpOffsetY);
   }
@@ -8322,7 +8350,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 
-// O(1) block lookup map â€” populated in loadWPManifest
+// O(1) block lookup map Ã¢â‚¬â€ populated in loadWPManifest
 let wpBlockMap = {};
 
 async function loadWPManifest() {
@@ -8629,7 +8657,7 @@ function loadImage(src) {
 
 let wpBlockColorMap = null;
 
-// ── CIE Lab Color Space Utilities ──
+// â”€â”€ CIE Lab Color Space Utilities â”€â”€
 
 // Convert sRGB [0-255] to linear RGB [0-1]
 function srgbToLinear(c) {
@@ -8639,18 +8667,18 @@ function srgbToLinear(c) {
 
 // Convert RGB [0-255] to CIE Lab
 function rgbToLab(r, g, b) {
-  // RGB → linear → XYZ (D65 illuminant)
+  // RGB â†’ linear â†’ XYZ (D65 illuminant)
   const rl = srgbToLinear(r), gl = srgbToLinear(g), bl = srgbToLinear(b);
   let x = (rl * 0.4124564 + gl * 0.3575761 + bl * 0.1804375) / 0.95047;
   let y = (rl * 0.2126729 + gl * 0.7151522 + bl * 0.0721750);
   let z = (rl * 0.0193339 + gl * 0.1191920 + bl * 0.9503041) / 1.08883;
-  // XYZ → Lab
+  // XYZ â†’ Lab
   const f = (t) => t > 0.008856 ? Math.cbrt(t) : (7.787 * t + 16 / 116);
   x = f(x); y = f(y); z = f(z);
   return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
 }
 
-// CIE76 ΔE distance (perceptual)
+// CIE76 Î”E distance (perceptual)
 function labColorDistance(lab1, lab2) {
   const dL = lab1[0] - lab2[0];
   const dA = lab1[1] - lab2[1];
@@ -8972,7 +9000,7 @@ window.confirmWPImageImport = async function () {
   const startX = Math.floor((WORLD_WIDTH - targetW) / 2);
   const startY = (WORLD_HEIGHT - 5) - targetH;
 
-  // v2: NO palette reduction — match each pixel directly against ALL blocks
+  // v2: NO palette reduction â€” match each pixel directly against ALL blocks
   // This is more accurate than the old 16-color palette system
 
   // Determine if we should also fill backgrounds (for "both" mode)
@@ -10004,27 +10032,29 @@ window.redirectOriginal = function(element) {
 /* WORLD PLANNER HOTKEY SETTINGS LOGIC */
 let wpHotkeys = {
   tools: {
-    pencil: "1",
-    eraser: "2",
-    picker: "3",
-    bucket: "4",
-    selection: "5",
-    move: "6",
-    flip: "7",
-    fill: "8",
-    delete: "9"
+    pencil: null,
+    eraser: null,
+    picker: null,
+    bucket: null,
+    selection: null,
+    move: null,
+    flip: null,
+    fill: null,
+    delete: null,
+    undo: null,
+    redo: null
   },
   inventory: {
-    "slot-0": "z",
-    "slot-1": "x",
-    "slot-2": "c",
-    "slot-3": "v",
-    "slot-4": "b",
-    "slot-5": "n",
-    "slot-6": "m",
-    "slot-7": "a",
-    "slot-8": "s",
-    "slot-9": "d"
+    "slot-0": null,
+    "slot-1": null,
+    "slot-2": null,
+    "slot-3": null,
+    "slot-4": null,
+    "slot-5": null,
+    "slot-6": null,
+    "slot-7": null,
+    "slot-8": null,
+    "slot-9": null
   }
 };
 
@@ -10061,11 +10091,15 @@ function renderHotkeySettings() {
 
   // Tools
   Object.keys(wpHotkeys.tools).forEach(tool => {
+    const key = wpHotkeys.tools[tool];
     const item = document.createElement("div");
     item.className = "wp-hotkey-item";
     item.innerHTML = `
       <span class="wp-hotkey-label">${tool}</span>
-      <button class="wp-key-cap" data-type="tools" data-id="${tool}" onclick="startHotkeyCapture(this)">${wpHotkeys.tools[tool]}</button>
+      <div style="display: flex; gap: 8px;">
+        <button class="wp-key-cap" data-type="tools" data-id="${tool}" onclick="startHotkeyCapture(this)">${key || "None"}</button>
+        <button class="wp-key-clear" onclick="clearHotkey('tools', '${tool}')" style="background: none; border: none; color: #e63946; font-size: 10px; cursor: pointer; opacity: 0.6;">âœ•</button>
+      </div>
     `;
     toolsList.appendChild(item);
   });
@@ -10073,20 +10107,29 @@ function renderHotkeySettings() {
   // Inventory
   for (let i = 0; i < 10; i++) {
     const slotId = `slot-${i}`;
+    const key = wpHotkeys.inventory[slotId];
     const item = document.createElement("div");
     item.className = "wp-hotkey-item";
     item.innerHTML = `
       <span class="wp-hotkey-label">Slot ${i + 1}</span>
-      <button class="wp-key-cap" data-type="inventory" data-id="${slotId}" onclick="startHotkeyCapture(this)">${wpHotkeys.inventory[slotId]}</button>
+      <div style="display: flex; gap: 8px;">
+        <button class="wp-key-cap" data-type="inventory" data-id="${slotId}" onclick="startHotkeyCapture(this)">${key || "None"}</button>
+        <button class="wp-key-clear" onclick="clearHotkey('inventory', '${slotId}')" style="background: none; border: none; color: #e63946; font-size: 10px; cursor: pointer; opacity: 0.6;">âœ•</button>
+      </div>
     `;
     invList.appendChild(item);
   }
 }
 
+window.clearHotkey = function(type, id) {
+  wpHotkeys[type][id] = null;
+  renderHotkeySettings();
+};
+
 function startHotkeyCapture(btn) {
   if (wpKeyCaptureTarget) {
     wpKeyCaptureTarget.classList.remove("capturing");
-    wpKeyCaptureTarget.textContent = wpHotkeys[wpKeyCaptureTarget.dataset.type][wpKeyCaptureTarget.dataset.id];
+    wpKeyCaptureTarget.textContent = wpHotkeys[wpKeyCaptureTarget.dataset.type][wpKeyCaptureTarget.dataset.id] || "None";
   }
 
   wpKeyCaptureTarget = btn;
@@ -10099,6 +10142,14 @@ window.addEventListener("keydown", (e) => {
   if (wpKeyCaptureTarget) {
     e.preventDefault();
     const newKey = e.key.toLowerCase();
+    
+    if (newKey === "escape") {
+      wpKeyCaptureTarget.classList.remove("capturing");
+      wpKeyCaptureTarget.textContent = wpHotkeys[wpKeyCaptureTarget.dataset.type][wpKeyCaptureTarget.dataset.id] || "None";
+      wpKeyCaptureTarget = null;
+      return;
+    }
+
     const type = wpKeyCaptureTarget.dataset.type;
     const id = wpKeyCaptureTarget.dataset.id;
     
@@ -10110,7 +10161,7 @@ window.addEventListener("keydown", (e) => {
     if (isDuplicate) {
       alert(`The key "${newKey}" is already assigned to another feature!`);
       wpKeyCaptureTarget.classList.remove("capturing");
-      wpKeyCaptureTarget.textContent = wpHotkeys[type][id];
+      wpKeyCaptureTarget.textContent = wpHotkeys[type][id] || "None";
       wpKeyCaptureTarget = null;
       return;
     }
@@ -10124,7 +10175,8 @@ window.addEventListener("keydown", (e) => {
 
   // Normal Hotkey Execution
   // Only if World Planner is visible and no input is focused
-  if (document.getElementById("world-planner-container").style.display === "none") return;
+  const wpContainer = document.getElementById("world-planner-container");
+  if (!wpContainer || wpContainer.style.display === "none") return;
   if (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA") return;
 
   const key = e.key.toLowerCase();
@@ -10133,6 +10185,11 @@ window.addEventListener("keydown", (e) => {
   const toolEntry = Object.entries(wpHotkeys.tools).find(([tool, k]) => k === key);
   if (toolEntry) {
     const toolName = toolEntry[0];
+    e.preventDefault();
+    
+    if (toolName === "undo") { window.wpUndo && window.wpUndo(); return; }
+    if (toolName === "redo") { window.wpRedo && window.wpRedo(); return; }
+    
     const btn = document.querySelector(`.wp-tool-btn[data-tool="${toolName}"]`);
     if (btn) btn.click();
     return;
@@ -10143,8 +10200,16 @@ window.addEventListener("keydown", (e) => {
   if (invEntry) {
     const slotId = invEntry[0];
     const index = parseInt(slotId.split("-")[1]);
-    const slotEl = document.querySelectorAll(".wp-inventory-slot")[index];
-    if (slotEl) slotEl.click();
+    e.preventDefault();
+    
+    // Correctly click the slot in the inventory drawer
+    const slots = document.querySelectorAll(".wp-inventory-slot");
+    if (slots[index]) {
+      slots[index].click();
+      // Visual feedback
+      slots[index].style.transform = "scale(1.1)";
+      setTimeout(() => { slots[index].style.transform = ""; }, 100);
+    }
     return;
   }
 });
@@ -10155,10 +10220,10 @@ window.saveWPHotkeys = function() {
 };
 
 window.resetWPHotkeys = function() {
-  if (confirm("Are you sure you want to reset all hotkeys to defaults?")) {
+  if (confirm("Are you sure you want to reset all hotkeys to unassigned?")) {
     wpHotkeys = {
-      tools: { pencil: "1", eraser: "2", picker: "3", bucket: "4", selection: "5", move: "6", flip: "7", fill: "8", delete: "9" },
-      inventory: { "slot-0": "z", "slot-1": "x", "slot-2": "c", "slot-3": "v", "slot-4": "b", "slot-5": "n", "slot-6": "m", "slot-7": "a", "slot-8": "s", "slot-9": "d" }
+      tools: { pencil: null, eraser: null, picker: null, bucket: null, selection: null, move: null, flip: null, fill: null, delete: null, undo: null, redo: null },
+      inventory: { "slot-0": null, "slot-1": null, "slot-2": null, "slot-3": null, "slot-4": null, "slot-5": null, "slot-6": null, "slot-7": null, "slot-8": null, "slot-9": null }
     };
     renderHotkeySettings();
   }
@@ -10168,4 +10233,5 @@ window.resetWPHotkeys = function() {
 document.addEventListener("DOMContentLoaded", () => {
   loadWPHotkeys();
 });
+
 

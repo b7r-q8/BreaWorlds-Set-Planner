@@ -179,11 +179,7 @@
 
 
 
-      <div class="wp-toolbar" id="wp-toolbar">
-
-        <!-- REMOVED OLD SET PLANNER BTN FROM TOOLBAR -->
-
-        <!-- VIEW BUTTON REMOVED AS PER USER REQUEST -->
+    <div class="wp-toolbar" id="wp-toolbar">
 
         <button class="wp-tool-btn active" data-tool="pencil" title="Place Block">
 
@@ -753,6 +749,10 @@
 
           </div>
 
+        </div>
+
+        <div class="roadmap-btn selection-roadmap-btn" onclick="openRoadmapModal()" style="position: fixed; top: 20px; right: 20px; z-index: 10002;">
+          <div class="roadmap-icon-anim roadmap-icon-space"></div> Roadmap
         </div>
 
       </div>
@@ -1528,17 +1528,16 @@
 
 
 
+    <!-- DIRECT SET PLANNER TELEPORT -->
+    <button class="wp-teleport-btn main-menu-wrench-btn" id="sp-main-menu-btn" onclick="backToSelection()" title="Back to Main Menu" style="position: fixed; top: 20px; right: 20px; z-index: 5000;">
+      <img src="roadmap/spr_wrench.png" alt="Menu">
+      <span>Main Menu</span>
+    </button>
+
     <!-- ROADMAP BUTTONS -->
 
-    <div class="roadmap-container">
-      <div class="main-menu-wrench-btn" onclick="backToSelection()">
-        <img src="roadmap/spr_wrench.png" alt="Menu" class="main-menu-icon" style="width: 22px; height: 22px;">
-        Main Menu
-      </div>
-
-      <div class="roadmap-btn" onclick="openRoadmapModal()" style="margin-top: 5px; transform: scale(0.9); opacity: 0.8;">
-        <div class="roadmap-icon-anim roadmap-icon-space"></div> Roadmap
-      </div>
+    <div class="roadmap-container" style="display: none;">
+      <!-- Hidden in Set Planner as it moved to Main Menu -->
     </div>
 
       <!-- COMMUNITY POSTS TELEPORT (disabled for now)
@@ -7629,7 +7628,7 @@
 
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <script src="script.js?v=2.39"></script>
+  <script src="script.js?v=2.45"></script>
 
 </body>
 
