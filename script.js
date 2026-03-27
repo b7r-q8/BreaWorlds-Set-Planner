@@ -4865,6 +4865,85 @@ window.formatLocksHTML = function(wlAmount) {
 };
 
 window.initFishCalculatorUI = function() {
+  const style = document.createElement('style');
+  style.textContent = `
+    .fish-custom-rates {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 5px;
+      font-family: 'Poppins', sans-serif;
+    }
+    .cfg-input-wrap {
+      display: flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(168, 218, 220, 0.15);
+      border-radius: 6px;
+      padding: 2px 6px;
+      height: 20px;
+      transition: all 0.2s;
+    }
+    .cfg-input-wrap:focus-within {
+      border-color: rgba(168, 218, 220, 0.5);
+      background: rgba(0, 0, 0, 0.35);
+    }
+    .cfg-input-wrap input {
+      background: transparent;
+      border: none;
+      color: #f1faee;
+      font-size: 11px;
+      width: 32px;
+      text-align: right;
+      outline: none;
+      font-family: inherit;
+      font-weight: 500;
+    }
+    .cfg-input-wrap input::-webkit-outer-spin-button,
+    .cfg-input-wrap input::-webkit-inner-spin-button {
+      -webkit-appearance: none; margin: 0;
+    }
+    .cfg-input-wrap img {
+      height: 11px;
+      margin-left: 5px;
+      image-rendering: pixelated;
+    }
+    .cfg-divider {
+      color: rgba(168, 218, 220, 0.2);
+      font-size: 14px;
+    }
+    .cfg-toggle {
+      background: rgba(168, 218, 220, 0.1);
+      border: none;
+      color: #a8dadc;
+      font-size: 10px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-right: 4px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .cfg-toggle:hover { 
+      background: rgba(168, 218, 220, 0.25); 
+      color: #f1faee; 
+    }
+  `;
+  document.head.appendChild(style);
+
+  window.toggleWlMode = function(btn) {
+    const input = btn.parentElement.querySelector('.cfg-wl-type');
+    if (input.value === 'per_wl') {
+      input.value = 'wls';
+      btn.textContent = 'x';
+    } else {
+      input.value = 'per_wl';
+      btn.textContent = '/';
+    }
+    calcFishTotals();
+  };
+
   document.querySelectorAll('.fish-row').forEach(row => {
     const infoContainer = row.querySelector('.fish-info');
     const oldMeta = infoContainer.querySelector('.fish-meta');
@@ -4901,15 +4980,18 @@ window.initFishCalculatorUI = function() {
     }
 
     const editHtml = `
-      <div class="fish-custom-rates" style="display: flex; align-items: center; gap: 4px; margin-top: 4px;">
-        <input type="number" class="cfg-gem" value="${defaultGems}" style="width: 45px; font-size: 11px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 2px 4px; border-radius: 4px;" oninput="calcFishTotals()">
-        <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" width="12" alt="Gems">
-        <span style="color: rgba(255,255,255,0.3);">|</span>
-        <input type="number" class="cfg-wl-val" value="${defaultWls}" step="0.1" style="width: 40px; font-size: 11px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 2px 4px; border-radius: 4px;" oninput="calcFishTotals()">
-        <select class="cfg-wl-type" style="font-size: 11px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 1px; border-radius: 4px;" onchange="calcFishTotals()">
-          <option value="wls" ${defaultType === 'wls' ? 'selected' : ''}>WL(s)</option>
-          <option value="per_wl" ${defaultType === 'per_wl' ? 'selected' : ''}>/ WL</option>
-        </select>
+      <div class="fish-custom-rates">
+        <div class="cfg-input-wrap">
+          <input type="number" class="cfg-gem" value="${defaultGems}" oninput="calcFishTotals()">
+          <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" alt="Gems">
+        </div>
+        <span class="cfg-divider">•</span>
+        <div class="cfg-input-wrap">
+          <input type="number" class="cfg-wl-val" value="${defaultWls}" step="0.1" oninput="calcFishTotals()">
+          <button class="cfg-toggle" onclick="toggleWlMode(this)">${defaultType === 'per_wl' ? '/' : 'x'}</button>
+          <img src="worldplanner/new/spr_fg_lock/spr_fg_lock_0.png" alt="WL">
+          <input type="hidden" class="cfg-wl-type" value="${defaultType}">
+        </div>
       </div>
     `;
 
@@ -8089,32 +8171,25 @@ function drawWPWorld(timestamp) {
     if (img.complete && img.naturalWidth > 0) {
       const nw = img.naturalWidth;
       const nh = img.naturalHeight;
-      const rawX = (cell.x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2 + (blk.xOffset || 0) + wpOffsetX) * wpZoom;
-      const px = Math.floor(rawX);
-      const drawW = Math.ceil(rawX + nw * wpZoom) - px;
+      const startXReal = (cell.x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2 + (blk.xOffset || 0) + wpOffsetX) * wpZoom;
+      const endXReal = startXReal + nw * wpZoom;
+      const px = Math.round(startXReal);
+      const drawW = Math.round(endXReal) - px;
       
-      let py, drawH;
+      let startYReal;
       const useStaticIcon = blk.verticalAlign === 'center' && wpZoom < 0.6;
       if (blk.verticalAlign === 'center' && !useStaticIcon) {
-        const rawY = (cell.y * BLOCK_SIZE + (BLOCK_SIZE - nh) / 2 + wpOffsetY) * wpZoom;
-        py = Math.floor(rawY);
-        drawH = Math.ceil(rawY + nh * wpZoom) - py;
+        startYReal = (cell.y * BLOCK_SIZE + (BLOCK_SIZE - nh) / 2 + wpOffsetY) * wpZoom;
       } else {
-        const rawY = ((cell.y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0) + wpOffsetY) * wpZoom;
-        py = Math.floor(rawY);
-        drawH = Math.ceil(rawY + nh * wpZoom) - py;
+        startYReal = ((cell.y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0) + wpOffsetY) * wpZoom;
       }
+      const endYReal = startYReal + nh * wpZoom;
+      const py = Math.round(startYReal);
+      const drawH = Math.round(endYReal) - py;
 
       // Draw the block at full opacity (always)
-      // Math.ceil-based width/height scaling prevents 1px gap seams (striping) when zoomed.
-      // Fluid blocks (water/acid/mud/lava/bloody water): add 1px overlap to prevent seam gaps
-      const isFluidBlock = bid === 'spr_fg_water_block' || bid === 'spr_fg_acid_block' || bid === 'spr_fg_mud_block' || bid === 'spr_fg_lava_block' || bid === 'spr_fg_bloody_water_block';
-      if (isFluidBlock) {
-        const pad = Math.max(1, Math.ceil(wpZoom));
-        wpCtx.drawImage(img, px - pad, py - pad, drawW + pad * 2, drawH + pad * 2);
-      } else {
-        wpCtx.drawImage(img, px, py, drawW, drawH);
-      }
+      // Math.round-based width/height scaling prevents drawing overlaps and gaps
+      wpCtx.drawImage(img, px, py, drawW, drawH);
 
       // For rainbow blocks, use multiply blend like PNG export (darker, richer colors)
       if (isRainbow) {
