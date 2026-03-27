@@ -5515,3 +5515,69 @@ body.ghost-active #skin {
     flex-shrink: 0 !important;
   }
 }
+
+/* WORLD PLANNER SETTINGS & HOTKEYS */
+.wp-hotkeys-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+}
+
+.wp-hotkey-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(168, 218, 220, 0.05);
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(168, 218, 220, 0.1);
+  transition: all 0.2s;
+}
+
+.wp-hotkey-item:hover {
+  background: rgba(168, 218, 220, 0.08);
+  border-color: rgba(168, 218, 220, 0.2);
+}
+
+.wp-hotkey-label {
+  font-size: 13px;
+  color: #f1faee;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.wp-key-cap {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(168, 218, 220, 0.2);
+  color: #a8dadc;
+  padding: 6px 10px;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 45px;
+  text-transform: uppercase;
+  font-family: "Poppins", sans-serif;
+}
+
+.wp-key-cap:hover {
+  background: rgba(168, 218, 220, 0.15);
+  border-color: #a8dadc;
+}
+
+.wp-key-cap.capturing {
+  animation: wpKeyPulse 1.2s infinite ease-in-out;
+  background: rgba(168, 218, 220, 0.3);
+  border-color: #f1faee;
+  color: #fff;
+}
+
+@keyframes wpKeyPulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(168, 218, 220, 0.4); }
+  50% { transform: scale(1.05); box-shadow: 0 0 10px 4px rgba(168, 218, 220, 0.2); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(168, 218, 220, 0.4); }
+}
+

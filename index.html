@@ -201,6 +201,14 @@
 
         </button>
 
+        <button class="wp-tool-btn" onclick="openWPSettings()" title="Settings">
+
+          <i data-lucide="settings"></i>
+
+          <span class="wp-tool-label">Settings</span>
+
+        </button>
+
         <button class="wp-tool-btn" data-tool="move" title="Move">
 
           <i data-lucide="move"></i>
@@ -651,6 +659,32 @@
           it!</button>
       </div>
 
+    </div>
+
+    <!-- SETTINGS POPUP -->
+    <div id="wp-settings-popup" class="wp-popup hidden" style="width: 450px; max-width: 90vw; z-index: 10001;">
+      <div class="wp-popup-header" style="background: rgba(168, 218, 220, 0.05); padding: 15px 20px; border-bottom: 1px solid rgba(168, 218, 220, 0.1);">
+        <h3 style="margin: 0; font-size: 18px; color: #a8dadc;">Hotkeys & Settings</h3>
+        <button class="wp-popup-close" onclick="toggleWPPopup('wp-settings-popup')">&times;</button>
+      </div>
+      <div class="wp-settings-content" style="padding: 20px; overflow-y: auto; max-height: 60vh;">
+        <div class="wp-settings-section">
+          <h4 style="margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: rgba(168, 218, 220, 0.6);">Tool Hotkeys</h4>
+          <div id="wp-hotkeys-list" class="wp-hotkeys-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <!-- Dynamic hotkey list -->
+          </div>
+        </div>
+        <div class="wp-settings-section" style="margin-top: 25px;">
+          <h4 style="margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: rgba(168, 218, 220, 0.6);">Inventory Hotkeys</h4>
+          <div id="wp-inventory-hotkeys-list" class="wp-hotkeys-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <!-- Dynamic hotkey list -->
+          </div>
+        </div>
+      </div>
+      <div class="wp-popup-footer" style="padding: 15px 20px; display: flex; gap: 12px; border-top: 1px solid rgba(168, 218, 220, 0.1); background: rgba(168, 218, 220, 0.02);">
+        <button class="wp-confirm-btn" onclick="saveWPHotkeys()" style="flex: 1; height: 38px; background: #a8dadc; color: #1d3557; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">Confirm and Close</button>
+        <button class="wp-reset-btn" onclick="resetWPHotkeys()" style="flex: 1; height: 38px; background: rgba(168, 218, 220, 0.1); color: #a8dadc; border: 1px solid rgba(168, 218, 220, 0.2); border-radius: 8px; font-weight: bold; cursor: pointer;">Reset and Close</button>
+      </div>
     </div>
 
     <script>
@@ -1497,17 +1531,15 @@
     <!-- ROADMAP BUTTONS -->
 
     <div class="roadmap-container">
-
-      <div class="roadmap-btn" onclick="openRoadmapModal()">
-
-        <div class="roadmap-icon-anim roadmap-icon-space"></div> Roadmap
-
-      </div>
-
       <div class="main-menu-wrench-btn" onclick="backToSelection()">
-        <img src="roadmap/spr_wrench.png" alt="Menu" class="main-menu-icon">
+        <img src="roadmap/spr_wrench.png" alt="Menu" class="main-menu-icon" style="width: 22px; height: 22px;">
         Main Menu
       </div>
+
+      <div class="roadmap-btn" onclick="openRoadmapModal()" style="margin-top: 5px; transform: scale(0.9); opacity: 0.8;">
+        <div class="roadmap-icon-anim roadmap-icon-space"></div> Roadmap
+      </div>
+    </div>
 
       <!-- COMMUNITY POSTS TELEPORT (disabled for now)
       <div class="roadmap-btn world-planner-teleport" onclick="window.location.href='community.html?tab=sets'"
@@ -7597,7 +7629,7 @@
 
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <script src="script.js?v=2.38"></script>
+  <script src="script.js?v=2.39"></script>
 
 </body>
 

@@ -10000,3 +10000,172 @@ window.redirectOriginal = function(element) {
 };
 
 
+
+/* WORLD PLANNER HOTKEY SETTINGS LOGIC */
+let wpHotkeys = {
+  tools: {
+    pencil: "1",
+    eraser: "2",
+    picker: "3",
+    bucket: "4",
+    selection: "5",
+    move: "6",
+    flip: "7",
+    fill: "8",
+    delete: "9"
+  },
+  inventory: {
+    "slot-0": "z",
+    "slot-1": "x",
+    "slot-2": "c",
+    "slot-3": "v",
+    "slot-4": "b",
+    "slot-5": "n",
+    "slot-6": "m",
+    "slot-7": "a",
+    "slot-8": "s",
+    "slot-9": "d"
+  }
+};
+
+let wpKeyCaptureTarget = null;
+
+function loadWPHotkeys() {
+  const saved = localStorage.getItem("wp_custom_hotkeys");
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed.tools && parsed.inventory) {
+        wpHotkeys = parsed;
+      }
+    } catch (e) {
+      console.error("Failed to parse hotkeys:", e);
+    }
+  }
+}
+
+window.openWPSettings = function() {
+  const modal = document.getElementById("wp-settings-popup");
+  if (!modal) return;
+  modal.classList.remove("hidden");
+  renderHotkeySettings();
+};
+
+function renderHotkeySettings() {
+  const toolsList = document.getElementById("wp-hotkeys-list");
+  const invList = document.getElementById("wp-inventory-hotkeys-list");
+  if (!toolsList || !invList) return;
+
+  toolsList.innerHTML = "";
+  invList.innerHTML = "";
+
+  // Tools
+  Object.keys(wpHotkeys.tools).forEach(tool => {
+    const item = document.createElement("div");
+    item.className = "wp-hotkey-item";
+    item.innerHTML = `
+      <span class="wp-hotkey-label">${tool}</span>
+      <button class="wp-key-cap" data-type="tools" data-id="${tool}" onclick="startHotkeyCapture(this)">${wpHotkeys.tools[tool]}</button>
+    `;
+    toolsList.appendChild(item);
+  });
+
+  // Inventory
+  for (let i = 0; i < 10; i++) {
+    const slotId = `slot-${i}`;
+    const item = document.createElement("div");
+    item.className = "wp-hotkey-item";
+    item.innerHTML = `
+      <span class="wp-hotkey-label">Slot ${i + 1}</span>
+      <button class="wp-key-cap" data-type="inventory" data-id="${slotId}" onclick="startHotkeyCapture(this)">${wpHotkeys.inventory[slotId]}</button>
+    `;
+    invList.appendChild(item);
+  }
+}
+
+function startHotkeyCapture(btn) {
+  if (wpKeyCaptureTarget) {
+    wpKeyCaptureTarget.classList.remove("capturing");
+    wpKeyCaptureTarget.textContent = wpHotkeys[wpKeyCaptureTarget.dataset.type][wpKeyCaptureTarget.dataset.id];
+  }
+
+  wpKeyCaptureTarget = btn;
+  btn.classList.add("capturing");
+  btn.textContent = "...";
+}
+
+window.addEventListener("keydown", (e) => {
+  // Hotkey Capture mode
+  if (wpKeyCaptureTarget) {
+    e.preventDefault();
+    const newKey = e.key.toLowerCase();
+    const type = wpKeyCaptureTarget.dataset.type;
+    const id = wpKeyCaptureTarget.dataset.id;
+    
+    // Check for duplicates
+    let isDuplicate = false;
+    Object.keys(wpHotkeys.tools).forEach(k => { if (wpHotkeys.tools[k] === newKey && (type !== "tools" || id !== k)) isDuplicate = true; });
+    Object.keys(wpHotkeys.inventory).forEach(k => { if (wpHotkeys.inventory[k] === newKey && (type !== "inventory" || id !== k)) isDuplicate = true; });
+
+    if (isDuplicate) {
+      alert(`The key "${newKey}" is already assigned to another feature!`);
+      wpKeyCaptureTarget.classList.remove("capturing");
+      wpKeyCaptureTarget.textContent = wpHotkeys[type][id];
+      wpKeyCaptureTarget = null;
+      return;
+    }
+
+    wpHotkeys[type][id] = newKey;
+    wpKeyCaptureTarget.textContent = newKey;
+    wpKeyCaptureTarget.classList.remove("capturing");
+    wpKeyCaptureTarget = null;
+    return;
+  }
+
+  // Normal Hotkey Execution
+  // Only if World Planner is visible and no input is focused
+  if (document.getElementById("world-planner-container").style.display === "none") return;
+  if (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA") return;
+
+  const key = e.key.toLowerCase();
+
+  // Try Tools
+  const toolEntry = Object.entries(wpHotkeys.tools).find(([tool, k]) => k === key);
+  if (toolEntry) {
+    const toolName = toolEntry[0];
+    const btn = document.querySelector(`.wp-tool-btn[data-tool="${toolName}"]`);
+    if (btn) btn.click();
+    return;
+  }
+
+  // Try Inventory
+  const invEntry = Object.entries(wpHotkeys.inventory).find(([slot, k]) => k === key);
+  if (invEntry) {
+    const slotId = invEntry[0];
+    const index = parseInt(slotId.split("-")[1]);
+    const slotEl = document.querySelectorAll(".wp-inventory-slot")[index];
+    if (slotEl) slotEl.click();
+    return;
+  }
+});
+
+window.saveWPHotkeys = function() {
+  localStorage.setItem("wp_custom_hotkeys", JSON.stringify(wpHotkeys));
+  toggleWPPopup("wp-settings-popup");
+};
+
+window.resetWPHotkeys = function() {
+  if (confirm("Are you sure you want to reset all hotkeys to defaults?")) {
+    wpHotkeys = {
+      tools: { pencil: "1", eraser: "2", picker: "3", bucket: "4", selection: "5", move: "6", flip: "7", fill: "8", delete: "9" },
+      inventory: { "slot-0": "z", "slot-1": "x", "slot-2": "c", "slot-3": "v", "slot-4": "b", "slot-5": "n", "slot-6": "m", "slot-7": "a", "slot-8": "s", "slot-9": "d" }
+    };
+    renderHotkeySettings();
+  }
+};
+
+// Initialize Hotkeys on load
+document.addEventListener("DOMContentLoaded", () => {
+  loadWPHotkeys();
+});
+
