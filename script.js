@@ -5052,17 +5052,15 @@ window.calcFishTotals = function () {
   const globalRate = rateInput ? (parseFloat(rateInput.value) || 800) : 800;
   const totalWLFromGems = globalRate > 0 ? (totalGems / globalRate) : 0;
   
-  // The grand locks total recalculates based on Gems and Fish values directly
-  const grandTotalWls = totalWLFromGems + totalWLFromFish;
-
-  // Update totals
+  // Update totals natively avoiding double summation
   const gemsEl = document.getElementById('fish-total-gems');
   const wlsEl = document.getElementById('fish-total-wls');
 
-  gemsEl.innerHTML = `${totalGems.toLocaleString()} <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" class="fish-gem-icon" alt="Gems">`;
+  const gemLocksHtml = totalWLFromGems > 0 ? `<span style="font-size: 14px; opacity: 0.6; margin-left: 10px; font-weight: 500;">(≈ ${formatLocksHTML(Math.round(totalWLFromGems * 100) / 100)})</span>` : '';
+  gemsEl.innerHTML = `${totalGems.toLocaleString()} <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" class="fish-gem-icon" alt="Gems"> ${gemLocksHtml}`;
 
-  // Show WL total directly
-  const roundedWL = Math.round(grandTotalWls * 100) / 100;
+  // Show WL total directly corresponding to purely the individual fish configured amounts
+  const roundedWL = Math.round(totalWLFromFish * 100) / 100;
   wlsEl.innerHTML = formatLocksHTML(roundedWL);
 
   // Micro-animation bump
