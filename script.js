@@ -7629,6 +7629,21 @@ function wpUpdateTilingAt(x, y) {
     }
   }
 
+  // 6b. CLOUD BLOCK (16-State 4-Neighbor Tiling)
+  if (bid === 'spr_cloud_block') {
+    const n = getID(x, y - 1) === bid;
+    const e = getID(x + 1, y) === bid;
+    const s = getID(x, y + 1) === bid;
+    const w = getID(x - 1, y) === bid;
+
+    // Mask layout: N=1, E=2, S=4, W=8
+    const mask = (n ? 1 : 0) | (e ? 2 : 0) | (s ? 4 : 0) | (w ? 8 : 0);
+    
+    // User requested frame mapping:
+    const cloudMap = [0, 3, 2, 6, 1, 14, 5, 10, 4, 7, 15, 11, 8, 12, 9, 13];
+    newState = cloudMap[mask];
+  }
+
   // 7. BEDROCK LOGIC (Depth-based frames 0 to 4)
   if (bid === 'spr_fg_bedrock') {
     const depthFromBottom = (WORLD_HEIGHT - 1) - y;
@@ -7974,14 +7989,17 @@ function drawWPWorld(timestamp) {
           if (!isSameFluidAbove) {
             // Surface animation (First 4 frames: 0-3)
             const m = Math.floor(blockNow / (1000 / fps));
-            frameIndex = ((m % 4 + 4) % 4);
+            const surfaceFrames = Math.min(4, blk.frameCount);
+            frameIndex = ((m % surfaceFrames + surfaceFrames) % surfaceFrames);
           } else {
-            // Submerged animation (Frames 4-7)
+            // Submerged animation (Frames 4-7 if available, otherwise use last surface frame)
             const m = Math.floor(blockNow / (1000 / fps));
             if (blk.frameCount > 4) {
-              frameIndex = 4 + ((m % 4 + 4) % 4);
+              const subFrames = blk.frameCount - 4;
+              frameIndex = 4 + ((m % subFrames + subFrames) % subFrames);
             } else {
-              frameIndex = ((m % 4 + 4) % 4);
+              // No submerged frames available (e.g. Bloody Water) - use last frame as solid fill
+              frameIndex = blk.frameCount - 1;
             }
           }
         } else {
@@ -8023,7 +8041,14 @@ function drawWPWorld(timestamp) {
 
       // Draw the block at full opacity (always)
       // Math.ceil-based width/height scaling prevents 1px gap seams (striping) when zoomed.
-      wpCtx.drawImage(img, px, py, drawW, drawH);
+      // Fluid blocks (water/acid/mud/lava/bloody water): add 1px overlap to prevent seam gaps
+      const isFluidBlock = bid === 'spr_fg_water_block' || bid === 'spr_fg_acid_block' || bid === 'spr_fg_mud_block' || bid === 'spr_fg_lava_block' || bid === 'spr_fg_bloody_water_block';
+      if (isFluidBlock) {
+        const pad = Math.max(1, Math.ceil(wpZoom));
+        wpCtx.drawImage(img, px - pad, py - pad, drawW + pad * 2, drawH + pad * 2);
+      } else {
+        wpCtx.drawImage(img, px, py, drawW, drawH);
+      }
 
       // For rainbow blocks, use multiply blend like PNG export (darker, richer colors)
       if (isRainbow) {

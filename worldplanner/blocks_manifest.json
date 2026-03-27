@@ -4230,6 +4230,15 @@
       "group": "Nature & Terrain"
     },
     {
+      "id": "spr_cloud_block",
+      "name": "Cloud Block",
+      "src": "worldplanner/new/spr_cloud_block/spr_cloud_block_0.png",
+      "type": "foreground",
+      "framesPath": "worldplanner/new/spr_cloud_block/spr_cloud_block_",
+      "frameCount": 16,
+      "group": "Nature & Terrain"
+    },
+    {
       "id": "spr_fg_cursed_dirt",
       "name": "Cursed Dirt",
       "src": "worldplanner/Blocks/spr_fg_cursed_dirt/spr_fg_cursed_dirt_0.png",
