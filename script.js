@@ -4912,8 +4912,50 @@ window.initFishCalculatorUI = function() {
       color: rgba(168, 218, 220, 0.2);
       font-size: 14px;
     }
+    .cfg-gem-readonly {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f1faee;
+      width: 36px;
+      text-align: right;
+      display: inline-block;
+    }
+    .global-rate-container {
+      font-size: 11px;
+      color: rgba(168, 218, 220, 0.6);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .global-rate-input {
+      width: 35px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(168, 218, 220, 0.2);
+      color: #fff;
+      font-size: 11px;
+      text-align: right;
+      border-radius: 3px;
+      padding: 2px;
+      outline: none;
+    }
   `;
   document.head.appendChild(style);
+
+  // Inject Global Gems Rate Input into the Totals UI
+  const totalsBar = document.querySelector('.fish-calc-totals');
+  if (totalsBar && !document.getElementById('global-gem-rate')) {
+    const totalWlsLabel = document.querySelector('#fish-total-wls').previousElementSibling;
+    if (totalWlsLabel) {
+      const rateDiv = document.createElement('div');
+      rateDiv.className = 'global-rate-container';
+      rateDiv.innerHTML = `
+        Gems Rate: <input type="number" id="global-gem-rate" class="global-rate-input" value="800" oninput="calcFishTotals()">
+        <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" style="height: 10px;"> = 1 <img src="worldplanner/new/spr_fg_lock/spr_fg_lock_0.png" style="height: 10px;">
+      `;
+      totalWlsLabel.parentNode.insertBefore(rateDiv, document.querySelector('#fish-total-wls'));
+    }
+  }
 
   document.querySelectorAll('.fish-row').forEach(row => {
     const infoContainer = row.querySelector('.fish-info');
@@ -4922,45 +4964,49 @@ window.initFishCalculatorUI = function() {
 
     let defaultGems = row.dataset.gems || '0';
     let defaultWls = '1';
-    let defaultType = 'wls';
 
-    const text = oldMeta.textContent.toLowerCase();
-    const name = row.querySelector('.fish-name').textContent;
+    const rawName = row.querySelector('.fish-name').textContent;
+    const name = rawName.toLowerCase();
     
-    // Apply user-requested default fixes
-    if (name === 'Small Squid') {
-      defaultGems = '100';
-      defaultWls = '1.5';
-      defaultType = 'per_wl';
-    } else if (name === 'Medium Squid') {
-      defaultGems = '480';
-      defaultWls = '1.75';
-      defaultType = 'per_wl';
-    } else if (text.includes('/wl')) {
-      const match = text.match(/(\d+)(-\d+)?\/wl/);
-      if (match) {
-        defaultWls = match[1]; 
-        defaultType = 'per_wl';
-      }
-    } else if (text.includes(' wl')) {
-      const match = text.match(/(\d+)(-\d+)? wl/);
-      if (match) {
-        defaultWls = match[1];
-        defaultType = 'wls';
-      }
-    }
+    // Exact user-requested overrides
+    if (name === 'clownfish') defaultWls = '0.3';
+    else if (name === 'crab') defaultWls = '0.5';
+    else if (name === 'love fish') defaultWls = '0.5';
+    else if (name === 'stingray') defaultWls = '1.5';
+    else if (name === 'small piranha') defaultWls = '0.3';
+    else if (name === 'medium piranha') defaultWls = '0.5';
+    else if (name === 'small tropical') defaultWls = '0.2';
+    else if (name === 'medium tropical') defaultWls = '0.3';
+    else if (name === 'small goldfish') defaultWls = '0.2';
+    else if (name === 'medium goldfish') defaultWls = '0.4';
+    else if (name === 'small salmon') defaultWls = '0.2';
+    else if (name === 'medium salmon') defaultWls = '0.4';
+    else if (name === 'small catfish') defaultWls = '0.1';
+    else if (name === 'medium catfish') defaultWls = '0.2';
+    else if (name === 'big catfish') defaultWls = '0.5';
+    else if (name === 'small trout') defaultWls = '0.1';
+    else if (name === 'medium trout') defaultWls = '0.2';
+    else if (name === 'big trout') defaultWls = '0.5';
+    else if (name === 'small carp') defaultWls = '0.1';
+    else if (name === 'medium carp') defaultWls = '0.2';
+    else if (name === 'big carp') defaultWls = '0.3';
 
+    // Keep the logic for squids since they were previously 1.5, user updated others
+    else if (name === 'small squid') defaultWls = '1.5';
+    else if (name === 'medium squid') defaultWls = '1.75';
+    
+    // Replaced the editable gem input with a flat readonly text span exactly as requested
     const editHtml = `
       <div class="fish-custom-rates">
-        <div class="cfg-input-wrap">
-          <input type="number" class="cfg-gem" value="${defaultGems}" oninput="calcFishTotals()">
-          <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" alt="Gems">
+        <div style="display: flex; align-items: center; padding: 4px;">
+          <span class="cfg-gem-readonly">${defaultGems}</span>
+          <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" alt="Gems" style="height: 16px; margin-left: 6px; image-rendering: pixelated;">
+          <input type="hidden" class="cfg-gem" value="${defaultGems}">
         </div>
         <span class="cfg-divider">•</span>
         <div class="cfg-input-wrap">
           <input type="number" class="cfg-wl-val" value="${defaultWls}" step="0.1" oninput="calcFishTotals()">
           <img src="worldplanner/new/spr_fg_lock/spr_fg_lock_0.png" alt="WL">
-          <input type="hidden" class="cfg-wl-type" value="${defaultType}">
         </div>
       </div>
     `;
@@ -4971,7 +5017,7 @@ window.initFishCalculatorUI = function() {
 
 window.calcFishTotals = function () {
   let totalGems = 0;
-  let totalWL = 0;
+  let totalWLFromFish = 0; // Accumulated individually configured locks
 
   document.querySelectorAll('.fish-row').forEach(row => {
     let inputEl = row.querySelector('.fish-qty');
@@ -4982,27 +5028,19 @@ window.calcFishTotals = function () {
       inputEl.value = 99999;
     }
 
-    const gemInput = row.querySelector('.cfg-gem');
+    const gemInput = row.querySelector('.cfg-gem'); // now hidden
     const wlValInput = row.querySelector('.cfg-wl-val');
-    const wlTypeSelect = row.querySelector('.cfg-wl-type');
 
-    if (gemInput && wlValInput && wlTypeSelect) {
+    if (gemInput && wlValInput) {
       const gems = parseInt(gemInput.value) || 0;
       const wlVal = parseFloat(wlValInput.value) || 0;
-      const wlType = wlTypeSelect.value;
       
       const rowGems = gems * qty;
       totalGems += rowGems;
 
-      let rowWls = 0;
-      if (wlVal > 0) {
-        if (wlType === 'per_wl') {
-          rowWls = qty / wlVal;
-        } else {
-          rowWls = qty * wlVal;
-        }
-      }
-      totalWL += rowWls;
+      // Always wls each, per requested UI change
+      const rowWls = qty * wlVal;
+      totalWLFromFish += rowWls;
 
       // Update per-row gem display
       const rowGemEl = row.querySelector('.fish-row-gems');
@@ -5011,6 +5049,14 @@ window.calcFishTotals = function () {
     }
   });
 
+  // Calculate equivalent locks from gems
+  const rateInput = document.getElementById('global-gem-rate');
+  const globalRate = rateInput ? (parseFloat(rateInput.value) || 800) : 800;
+  const totalWLFromGems = globalRate > 0 ? (totalGems / globalRate) : 0;
+  
+  // The grand locks total recalculates based on Gems and Fish values directly
+  const grandTotalWls = totalWLFromGems + totalWLFromFish;
+
   // Update totals
   const gemsEl = document.getElementById('fish-total-gems');
   const wlsEl = document.getElementById('fish-total-wls');
@@ -5018,7 +5064,7 @@ window.calcFishTotals = function () {
   gemsEl.innerHTML = `${totalGems.toLocaleString()} <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" class="fish-gem-icon" alt="Gems">`;
 
   // Show WL total directly
-  const roundedWL = Math.round(totalWL * 100) / 100;
+  const roundedWL = Math.round(grandTotalWls * 100) / 100;
   wlsEl.innerHTML = formatLocksHTML(roundedWL);
 
   // Micro-animation bump
