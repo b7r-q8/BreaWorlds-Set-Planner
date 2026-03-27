@@ -9622,6 +9622,8 @@ window.wpClearSelection = function() {
     }
   }
   saveWPHistory();
+  updateWPBlockCount();
+  saveActiveWorld();
   wpCancelSelection();
   wpNeedsPostProcess = true;
   wpUpdateStaticCacheRegion(Math.max(0, sx - 1), Math.max(0, sy - 1), Math.min(WORLD_WIDTH - 1, sx + sw + 1), Math.min(WORLD_HEIGHT - 1, sy + sh + 1));
@@ -9719,6 +9721,8 @@ function wpDropSelectionBuffer() {
   }
 
   wpUpdateStaticCacheRegion(stateMinX, stateMinY, stateMaxX, stateMaxY);
+  updateWPBlockCount();
+  saveActiveWorld();
 }
 
 window.wpExecuteFloodFill = function(startX, startY) {
@@ -9779,6 +9783,8 @@ window.wpExecuteFloodFill = function(startX, startY) {
     }
     wpUpdateStaticCacheRegion(Math.max(0, minX - 1), Math.max(0, minY - 1), Math.min(WORLD_WIDTH - 1, maxX + 1), Math.min(WORLD_HEIGHT - 1, maxY + 1));
     saveWPHistory();
+    updateWPBlockCount();
+    saveActiveWorld();
     wpNeedsPostProcess = true;
     wpMarkDirty();
   }
