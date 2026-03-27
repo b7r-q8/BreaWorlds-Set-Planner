@@ -4920,40 +4920,32 @@ window.initFishCalculatorUI = function() {
       text-align: right;
       display: inline-block;
     }
-    .global-rate-container {
-      font-size: 11px;
-      color: rgba(168, 218, 220, 0.6);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      margin-top: 4px;
-    }
-    .global-rate-input {
-      width: 35px;
-      background: rgba(0, 0, 0, 0.3);
-      border: 1px solid rgba(168, 218, 220, 0.2);
-      color: #fff;
-      font-size: 11px;
-      text-align: right;
-      border-radius: 3px;
-      padding: 2px;
-      outline: none;
-    }
   `;
   document.head.appendChild(style);
 
-  // Inject Global Gems Rate Input into the Totals UI
+  // Inject Global Gems Rate Input into the Totals UI elegantly as a split container
   const totalsBar = document.querySelector('.fish-calc-totals');
   if (totalsBar && !document.getElementById('global-gem-rate')) {
-    const totalWlsLabel = document.querySelector('#fish-total-wls').previousElementSibling;
-    if (totalWlsLabel) {
+    const totalWlsItem = document.querySelector('#fish-total-wls').parentNode;
+    if (totalWlsItem) {
+      // Create new divider
+      const newDivider = document.createElement('div');
+      newDivider.className = 'fish-total-divider';
+      
       const rateDiv = document.createElement('div');
-      rateDiv.className = 'global-rate-container';
+      rateDiv.className = 'fish-total-item';
       rateDiv.innerHTML = `
-        Gems Rate: <input type="number" id="global-gem-rate" class="global-rate-input" value="800" oninput="calcFishTotals()">
-        <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" style="height: 10px;"> = 1 <img src="worldplanner/new/spr_fg_lock/spr_fg_lock_0.png" style="height: 10px;">
+        <span class="fish-total-label">Gems Rate</span>
+        <div style="display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.25); border: 1px solid rgba(168,218,220,0.15); border-radius: 6px; padding: 2px 8px; margin-top: 6px; height: 32px;">
+          <input type="number" id="global-gem-rate" value="800" oninput="calcFishTotals()" style="width: 50px; background: transparent; border: none; color: #f1faee; font-size: 16px; font-weight: bold; text-align: center; outline: none; font-family: 'Poppins', sans-serif;">
+          <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" style="height: 18px; margin: 0 6px; image-rendering: pixelated;">
+          <span style="color: rgba(168,218,220,0.3); font-size: 16px;"> = 1 </span>
+          <img src="worldplanner/new/spr_fg_lock/spr_fg_lock_0.png" style="height: 18px; margin-left: 6px; image-rendering: pixelated;">
+        </div>
       `;
-      totalWlsLabel.parentNode.insertBefore(rateDiv, document.querySelector('#fish-total-wls'));
+      
+      totalsBar.insertBefore(rateDiv, totalWlsItem);
+      totalsBar.insertBefore(newDivider, totalWlsItem);
     }
   }
 
