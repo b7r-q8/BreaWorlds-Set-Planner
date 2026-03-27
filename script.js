@@ -4989,9 +4989,10 @@ window.initFishCalculatorUI = function() {
     else if (name === 'medium carp') defaultWls = '0.2';
     else if (name === 'big carp') defaultWls = '0.3';
 
-    // Keep the logic for squids since they were previously 1.5, user updated others
-    else if (name === 'small squid') defaultWls = '1.5';
-    else if (name === 'medium squid') defaultWls = '1.75';
+    else if (name === 'small tuna') defaultWls = '2';
+    else if (name === 'medium tuna') defaultWls = '2.5';
+    else if (name === 'big tuna') defaultWls = '3';
+    else if (name === 'big squid') defaultWls = '2';
     
     // Replaced the editable gem input with a flat readonly text span exactly as requested
     const editHtml = `
@@ -5015,7 +5016,6 @@ window.initFishCalculatorUI = function() {
 
 window.calcFishTotals = function () {
   let totalGems = 0;
-  let totalWLFromFish = 0; // Accumulated individually configured locks
 
   document.querySelectorAll('.fish-row').forEach(row => {
     let inputEl = row.querySelector('.fish-qty');
@@ -5026,19 +5026,11 @@ window.calcFishTotals = function () {
       inputEl.value = 99999;
     }
 
-    const gemInput = row.querySelector('.cfg-gem'); // now hidden
-    const wlValInput = row.querySelector('.cfg-wl-val');
-
-    if (gemInput && wlValInput) {
+    const gemInput = row.querySelector('.cfg-gem'); // hidden
+    if (gemInput) {
       const gems = parseInt(gemInput.value) || 0;
-      const wlVal = parseFloat(wlValInput.value) || 0;
-      
       const rowGems = gems * qty;
       totalGems += rowGems;
-
-      // Always wls each, per requested UI change
-      const rowWls = qty * wlVal;
-      totalWLFromFish += rowWls;
 
       // Update per-row gem display
       const rowGemEl = row.querySelector('.fish-row-gems');
@@ -5052,15 +5044,14 @@ window.calcFishTotals = function () {
   const globalRate = rateInput ? (parseFloat(rateInput.value) || 800) : 800;
   const totalWLFromGems = globalRate > 0 ? (totalGems / globalRate) : 0;
   
-  // Update totals natively avoiding double summation
+  // Update totals natively
   const gemsEl = document.getElementById('fish-total-gems');
   const wlsEl = document.getElementById('fish-total-wls');
 
-  const gemLocksHtml = totalWLFromGems > 0 ? `<span style="font-size: 14px; opacity: 0.6; margin-left: 10px; font-weight: 500;">(≈ ${formatLocksHTML(Math.round(totalWLFromGems * 100) / 100)})</span>` : '';
-  gemsEl.innerHTML = `${totalGems.toLocaleString()} <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" class="fish-gem-icon" alt="Gems"> ${gemLocksHtml}`;
+  gemsEl.innerHTML = `${totalGems.toLocaleString()} <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" class="fish-gem-icon" alt="Gems">`;
 
-  // Show WL total directly corresponding to purely the individual fish configured amounts
-  const roundedWL = Math.round(totalWLFromFish * 100) / 100;
+  // The LOCKS box strictly equals the Total Gems converted via the Gems Rate 
+  const roundedWL = Math.round(totalWLFromGems * 100) / 100;
   wlsEl.innerHTML = formatLocksHTML(roundedWL);
 
   // Micro-animation bump
