@@ -4964,7 +4964,7 @@ window.initFishCalculatorUI = function() {
     let defaultWls = '1';
 
     const rawName = row.querySelector('.fish-name').textContent;
-    const name = rawName.toLowerCase();
+    const name = rawName.replace(/\s+/g, ' ').trim().toLowerCase();
     
     // Exact user-requested overrides
     if (name === 'clownfish') defaultWls = '0.3';
@@ -4988,11 +4988,11 @@ window.initFishCalculatorUI = function() {
     else if (name === 'small carp') defaultWls = '0.1';
     else if (name === 'medium carp') defaultWls = '0.2';
     else if (name === 'big carp') defaultWls = '0.3';
-
     else if (name === 'small tuna') defaultWls = '2';
     else if (name === 'medium tuna') defaultWls = '2.5';
     else if (name === 'big tuna') defaultWls = '3';
     else if (name === 'big squid') defaultWls = '2';
+    else if (name === 'lobster') defaultWls = '2';
     
     // Replaced the editable gem input with a flat readonly text span exactly as requested
     const editHtml = `
