@@ -754,7 +754,6 @@
         <div class="roadmap-btn selection-roadmap-btn" onclick="openRoadmapModal()" style="position: fixed; top: 20px; right: 20px; z-index: 10002;">
           <div class="roadmap-icon-anim roadmap-icon-space"></div> Roadmap
         </div>
-
       </div>
 
 
@@ -1504,7 +1503,7 @@
 
     <!-- UNEQUIP ALL BUTTON & DOWNLOAD BUTTON -->
 
-    <div class="inventory unequip-bar">
+    <div class="inventory unequip-bar" id="sp-unequip-bar">
 
       <div class="inventory-slot unequip-all no-inventory" onclick="unequipAll()" data-static="true">
 
@@ -1559,7 +1558,7 @@
 
     <!-- INVENTORY BAR -->
 
-    <div class="inventory">
+    <div class="inventory" id="sp-inventory-bar">
 
       <div class="inventory-slot slot"></div>
 
@@ -7628,7 +7627,7 @@
 
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <script src="script.js?v=2.45"></script>
+  <script src="script.js?v=2.46"></script>
 
 </body>
 

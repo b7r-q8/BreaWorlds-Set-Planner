@@ -6963,7 +6963,7 @@ function setupWPEvents() {
     handleWPInteraction(e);
   };
 
-  // Centralized mouseup handler â€” runs on document to catch releases outside canvas
+  // Centralized mouseup handler Ã¢â‚¬â€ runs on document to catch releases outside canvas
   function wpHandleMouseUp(e) {
     // If right mouse was released, clear panning
     if (e && e.button === 2) {
@@ -7529,7 +7529,7 @@ function handleWPInteractionAt(x, y, isBatched = false) {
     }
 
     if (!isBackground) {
-      // Only update immediate cardinal neighbors â€” no chain walk
+      // Only update immediate cardinal neighbors Ã¢â‚¬â€ no chain walk
       wpUpdateTilingAt(x, y);     // Self
       wpUpdateTilingAt(x, y + 1); // Below
       wpUpdateTilingAt(x, y - 1); // Above
@@ -7562,7 +7562,7 @@ function handleWPInteractionAt(x, y, isBatched = false) {
 
     if (wpEraserTargetLayer === 'fg' && wpGrid[y][x] !== null) {
       wpGrid[y][x] = null;
-      // Only update immediate cardinal neighbors â€” no chain walk
+      // Only update immediate cardinal neighbors Ã¢â‚¬â€ no chain walk
       wpUpdateTilingAt(x, y + 1);
       wpUpdateTilingAt(x, y - 1);
       wpUpdateTilingAt(x + 1, y);
@@ -7914,7 +7914,7 @@ function drawWPWorld(timestamp) {
 
   // Sorting removed (now handled incrementally in updateWPAnimatedCellList)
 
-  // â”€â”€ BLIT STATIC CACHE (Separate passes for layering) â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬ BLIT STATIC CACHE (Separate passes for layering) Ã¢â€â‚¬Ã¢â€â‚¬
   const sx = vStartX * BLOCK_SIZE;
   const sy = vStartY * BLOCK_SIZE;
   const sw = (vEndX - vStartX + 1) * BLOCK_SIZE;
@@ -7974,7 +7974,7 @@ function drawWPWorld(timestamp) {
       const bid = (typeof bd === 'object') ? bd.id : bd;
       const blk = wpBlockMap[bid];
       if (!blk || blk.noShadow || blk.verticalAlign === 'center') continue;
-      // Skip shadow for fluids (lava/water/acid/mud/bloody water) â€” they don't cast shadows in-game
+      // Skip shadow for fluids (lava/water/acid/mud/bloody water) Ã¢â‚¬â€ they don't cast shadows in-game
       const isFluid = bid === 'spr_fg_water_block' || bid === 'spr_fg_acid_block' || bid === 'spr_fg_mud_block' || bid === 'spr_fg_lava_block' || bid === 'spr_fg_bloody_water_block';
       if (isFluid) continue;
       // Skip shadow for rainbow blocks (they're drawn with overlay, shadow looks doubled)
@@ -8217,7 +8217,7 @@ function drawWPWorld(timestamp) {
     drawAnimBlock(cell);
   }
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ RAINBOW EFFECT Ã¢â€â‚¬Ã¢â€â‚¬
+  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ RAINBOW EFFECT ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
   // PERF: Skip rainbow effect during active pan
   if (hasRainbow) {
     const cycleWidth = 1600;
@@ -8253,7 +8253,7 @@ function drawWPWorld(timestamp) {
     wpCtx.restore();
   }
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ GRID (LOD: Skip if zoomed out too far) Ã¢â€â‚¬Ã¢â€â‚¬
+  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ GRID (LOD: Skip if zoomed out too far) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
   if (wpShowGrid && wpZoom > 0.3) {
     wpCtx.save();
     wpCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
@@ -8273,8 +8273,8 @@ function drawWPWorld(timestamp) {
     wpCtx.restore();
   }
 
-  // â”€â”€ WRENCH INDICATOR â”€â”€
-  // â”€â”€ WRENCH INDICATOR â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬ WRENCH INDICATOR Ã¢â€â‚¬Ã¢â€â‚¬
+  // Ã¢â€â‚¬Ã¢â€â‚¬ WRENCH INDICATOR Ã¢â€â‚¬Ã¢â€â‚¬
   if (wpCurrentTool === 'wrench') {
     // Ensure wrench icon is loaded
     if (!window.wpWrenchIcon) {
@@ -8331,7 +8331,7 @@ function drawWPWorld(timestamp) {
     }
   }
 
-  // â”€â”€ SELECTION TOOL DRAWING â”€â”€
+  // Ã¢â€â‚¬Ã¢â€â‚¬ SELECTION TOOL DRAWING Ã¢â€â‚¬Ã¢â€â‚¬
   if (wpCurrentTool === 'select' || wpPasteMode) {
     drawWPSelection(wpCtx, wpZoom, wpOffsetX, wpOffsetY);
   }
@@ -8350,7 +8350,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 
-// O(1) block lookup map Ã¢â‚¬â€ populated in loadWPManifest
+// O(1) block lookup map ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â populated in loadWPManifest
 let wpBlockMap = {};
 
 async function loadWPManifest() {
@@ -8657,7 +8657,7 @@ function loadImage(src) {
 
 let wpBlockColorMap = null;
 
-// â”€â”€ CIE Lab Color Space Utilities â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬ CIE Lab Color Space Utilities Ã¢â€â‚¬Ã¢â€â‚¬
 
 // Convert sRGB [0-255] to linear RGB [0-1]
 function srgbToLinear(c) {
@@ -8667,18 +8667,18 @@ function srgbToLinear(c) {
 
 // Convert RGB [0-255] to CIE Lab
 function rgbToLab(r, g, b) {
-  // RGB â†’ linear â†’ XYZ (D65 illuminant)
+  // RGB Ã¢â€ â€™ linear Ã¢â€ â€™ XYZ (D65 illuminant)
   const rl = srgbToLinear(r), gl = srgbToLinear(g), bl = srgbToLinear(b);
   let x = (rl * 0.4124564 + gl * 0.3575761 + bl * 0.1804375) / 0.95047;
   let y = (rl * 0.2126729 + gl * 0.7151522 + bl * 0.0721750);
   let z = (rl * 0.0193339 + gl * 0.1191920 + bl * 0.9503041) / 1.08883;
-  // XYZ â†’ Lab
+  // XYZ Ã¢â€ â€™ Lab
   const f = (t) => t > 0.008856 ? Math.cbrt(t) : (7.787 * t + 16 / 116);
   x = f(x); y = f(y); z = f(z);
   return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
 }
 
-// CIE76 Î”E distance (perceptual)
+// CIE76 ÃŽâ€E distance (perceptual)
 function labColorDistance(lab1, lab2) {
   const dL = lab1[0] - lab2[0];
   const dA = lab1[1] - lab2[1];
@@ -9000,7 +9000,7 @@ window.confirmWPImageImport = async function () {
   const startX = Math.floor((WORLD_WIDTH - targetW) / 2);
   const startY = (WORLD_HEIGHT - 5) - targetH;
 
-  // v2: NO palette reduction â€” match each pixel directly against ALL blocks
+  // v2: NO palette reduction Ã¢â‚¬â€ match each pixel directly against ALL blocks
   // This is more accurate than the old 16-color palette system
 
   // Determine if we should also fill backgrounds (for "both" mode)
@@ -10097,8 +10097,8 @@ function renderHotkeySettings() {
     item.innerHTML = `
       <span class="wp-hotkey-label">${tool}</span>
       <div style="display: flex; gap: 8px;">
-        <button class="wp-key-cap" data-type="tools" data-id="${tool}" onclick="startHotkeyCapture(this)">${key || "None"}</button>
-        <button class="wp-key-clear" onclick="clearHotkey('tools', '${tool}')" style="background: none; border: none; color: #e63946; font-size: 10px; cursor: pointer; opacity: 0.6;">âœ•</button>
+        <button class="wp-key-cap" data-type="tools" data-id="${tool}" onclick="startHotkeyCapture(this)">${key || ""}</button>
+        <button class="wp-key-clear" onclick="clearHotkey('tools', '${tool}')" style="background: none; border: none; color: #e63946; font-size: 10px; cursor: pointer; opacity: 0.6;">X</button>
       </div>
     `;
     toolsList.appendChild(item);
@@ -10113,8 +10113,8 @@ function renderHotkeySettings() {
     item.innerHTML = `
       <span class="wp-hotkey-label">Slot ${i + 1}</span>
       <div style="display: flex; gap: 8px;">
-        <button class="wp-key-cap" data-type="inventory" data-id="${slotId}" onclick="startHotkeyCapture(this)">${key || "None"}</button>
-        <button class="wp-key-clear" onclick="clearHotkey('inventory', '${slotId}')" style="background: none; border: none; color: #e63946; font-size: 10px; cursor: pointer; opacity: 0.6;">âœ•</button>
+        <button class="wp-key-cap" data-type="inventory" data-id="${slotId}" onclick="startHotkeyCapture(this)">${key || ""}</button>
+        <button class="wp-key-clear" onclick="clearHotkey('inventory', '${slotId}')" style="background: none; border: none; color: #e63946; font-size: 10px; cursor: pointer; opacity: 0.6;">X</button>
       </div>
     `;
     invList.appendChild(item);
@@ -10129,7 +10129,7 @@ window.clearHotkey = function(type, id) {
 function startHotkeyCapture(btn) {
   if (wpKeyCaptureTarget) {
     wpKeyCaptureTarget.classList.remove("capturing");
-    wpKeyCaptureTarget.textContent = wpHotkeys[wpKeyCaptureTarget.dataset.type][wpKeyCaptureTarget.dataset.id] || "None";
+    wpKeyCaptureTarget.textContent = wpHotkeys[wpKeyCaptureTarget.dataset.type][wpKeyCaptureTarget.dataset.id] || "";
   }
 
   wpKeyCaptureTarget = btn;
@@ -10145,7 +10145,7 @@ window.addEventListener("keydown", (e) => {
     
     if (newKey === "escape") {
       wpKeyCaptureTarget.classList.remove("capturing");
-      wpKeyCaptureTarget.textContent = wpHotkeys[wpKeyCaptureTarget.dataset.type][wpKeyCaptureTarget.dataset.id] || "None";
+      wpKeyCaptureTarget.textContent = wpHotkeys[wpKeyCaptureTarget.dataset.type][wpKeyCaptureTarget.dataset.id] || "";
       wpKeyCaptureTarget = null;
       return;
     }
@@ -10161,7 +10161,7 @@ window.addEventListener("keydown", (e) => {
     if (isDuplicate) {
       alert(`The key "${newKey}" is already assigned to another feature!`);
       wpKeyCaptureTarget.classList.remove("capturing");
-      wpKeyCaptureTarget.textContent = wpHotkeys[type][id] || "None";
+      wpKeyCaptureTarget.textContent = wpHotkeys[type][id] || "";
       wpKeyCaptureTarget = null;
       return;
     }
@@ -10203,7 +10203,7 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault();
     
     // Correctly click the slot in the inventory drawer
-    const slots = document.querySelectorAll(".wp-inventory-slot");
+    const slots = document.getElementById("wp-inventory-drawer").querySelectorAll(".wp-inventory-slot");
     if (slots[index]) {
       slots[index].click();
       // Visual feedback
@@ -10233,5 +10233,6 @@ window.resetWPHotkeys = function() {
 document.addEventListener("DOMContentLoaded", () => {
   loadWPHotkeys();
 });
+
 
 
