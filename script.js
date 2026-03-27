@@ -4958,6 +4958,19 @@ let wpZoom = 1;
 let wpOffsetX = 0;
 let wpOffsetY = 0;
 let wpShowGrid = true;
+
+// NEW TOOL STATES
+let wpSelectionStartX = -1, wpSelectionStartY = -1;
+let wpSelectionEndX = -1, wpSelectionEndY = -1;
+let wpSelectionBox = null;
+let wpCopiedData = null;
+let wpClipboardData = null;
+let wpClipboardWidth = 0;
+let wpClipboardHeight = 0;
+let wpPasteMode = false;
+let wpSelectionMoving = false;
+let wpSwapTargetId = null;
+let wpSwapTargetLayer = null;
 let wpHistory = [];
 let wpHistoryIndex = -1;
 const MAX_HISTORY = 50;
@@ -5748,6 +5761,9 @@ function setupWPToolbarEvents() {
       wpCurrentTool = tool;
       buttons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      if (typeof window.wpCancelSelection === 'function') {
+        window.wpCancelSelection();
+      }
     };
   });
 
@@ -6027,29 +6043,83 @@ function loadWPWorldFromSlot(slotNumber) {
 
   try {
     const data = JSON.parse(dataStr);
-    wpGrid = data.grid || [];
-    wpBackgroundGrid = data.bgGrid || [];
-
-    // Safeguard for empty/malformed grids
-    if (wpBackgroundGrid.length === 0) {
-      wpBackgroundGrid = [];
-      for (let y = 0; y < WORLD_HEIGHT; y++) wpBackgroundGrid[y] = new Array(WORLD_WIDTH).fill(null);
+    
+    // --- GRID LOADING (mirrors loadActiveWorld) ---
+    let loadedGrid = data.grid || [];
+    
+    // Pad from TOP for saves with fewer rows
+    while (loadedGrid.length < WORLD_HEIGHT) {
+      const y = WORLD_HEIGHT - loadedGrid.length - 1;
+      const isBedrock = y >= WORLD_HEIGHT - 5;
+      loadedGrid.unshift(new Array(WORLD_WIDTH).fill(isBedrock ? 'spr_fg_bedrock' : null));
     }
 
+    // Standardize IDs
+    for (let y = 0; y < WORLD_HEIGHT; y++) {
+      if (!loadedGrid[y]) { loadedGrid[y] = new Array(WORLD_WIDTH).fill(null); continue; }
+      // Pad row width if needed
+      while (loadedGrid[y].length < WORLD_WIDTH) loadedGrid[y].push(null);
+      for (let x = 0; x < WORLD_WIDTH; x++) {
+        const bd = loadedGrid[y][x];
+        const bid = (typeof bd === 'object' && bd !== null) ? bd.id : bd;
+        if (bid === 'bedrock') {
+          if (typeof bd === 'object') loadedGrid[y][x].id = 'spr_fg_bedrock';
+          else loadedGrid[y][x] = 'spr_fg_bedrock';
+        }
+        if (bid === 'spr_fg_dirt_0' || bid === 'dirt_0' || bid === 'dirt_1') {
+          if (typeof bd === 'object') loadedGrid[y][x].id = 'spr_fg_dirt';
+          else loadedGrid[y][x] = 'spr_fg_dirt';
+        }
+      }
+    }
+    wpGrid = loadedGrid;
+
+    // --- BG GRID LOADING ---
+    let loadedBGGrid = data.bgGrid || [];
+    if (!loadedBGGrid || loadedBGGrid.length === 0) {
+      loadedBGGrid = [];
+      for (let y = 0; y < WORLD_HEIGHT; y++) loadedBGGrid[y] = new Array(WORLD_WIDTH).fill(null);
+    }
+    while (loadedBGGrid.length < WORLD_HEIGHT) {
+      loadedBGGrid.unshift(new Array(WORLD_WIDTH).fill(null));
+    }
+    // Pad row widths
+    for (let y = 0; y < loadedBGGrid.length; y++) {
+      if (!loadedBGGrid[y]) { loadedBGGrid[y] = new Array(WORLD_WIDTH).fill(null); continue; }
+      while (loadedBGGrid[y].length < WORLD_WIDTH) loadedBGGrid[y].push(null);
+    }
+    wpBackgroundGrid = loadedBGGrid;
+
+    // --- THEME ---
     const viewport = document.getElementById('wp-viewport');
-    if (data.background && viewport) {
+    if (data.themeId) {
+      // Use setWPTheme to properly sync UI variables and cache state
+      setWPTheme(data.themeId);
+      if (viewport) {
+         viewport.style.backgroundImage = ''; // Clear inline styles prioritizing
+         viewport.style.backgroundColor = 'transparent';
+      }
+    } else if (data.background && viewport) {
       viewport.style.backgroundImage = data.background;
       viewport.style.backgroundColor = data.backgroundColor || 'transparent';
       wpCurrentTheme = data.themeId || 'bg_forest';
     }
 
-    saveWPHistory();
-    saveActiveWorld();
+    // --- APPLY TILING (critical for dirt/auto-tile blocks) ---
+    for (let y = 0; y < WORLD_HEIGHT; y++) {
+      for (let x = 0; x < WORLD_WIDTH; x++) {
+        wpUpdateTilingAt(x, y);
+      }
+    }
+
     updateWPAnimatedCellList();
     updateWPBlockCount();
+    saveWPHistory();
+    saveActiveWorld();
     wpMarkStaticDirty();
     toggleWPPopup('wp-save-popup');
-    // Force a redraw to show the loaded world
+    
+    // Force a full redraw
     setTimeout(() => {
       wpDirty = true;
       wpStaticDirty = true;
@@ -6107,6 +6177,9 @@ function renderWPWorldSlots() {
             <button class="wp-save-btn" style="background: #e76f51" onclick="downloadWPWorldPNG(${slot})" title="Download PNG">
               <i data-lucide="download" style="width: 14px; height: 14px; vertical-align: middle;"></i>
             </button>
+            <button class="wp-save-btn" style="background: #6c5ce7" onclick="exportWPWorldSlot(${slot})" title="Export World File">
+              <i data-lucide="share-2" style="width: 14px; height: 14px; vertical-align: middle;"></i>
+            </button>
           ` : ''}
         </div>
       </div>
@@ -6119,27 +6192,147 @@ function renderWPWorldSlots() {
   });
 }
 
-/**
- * Downloads the world from a specific slot as a PNG image.
- */
-window.downloadWPWorldPNG = async function (slotNumber) {
+// --- WORLD TRANSFER (EXPORT / IMPORT) ---
+
+window.exportWPWorldSlot = function(slotNumber) {
   const dataStr = localStorage.getItem(`wpSaveSlot_${slotNumber}`);
   if (!dataStr) return;
 
   const data = JSON.parse(dataStr);
-  const gridData = data.grid || [];
-  const bgGridData = data.bgGrid || [];
-  const background = data.background;
+  // Build a portable export object (exclude the preview image to keep file size small)
+  const exportData = {
+    _type: 'bwsp_world_v1',
+    grid: data.grid,
+    bgGrid: data.bgGrid,
+    themeId: data.themeId || 'bg_forest',
+    timestamp: data.timestamp || Date.now()
+  };
 
+  const jsonStr = JSON.stringify(exportData);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `bwsp_world_slot${slotNumber}_${Date.now()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+window.importWPWorldFile = function() {
+  const input = document.getElementById('wp-world-import-input');
+  if (input) input.click();
+};
+
+window.handleWPWorldImport = async function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Reset input so the same file can be re-imported
+  event.target.value = '';
+
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+
+    // Validate structure
+    if (!data.grid || !Array.isArray(data.grid)) {
+      alert('Invalid world file: missing grid data.');
+      return;
+    }
+
+    // Pad grid height if needed
+    while (data.grid.length < WORLD_HEIGHT) {
+      const y = WORLD_HEIGHT - data.grid.length - 1;
+      const isBedrock = y >= WORLD_HEIGHT - 5;
+      data.grid.unshift(new Array(WORLD_WIDTH).fill(isBedrock ? 'spr_fg_bedrock' : null));
+    }
+
+    // Ensure bgGrid exists and is padded
+    if (!data.bgGrid || !Array.isArray(data.bgGrid)) {
+      data.bgGrid = [];
+      for (let y = 0; y < WORLD_HEIGHT; y++) data.bgGrid[y] = new Array(WORLD_WIDTH).fill(null);
+    }
+    while (data.bgGrid.length < WORLD_HEIGHT) {
+      data.bgGrid.unshift(new Array(WORLD_WIDTH).fill(null));
+    }
+
+    // Standardize IDs (same as loadActiveWorld)
+    for (let y = 0; y < WORLD_HEIGHT; y++) {
+      if (!data.grid[y]) continue;
+      for (let x = 0; x < WORLD_WIDTH; x++) {
+        const bd = data.grid[y][x];
+        const bid = (typeof bd === 'object' && bd !== null) ? bd.id : bd;
+        if (bid === 'bedrock') {
+          if (typeof bd === 'object') data.grid[y][x].id = 'spr_fg_bedrock';
+          else data.grid[y][x] = 'spr_fg_bedrock';
+        }
+        if (bid === 'spr_fg_dirt_0' || bid === 'dirt_0' || bid === 'dirt_1') {
+          if (typeof bd === 'object') data.grid[y][x].id = 'spr_fg_dirt';
+          else data.grid[y][x] = 'spr_fg_dirt';
+        }
+      }
+    }
+
+    // Create a new slot
+    const allSlots = JSON.parse(localStorage.getItem('wpSaveSlotsList') || '[]');
+    let next = 1;
+    while (allSlots.includes(next)) next++;
+    allSlots.push(next);
+    localStorage.setItem('wpSaveSlotsList', JSON.stringify(allSlots));
+
+    let preview = '';
+    try {
+      preview = await generateWPWorldExportDataURL(data.grid, data.bgGrid, data.themeId || 'bg_forest', data.background, true);
+    } catch(e) {
+      console.warn('Preview generation failed for import:', e);
+    }
+
+    // Resolve theme background for the save
+    let background = '';
+    let backgroundColor = '';
+    const themeId = data.themeId || 'bg_forest';
+    const theme = wpManifestThemes.find(t => t.id === themeId);
+    if (theme) {
+      background = `url('${theme.src}')`;
+    }
+
+    // Save the slot
+    const saveData = {
+      grid: data.grid,
+      bgGrid: data.bgGrid,
+      background: background,
+      backgroundColor: backgroundColor,
+      themeId: themeId,
+      preview: preview,
+      timestamp: data.timestamp || Date.now()
+    };
+    localStorage.setItem(`wpSaveSlot_${next}`, JSON.stringify(saveData));
+
+    renderWPWorldSlots();
+    alert(`World imported successfully into Slot ${next}!`);
+  } catch (e) {
+    console.error('Failed to import world file:', e);
+    alert('Failed to import world file. Please make sure the file is a valid BreaWorlds world export.');
+  }
+};
+
+/**
+ * Helper to generate a complete world render data URL offline.
+ * @param {boolean} isThumbnail - If true, scales the output by 0.15 for save slots.
+ */
+async function generateWPWorldExportDataURL(gridData, bgGridData, baseThemeId, baseBackground, isThumbnail = false) {
   // Create a high-res canvas for the whole world
   const exportCanvas = document.createElement('canvas');
-  exportCanvas.width = WORLD_WIDTH * BLOCK_SIZE;
-  exportCanvas.height = WORLD_HEIGHT * BLOCK_SIZE;
+  const scale = isThumbnail ? 0.15 : 1;
+  exportCanvas.width = WORLD_WIDTH * BLOCK_SIZE * scale;
+  exportCanvas.height = WORLD_HEIGHT * BLOCK_SIZE * scale;
   const eCtx = exportCanvas.getContext('2d');
   eCtx.imageSmoothingEnabled = false;
 
   // 1. Resolve Theme
-  const themeId = data.themeId || wpCurrentTheme;
+  const themeId = baseThemeId || wpCurrentTheme;
   const theme = wpManifestThemes.find(t => t.id === themeId);
 
   // 2. Gather ALL unique image paths needed for this world
@@ -6147,8 +6340,8 @@ window.downloadWPWorldPNG = async function (slotNumber) {
 
   // Theme BG
   if (theme) imageUrls.add(theme.src);
-  else if (background && background !== 'none') {
-    const bgMatch = background.match(/url\(['"]?([^'"]+)['"]?\)/);
+  else if (baseBackground && baseBackground !== 'none') {
+    const bgMatch = baseBackground.match(/url\(['"]?([^'"]+)['"]?\)/);
     if (bgMatch) imageUrls.add(bgMatch[1]);
   }
 
@@ -6179,6 +6372,7 @@ window.downloadWPWorldPNG = async function (slotNumber) {
   };
 
   for (let y = 0; y < WORLD_HEIGHT; y++) {
+    if (!gridData[y]) continue;
     for (let x = 0; x < WORLD_WIDTH; x++) {
       const bd = gridData[y][x];
       const bg = bgGridData[y] ? bgGridData[y][x] : null;
@@ -6207,19 +6401,19 @@ window.downloadWPWorldPNG = async function (slotNumber) {
   if (theme && imageCache[theme.src]) {
     const bgImg = imageCache[theme.src];
     eCtx.drawImage(bgImg, 0, 0, exportCanvas.width, exportCanvas.height);
-  } else if (background && background !== 'none') {
-    const bgMatch = background.match(/url\(['"]?([^'"]+)['"]?\)/);
+  } else if (baseBackground && baseBackground !== 'none') {
+    const bgMatch = baseBackground.match(/url\(['"]?([^'"]+)['"]?\)/);
     if (bgMatch && imageCache[bgMatch[1]]) {
       const bgImg = imageCache[bgMatch[1]];
       eCtx.drawImage(bgImg, 0, 0, exportCanvas.width, exportCanvas.height);
     }
   } else {
-    eCtx.fillStyle = data.backgroundColor || '#0a0a1a';
+    eCtx.fillStyle = '#0a0a1a';
     eCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
   }
 
   // 5. Unified Drawing Pass (Synchronous using cache)
-  const shadowAlpha = 0.4, shadowOffset = 4;
+  const shadowAlpha = 0.4, shadowOffset = 4 * scale;
   const rainbowMaskCanvas = document.createElement('canvas');
   rainbowMaskCanvas.width = exportCanvas.width;
   rainbowMaskCanvas.height = exportCanvas.height;
@@ -6228,6 +6422,7 @@ window.downloadWPWorldPNG = async function (slotNumber) {
   let hasRainbow = false;
 
   for (let y = 0; y < WORLD_HEIGHT; y++) {
+    if (!gridData[y]) continue;
     for (let x = 0; x < WORLD_WIDTH; x++) {
       // Pass A: Shadows (Drawn before blocks for this row)
       const bdFG = gridData[y][x];
@@ -6249,9 +6444,9 @@ window.downloadWPWorldPNG = async function (slotNumber) {
 
             eCtx.save();
             eCtx.globalAlpha = shadowAlpha;
-            const px = x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2 + shadowOffset + (blk.xOffset || 0);
-            const py = (y + 1) * BLOCK_SIZE - nh + shadowOffset + (blk.yOffset || 0);
-            eCtx.drawImage(wpShadowStagingCanvas, 0, 0, nw, nh, px, py, nw, nh);
+            const px = x * BLOCK_SIZE * scale + (BLOCK_SIZE - nw) / 2 * scale + shadowOffset + (blk.xOffset || 0) * scale;
+            const py = (y + 1) * BLOCK_SIZE * scale - nh * scale + shadowOffset + (blk.yOffset || 0) * scale;
+            eCtx.drawImage(wpShadowStagingCanvas, 0, 0, nw, nh, px, py, nw * scale, nh * scale);
             eCtx.restore();
           }
         }
@@ -6270,13 +6465,13 @@ window.downloadWPWorldPNG = async function (slotNumber) {
         const img = imageCache[path];
         if (img) {
           const nw = img.naturalWidth, nh = img.naturalHeight;
-          const px = x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2;
-          let py = (blk.verticalAlign === 'center') ? (y * BLOCK_SIZE + (BLOCK_SIZE - nh) / 2) : ((y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0));
+          const px = x * BLOCK_SIZE * scale + (BLOCK_SIZE - nw) / 2 * scale;
+          let py = (blk.verticalAlign === 'center') ? (y * BLOCK_SIZE * scale + (BLOCK_SIZE - nh) / 2 * scale) : ((y + 1) * BLOCK_SIZE * scale - nh * scale + (blk.yOffset || 0) * scale);
 
-          eCtx.drawImage(img, px, py, nw, nh);
+          eCtx.drawImage(img, px, py, nw * scale, nh * scale);
           if (isRainbow) {
             hasRainbow = true;
-            rmCtx.drawImage(img, px, py, nw, nh);
+            rmCtx.drawImage(img, px, py, nw * scale, nh * scale);
           }
         }
       });
@@ -6292,6 +6487,11 @@ window.downloadWPWorldPNG = async function (slotNumber) {
     disableWPSmoothing(tCtx);
 
     const pattern = tCtx.createPattern(wpRainbowPatternCanvas, 'repeat');
+    if (scale !== 1) {
+      // Scale pattern matrix
+      const matrix = new DOMMatrix().scale(scale, scale);
+      pattern.setTransform(matrix);
+    }
     tCtx.fillStyle = pattern;
     tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
 
@@ -6304,8 +6504,22 @@ window.downloadWPWorldPNG = async function (slotNumber) {
     eCtx.restore();
   }
 
-  // Trigger download
-  const url = exportCanvas.toDataURL('image/png');
+  return exportCanvas.toDataURL('image/png');
+}
+
+/**
+ * Downloads the world from a specific slot as a PNG image.
+ */
+window.downloadWPWorldPNG = async function (slotNumber) {
+  const dataStr = localStorage.getItem(`wpSaveSlot_${slotNumber}`);
+  if (!dataStr) return;
+
+  const data = JSON.parse(dataStr);
+  const background = data.background;
+
+  const url = await generateWPWorldExportDataURL(data.grid || [], data.bgGrid || [], data.themeId, background, false);
+  if (!url) return;
+
   const a = document.createElement('a');
   a.href = url;
   a.download = `world_export_slot${slotNumber}.png`;
@@ -6489,28 +6703,100 @@ function setupWPBackgrounds() {
 }
 
 function setupWPEvents() {
+  // Track which mouse button is being held for panning
+  let wpRightMouseDown = false;
+
   wpCanvas.onmousedown = (e) => {
+    wpLastGridX = -1;
+    wpLastGridY = -1;
     if (e.button === 1) {
       e.preventDefault();
       pickWPBlock(e);
       return;
     }
-    if (wpCurrentTool === 'move' || e.button === 2) {
+    if (e.button === 2) {
+      // Right-click always pans, regardless of tool
+      e.preventDefault();
+      wpRightMouseDown = true;
+      isPanning = true;
+      wpIsPanningActive = true;
+      return;
+    }
+    if (wpCurrentTool === 'move' && e.button === 0) {
       isPanning = true;
       wpIsPanningActive = true;
       return;
     }
     if (e.button === 0) {
+      e.preventDefault();
+      const rect = wpCanvas.getBoundingClientRect();
+      const canvasMouseX = (e.clientX - rect.left) / wpZoom - wpOffsetX;
+      const canvasMouseY = (e.clientY - rect.top) / wpZoom - wpOffsetY;
+      const x = Math.floor(canvasMouseX / BLOCK_SIZE);
+      const y = Math.floor(canvasMouseY / BLOCK_SIZE);
+
+      // --- SELECT TOOL ---
+      if (wpCurrentTool === 'select') {
+        if (wpPasteMode) {
+          if (wpClipboardData) {
+            if (wpSelectionBox && x >= wpSelectionBox.x && x < wpSelectionBox.x + wpSelectionBox.w && y >= wpSelectionBox.y && y < wpSelectionBox.y + wpSelectionBox.h) {
+              wpSelectionStartX = x; wpSelectionStartY = y;
+              wpSelectionMoving = true;
+              hideWPSelectionMenu();
+            } else {
+              wpSelectionBox = { x: x, y: y, w: wpClipboardWidth, h: wpClipboardHeight };
+              wpCopiedData = JSON.parse(JSON.stringify(wpClipboardData));
+              wpSelectionStartX = x; wpSelectionStartY = y;
+              wpSelectionEndX = x; wpSelectionEndY = y;
+              showWPSelectionMenu();
+              wpMarkDirty();
+            }
+          }
+          return;
+        }
+
+        if (wpSelectionBox && x >= wpSelectionBox.x && x < wpSelectionBox.x + wpSelectionBox.w && y >= wpSelectionBox.y && y < wpSelectionBox.y + wpSelectionBox.h) {
+          wpSelectionStartX = x;
+          wpSelectionStartY = y;
+          wpSelectionMoving = true;
+          if (!wpCopiedData) wpCopySelectionToDragBuffer(true);
+          hideWPSelectionMenu();
+          return;
+        } else {
+          if (wpSelectionBox && wpCopiedData && !wpPasteMode) {
+            wpDropSelectionBuffer();
+            saveWPHistory(); // GUARANTEE HISTORY SAVE ON DROP!
+            wpNeedsPostProcess = true;
+          }
+          wpSelectionStartX = x;
+          wpSelectionStartY = y;
+          wpSelectionEndX = x;
+          wpSelectionEndY = y;
+          wpSelectionBox = null;
+          wpCopiedData = null;
+          wpSelectionMoving = false;
+          hideWPSelectionMenu();
+          wpMarkDirty();
+          // We don't set isPainting=true here, because clicking away handles just dropping the selection.
+          // Wait, if we click ON an empty block, we might want to start drawing a new selection rectangle?
+          // Yes, setting wpSelectionStartX/Y starts the selection rectangle. We SHOULD set isPainting = true so mousemove tracks the drag.
+          isPainting = true;
+          return;
+        }
+      }
+
+      // --- FILL TOOL ---
+      if (wpCurrentTool === 'fill') {
+        if (x >= 0 && x < WORLD_WIDTH && y >= 0 && y < WORLD_HEIGHT) {
+          wpExecuteFloodFill(x, y);
+        }
+        return;
+      }
+
       isPainting = true;
 
       // Smart Erase Check: If starting on a matching block, activate Smart Erase Mode
       if (wpCurrentTool === 'pencil') {
-        const rect = wpCanvas.getBoundingClientRect();
-        const canvasMouseX = (e.clientX - rect.left) / wpZoom - wpOffsetX;
-        const canvasMouseY = (e.clientY - rect.top) / wpZoom - wpOffsetY;
-        const x = Math.floor(canvasMouseX / BLOCK_SIZE);
-        const y = Math.floor(canvasMouseY / BLOCK_SIZE);
-
         if (x >= 0 && x < WORLD_WIDTH && y >= 0 && y < WORLD_HEIGHT) {
           const newBlock = wpBlockMap[wpSelectedBlockId];
           if (newBlock) {
@@ -6529,9 +6815,53 @@ function setupWPEvents() {
     handleWPInteraction(e);
   };
 
-  window.onmouseup = () => {
+  // Centralized mouseup handler — runs on document to catch releases outside canvas
+  function wpHandleMouseUp(e) {
+    // If right mouse was released, clear panning
+    if (e && e.button === 2) {
+      wpRightMouseDown = false;
+    }
+
     isSmartEraserMode = false; // Reset Smart Erase Mode
     wpEraserTargetLayer = null; // Reset Eraser Layer Lock
+
+    if (wpCurrentTool === 'select' && (isPainting || wpSelectionMoving)) {
+      if (wpSelectionMoving) {
+        if (wpSelectionBox) {
+          wpSelectionBox.x += (wpSelectionEndX - wpSelectionStartX);
+          wpSelectionBox.y += (wpSelectionEndY - wpSelectionStartY);
+          wpSelectionStartX = wpSelectionBox.x;
+          wpSelectionEndX = wpSelectionBox.x;
+          wpSelectionStartY = wpSelectionBox.y;
+          wpSelectionEndY = wpSelectionBox.y;
+        }
+        wpSelectionMoving = false;
+        showWPSelectionMenu();
+        wpNeedsPostProcess = true;
+      } else {
+        if (wpSelectionStartX !== -1 && wpSelectionEndX !== -1) {
+          const x1 = Math.min(wpSelectionStartX, wpSelectionEndX);
+          const y1 = Math.min(wpSelectionStartY, wpSelectionEndY);
+          const x2 = Math.max(wpSelectionStartX, wpSelectionEndX);
+          const y2 = Math.max(wpSelectionStartY, wpSelectionEndY);
+          
+          if (x2 >= x1 && y2 >= y1) {
+            wpSelectionBox = { 
+              x: Math.max(0, x1), 
+              y: Math.max(0, y1), 
+              w: Math.min(WORLD_WIDTH - 1, x2) - Math.max(0, x1) + 1, 
+              h: Math.min(WORLD_HEIGHT - 1, y2) - Math.max(0, y1) + 1 
+            };
+            showWPSelectionMenu();
+          } else {
+            wpSelectionBox = null;
+          }
+        }
+      }
+      isPainting = false;
+      wpMarkDirty();
+    }
+
     if (isPainting || isErasing) {
       // Defer heavy history and save operations to prevent UI freeze
       setTimeout(() => {
@@ -6539,9 +6869,7 @@ function setupWPEvents() {
         if (wpNeedsPostProcess) {
           saveActiveWorld();
           updateWPBlockCount();
-          // updateWPAnimatedCellList(); // Optimized to incremental later
           renderWPInventory();
-          // Removed wpMarkStaticDirty() - Incremental Phase 11/12 is high-fidelity
           wpNeedsPostProcess = false;
         }
       }, 10);
@@ -6553,9 +6881,27 @@ function setupWPEvents() {
       wpIsPanningActive = false;
       wpMarkDirty(); // Final full-quality redraw with animations
     }
-  };
+  }
+
+  // Use both window.onmouseup and document listener for maximum reliability
+  window.onmouseup = wpHandleMouseUp;
+  document.addEventListener('mouseup', wpHandleMouseUp);
 
   wpCanvas.onmousemove = (e) => {
+    // Safety guard: if no mouse buttons are pressed, force-reset panning/painting
+    // This prevents the "stuck panning" bug when mouseup is missed (e.g. right-click)
+    if (e.buttons === 0) {
+      if (isPanning || wpRightMouseDown) {
+        isPanning = false;
+        wpRightMouseDown = false;
+        if (wpIsPanningActive) {
+          wpIsPanningActive = false;
+          wpMarkDirty();
+        }
+      }
+      return;
+    }
+
     if (isPanning) {
       wpOffsetX += e.movementX / wpZoom;
       wpOffsetY += e.movementY / wpZoom;
@@ -6615,6 +6961,7 @@ function setupWPEvents() {
       isPanning = false;
       isPainting = false;
       isErasing = false;
+      wpSelectionMoving = false;
       wpMultiTouchActive = true; // LOCK ON
       wpLastGridX = -1; wpLastGridY = -1; // Wipe coordinate history to prevent "jumps"
 
@@ -6631,14 +6978,74 @@ function setupWPEvents() {
         isPanning = true;
         wpIsPanningActive = true;
       } else {
+        const rect = wpCanvas.getBoundingClientRect();
+        const canvasTouchX = (e.touches[0].clientX - rect.left) / wpZoom - wpOffsetX;
+        const canvasTouchY = (e.touches[0].clientY - rect.top) / wpZoom - wpOffsetY;
+        const x = Math.floor(canvasTouchX / BLOCK_SIZE);
+        const y = Math.floor(canvasTouchY / BLOCK_SIZE);
+
+        if (wpCurrentTool === 'select') {
+          if (wpPasteMode) {
+            if (wpClipboardData) {
+              if (wpSelectionBox && x >= wpSelectionBox.x && x < wpSelectionBox.x + wpSelectionBox.w && y >= wpSelectionBox.y && y < wpSelectionBox.y + wpSelectionBox.h) {
+                wpSelectionStartX = x; wpSelectionStartY = y;
+                wpSelectionMoving = true;
+                hideWPSelectionMenu();
+              } else {
+                wpSelectionBox = { x: x, y: y, w: wpClipboardWidth, h: wpClipboardHeight };
+                wpCopiedData = JSON.parse(JSON.stringify(wpClipboardData));
+                wpSelectionStartX = x; wpSelectionStartY = y;
+                wpSelectionEndX = x; wpSelectionEndY = y;
+                showWPSelectionMenu();
+                wpMarkDirty();
+              }
+            }
+            wpLastTouchX = e.touches[0].clientX;
+            wpLastTouchY = e.touches[0].clientY;
+            return;
+          }
+
+          if (wpSelectionBox && x >= wpSelectionBox.x && x < wpSelectionBox.x + wpSelectionBox.w && y >= wpSelectionBox.y && y < wpSelectionBox.y + wpSelectionBox.h) {
+            wpSelectionStartX = x;
+            wpSelectionStartY = y;
+            wpSelectionMoving = true;
+            if (!wpCopiedData) wpCopySelectionToDragBuffer(true);
+            hideWPSelectionMenu();
+          } else {
+            if (wpSelectionBox && wpCopiedData && !wpPasteMode) {
+              wpDropSelectionBuffer();
+              saveWPHistory(); // GUARANTEE HISTORY SAVE ON DROP!
+              wpNeedsPostProcess = true;
+            }
+            wpSelectionStartX = x;
+            wpSelectionStartY = y;
+            wpSelectionEndX = x;
+            wpSelectionEndY = y;
+            wpSelectionBox = null;
+            wpCopiedData = null;
+            wpSelectionMoving = false;
+            hideWPSelectionMenu();
+            wpMarkDirty();
+            isPainting = true;
+          }
+          wpLastTouchX = e.touches[0].clientX;
+          wpLastTouchY = e.touches[0].clientY;
+          return;
+        }
+
+        // --- FILL TOOL ---
+        if (wpCurrentTool === 'fill') {
+          if (x >= 0 && x < WORLD_WIDTH && y >= 0 && y < WORLD_HEIGHT) {
+            wpExecuteFloodFill(x, y);
+          }
+          wpLastTouchX = e.touches[0].clientX;
+          wpLastTouchY = e.touches[0].clientY;
+          return;
+        }
+
+
         // Smart Erase Check: If starting on a matching block, activate Smart Erase Mode
         if (wpCurrentTool === 'pencil') {
-          const rect = wpCanvas.getBoundingClientRect();
-          const canvasTouchX = (e.touches[0].clientX - rect.left) / wpZoom - wpOffsetX;
-          const canvasTouchY = (e.touches[0].clientY - rect.top) / wpZoom - wpOffsetY;
-          const x = Math.floor(canvasTouchX / BLOCK_SIZE);
-          const y = Math.floor(canvasTouchY / BLOCK_SIZE);
-
           if (x >= 0 && x < WORLD_WIDTH && y >= 0 && y < WORLD_HEIGHT) {
             const newBlock = wpBlockMap[wpSelectedBlockId];
             if (newBlock) {
@@ -6680,6 +7087,7 @@ function setupWPEvents() {
       isPanning = false;
       isPainting = false;
       isErasing = false;
+      wpSelectionMoving = false;
 
       // Pinch to Zoom AND Move
       const t1 = e.touches[0];
@@ -6727,7 +7135,7 @@ function setupWPEvents() {
         }
         wpLastTouchX = touch.clientX;
         wpLastTouchY = touch.clientY;
-      } else if (isPainting) {
+      } else if (isPainting || wpSelectionMoving) {
         // Paint while moving
         handleWPInteraction(e.touches[0]);
       }
@@ -6845,7 +7253,7 @@ function handleWPInteractionLine(x1, y1, x2, y2) {
 
 function handleWPInteraction(e) {
   if (wpMultiTouchActive) return; // Safety lock
-  if (!isPainting && !isErasing) {
+  if (!isPainting && !isErasing && !wpSelectionMoving) {
     wpLastGridX = -1;
     wpLastGridY = -1;
     return;
@@ -6853,16 +7261,30 @@ function handleWPInteraction(e) {
   if (wpCurrentTool === 'move') return;
 
   const rect = wpCanvas.getBoundingClientRect();
-  const canvasMouseX = (e.clientX - rect.left) / wpZoom - wpOffsetX;
-  const canvasMouseY = (e.clientY - rect.top) / wpZoom - wpOffsetY;
+  const canvasMouseX = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+  const canvasMouseY = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
 
-  const x = Math.floor(canvasMouseX / BLOCK_SIZE);
-  const y = Math.floor(canvasMouseY / BLOCK_SIZE);
+  const x = Math.floor(canvasMouseX / wpZoom / BLOCK_SIZE - wpOffsetX / BLOCK_SIZE);
+  const y = Math.floor(canvasMouseY / wpZoom / BLOCK_SIZE - wpOffsetY / BLOCK_SIZE);
 
   // Mobile Optimization: Prevent processing the same grid cell multiple times in a single drag event
   if (x === wpLastGridX && y === wpLastGridY) return;
 
   if (x >= 0 && x < WORLD_WIDTH && y >= 0 && y < WORLD_HEIGHT) {
+    if (wpCurrentTool === 'select' && (isPainting || wpSelectionMoving)) {
+      if (wpSelectionMoving) {
+        // Dragging existing selection
+        wpSelectionEndX = Math.floor(((e.clientX || (e.touches && e.touches[0].clientX)) - rect.left) / wpZoom / BLOCK_SIZE - wpOffsetX / BLOCK_SIZE);
+        wpSelectionEndY = Math.floor(((e.clientY || (e.touches && e.touches[0].clientY)) - rect.top) / wpZoom / BLOCK_SIZE - wpOffsetY / BLOCK_SIZE);
+      } else {
+        // Dragging new selection bounds
+        wpSelectionEndX = x;
+        wpSelectionEndY = y;
+      }
+      wpMarkDirty();
+      return;
+    }
+
     if (wpLastGridX !== -1 && wpLastGridY !== -1) {
       // Interpolate line between last position and current
       handleWPInteractionLine(wpLastGridX, wpLastGridY, x, y);
@@ -7728,6 +8150,11 @@ function drawWPWorld(timestamp) {
     }
   }
 
+  // ── SELECTION TOOL DRAWING ──
+  if (wpCurrentTool === 'select' || wpPasteMode) {
+    drawWPSelection(wpCtx, wpZoom, wpOffsetX, wpOffsetY);
+  }
+
   wpAnimationId = requestAnimationFrame(drawWPWorld);
 }
 
@@ -7915,6 +8342,12 @@ function renderWPCollection() {
       pushToWPInventory(block.id);
       renderWPCollection(); // Update active state
       closeWPCatalogue(); // Auto-close modal after selection
+      
+      const swapPopup = document.getElementById('wp-swap-popup');
+      if (swapPopup && !swapPopup.classList.contains('hidden')) {
+        const replacementImg = document.getElementById('wp-swap-replacement-img');
+        if (replacementImg) replacementImg.src = block.src;
+      }
     };
 
     const img = document.createElement('img');
@@ -8973,6 +9406,369 @@ function populateUpdatesMenu() {
     </li>
   `;
 }
+
+// --- NEW TOOL LOGIC ---
+
+// SELECTION
+function showWPSelectionMenu() {
+  const menu = document.getElementById('wp-selection-menu');
+  if (menu && wpSelectionBox) {
+    menu.classList.remove('hidden');
+    document.getElementById('wp-btn-copy').style.display = wpPasteMode ? 'none' : 'inline-flex';
+    document.getElementById('wp-btn-cut').style.display = wpPasteMode ? 'none' : 'inline-flex';
+    document.getElementById('wp-btn-clear').style.display = wpPasteMode ? 'none' : 'inline-flex';
+    document.getElementById('wp-sel-div-2').style.display = wpPasteMode ? 'none' : 'block';
+    document.getElementById('wp-btn-paste').style.display = wpPasteMode ? 'inline-flex' : 'none';
+  }
+}
+
+function hideWPSelectionMenu() {
+  const menu = document.getElementById('wp-selection-menu');
+  if (menu) menu.classList.add('hidden');
+}
+
+function drawWPSelection(ctx, zoom, offX, offY) {
+  if (!ctx) return;
+  ctx.save();
+  ctx.strokeStyle = '#a8dadc';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 4]);
+  ctx.lineDashOffset = (performance.now() / 50) % 8;
+
+  const box = wpSelectionBox || (wpSelectionStartX !== -1 && wpSelectionEndX !== -1 ? {
+    x: Math.min(wpSelectionStartX, wpSelectionEndX),
+    y: Math.min(wpSelectionStartY, wpSelectionEndY),
+    w: Math.abs(wpSelectionEndX - wpSelectionStartX) + 1,
+    h: Math.abs(wpSelectionEndY - wpSelectionStartY) + 1
+  } : null);
+
+  if (box) {
+    ctx.fillStyle = 'rgba(168, 218, 220, 0.2)';
+    let bx = box.x;
+    let by = box.y;
+    if (wpCurrentTool === 'select' && wpSelectionMoving) {
+       bx += (wpSelectionEndX - wpSelectionStartX);
+       by += (wpSelectionEndY - wpSelectionStartY);
+    }
+    
+    const x = (bx * BLOCK_SIZE + offX) * zoom;
+    const y = (by * BLOCK_SIZE + offY) * zoom;
+    const w = box.w * BLOCK_SIZE * zoom;
+    const h = box.h * BLOCK_SIZE * zoom;
+    
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeRect(x, y, w, h);
+
+    // Track the selection box UI
+    const menu = document.getElementById('wp-selection-menu');
+    if (menu && !menu.classList.contains('hidden')) {
+      const rect = ctx.canvas.getBoundingClientRect();
+      menu.style.position = 'absolute';
+      menu.style.left = `${rect.left + x + (w / 2) - (menu.offsetWidth / 2)}px`;
+      let menuY = rect.top + y - menu.offsetHeight - 15;
+      if (menuY < 0) menuY = rect.top + y + h + 15; // Flip below if off-screen top
+      menu.style.top = `${menuY}px`;
+    }
+
+    if (wpCopiedData) { // Removed requirement for Moving or PasteMode: always show floating selection
+      const dx = wpSelectionMoving ? (wpSelectionEndX - wpSelectionStartX) : 0;
+      const dy = wpSelectionMoving ? (wpSelectionEndY - wpSelectionStartY) : 0;
+      ctx.globalAlpha = 0.7;
+      for (const item of wpCopiedData) {
+        const bd = item.fg || item.bg;
+        if (!bd) continue;
+        const bid = (typeof bd === 'object') ? bd.id : bd;
+        const blk = wpBlockMap[bid];
+        if (!blk) continue;
+        
+        let imgPath = blk.src;
+        if (typeof bd === 'object') {
+          if (bd.state !== undefined && blk.framesPath) {
+            imgPath = `${blk.framesPath}${bd.state}.png`;
+          } else if (isDirtBlock(bid) && bd.dirtState !== undefined) {
+            imgPath = getDirtSrc(blk, bd.dirtState); // Honor dynamic borders natively in preview
+          }
+        }
+        
+        const img = getWPImage(imgPath);
+        if (img.complete && img.naturalWidth > 0) {
+           const px = ((box.x + item.x + dx) * BLOCK_SIZE + offX + (BLOCK_SIZE - img.naturalWidth) / 2) * zoom;
+           let py;
+           if (blk.verticalAlign === 'center') py = ((box.y + item.y + dy) * BLOCK_SIZE + offY + (BLOCK_SIZE - img.naturalHeight) / 2) * zoom;
+           else py = ((box.y + item.y + 1 + dy) * BLOCK_SIZE - img.naturalHeight + (blk.yOffset || 0) + offY) * zoom;
+           ctx.drawImage(img, px, py, img.naturalWidth * zoom, img.naturalHeight * zoom);
+        }
+      }
+    }
+  }
+
+  ctx.restore();
+}
+
+window.wpConfirmPaste = function() {
+  if (wpPasteMode && wpSelectionBox && wpCopiedData) {
+    wpDropSelectionBuffer();
+    saveWPHistory();
+    wpPasteMode = false;
+    wpClipboardData = null;
+    wpSelectionBox = null;
+    wpCopiedData = null;
+    hideWPSelectionMenu();
+    wpNeedsPostProcess = true;
+  }
+};
+
+window.wpCopySelection = function() {
+  if (!wpSelectionBox) return;
+  const wasMoved = !!wpCopiedData;
+  if (!wpCopiedData) wpCopySelectionToDragBuffer(false);
+  
+  wpClipboardData = JSON.parse(JSON.stringify(wpCopiedData));
+  wpClipboardWidth = wpSelectionBox.w;
+  wpClipboardHeight = wpSelectionBox.h;
+  
+  if (wasMoved) {
+    wpDropSelectionBuffer();
+    saveWPHistory();
+    wpNeedsPostProcess = true;
+  }
+  
+  hideWPSelectionMenu();
+  wpPasteMode = true;
+  wpSelectionBox = null;
+  wpCopiedData = null;
+};
+
+window.wpCutSelection = function() {
+  if (!wpSelectionBox) return;
+  if (!wpCopiedData) wpCopySelectionToDragBuffer(true);
+  wpClipboardData = JSON.parse(JSON.stringify(wpCopiedData));
+  wpClipboardWidth = wpSelectionBox.w;
+  wpClipboardHeight = wpSelectionBox.h;
+  saveWPHistory();
+  wpNeedsPostProcess = true;
+  hideWPSelectionMenu();
+  wpPasteMode = true;
+  wpSelectionBox = null;
+  wpCopiedData = null;
+};
+
+window.wpFlipSelection = function(dir) {
+  if (!wpSelectionBox) return;
+  const wasNotCopied = !wpCopiedData;
+  if (wasNotCopied) wpCopySelectionToDragBuffer(true);
+  
+  const bw = wpSelectionBox.w;
+  const bh = wpSelectionBox.h;
+  
+  for (const item of wpCopiedData) {
+    if (dir === 'horizontal') {
+      item.x = (bw - 1) - item.x;
+    } else if (dir === 'vertical') {
+      item.y = (bh - 1) - item.y;
+    }
+  }
+
+  // Recalculate inner tiling (dirtState)
+  if (wpCopiedData) {
+    for (const item of wpCopiedData) {
+      if (item.fg) {
+        const id = typeof item.fg === 'object' ? item.fg.id : item.fg;
+        if (isDirtBlock(id)) {
+          const isDirtAbove = wpCopiedData.some(o => o.x === item.x && o.y === item.y - 1 && o.fg && isDirtBlock(typeof o.fg === 'object' ? o.fg.id : o.fg));
+          if (typeof item.fg === 'object') item.fg.dirtState = isDirtAbove ? 1 : 0;
+        }
+      }
+    }
+  }
+
+  if (wasNotCopied && !wpPasteMode) {
+    wpDropSelectionBuffer();
+    saveWPHistory();
+    showWPSelectionMenu();
+  }
+  wpNeedsPostProcess = true;
+  wpMarkDirty();
+};
+
+window.wpClearSelection = function() {
+  if (!wpSelectionBox) return;
+  const sx = wpSelectionBox.x;
+  const sy = wpSelectionBox.y;
+  const sw = wpSelectionBox.w;
+  const sh = wpSelectionBox.h;
+  for(let y=sy; y<sy+sh; y++) {
+    for(let x=sx; x<sx+sw; x++) {
+       if (y<WORLD_HEIGHT-5) {
+         if (wpGrid[y] && wpGrid[y][x]) { wpGrid[y][x] = null; updateWPAnimatedCellList(x, y, true); }
+         if (wpBackgroundGrid[y] && wpBackgroundGrid[y][x]) { wpBackgroundGrid[y][x] = null; updateWPAnimatedCellList(x, y, true); }
+         wpUpdateTilingChainAt(x, y);
+       }
+    }
+  }
+  saveWPHistory();
+  wpCancelSelection();
+  wpNeedsPostProcess = true;
+  wpUpdateStaticCacheRegion(Math.max(0, sx - 1), Math.max(0, sy - 1), Math.min(WORLD_WIDTH - 1, sx + sw + 1), Math.min(WORLD_HEIGHT - 1, sy + sh + 1));
+};
+
+window.wpCancelSelection = function() {
+  if (wpCopiedData && !wpPasteMode) {
+    wpDropSelectionBuffer();
+    saveWPHistory();
+    wpNeedsPostProcess = true;
+  }
+  wpSelectionBox = null;
+  wpSelectionStartX = -1; wpSelectionEndX = -1;
+  wpSelectionMoving = false;
+  wpCopiedData = null;
+  wpPasteMode = false;
+  wpClipboardData = null;
+  hideWPSelectionMenu();
+  wpMarkDirty();
+};
+
+function wpCopySelectionToDragBuffer(clearOriginal) {
+  if (!wpSelectionBox) return;
+  wpCopiedData = [];
+  for(let y=wpSelectionBox.y; y<wpSelectionBox.y+wpSelectionBox.h; y++) {
+    for(let x=wpSelectionBox.x; x<wpSelectionBox.x+wpSelectionBox.w; x++) {
+      if (y >= WORLD_HEIGHT - 5) continue;
+      const fg = wpGrid[y][x];
+      const bg = wpBackgroundGrid[y][x];
+      if (fg || bg) {
+        wpCopiedData.push({ x: x - wpSelectionBox.x, y: y - wpSelectionBox.y, fg: (typeof fg === 'object' && fg !== null) ? {...fg} : fg, bg: (typeof bg === 'object' && bg !== null) ? {...bg} : bg });
+        if (clearOriginal) {
+          if (fg) wpGrid[y][x] = null;
+          if (bg) wpBackgroundGrid[y][x] = null;
+          updateWPAnimatedCellList(x, y, true);
+        }
+      }
+    }
+  }
+  if (clearOriginal) {
+    for(let y=Math.max(0, wpSelectionBox.y - 1); y<=Math.min(WORLD_HEIGHT-1, wpSelectionBox.y+wpSelectionBox.h); y++) {
+      for(let x=Math.max(0, wpSelectionBox.x - 1); x<=Math.min(WORLD_WIDTH-1, wpSelectionBox.x+wpSelectionBox.w); x++) {
+        wpUpdateTilingAt(x, y);
+      }
+    }
+    wpUpdateStaticCacheRegion(wpSelectionBox.x - 1, wpSelectionBox.y - 1, wpSelectionBox.x+wpSelectionBox.w + 1, wpSelectionBox.y+wpSelectionBox.h + 1);
+  }
+}
+
+function wpDropSelectionBuffer() {
+  if (!wpSelectionBox || !wpCopiedData) return;
+  const dx = wpSelectionMoving ? (wpSelectionEndX - wpSelectionStartX) : 0;
+  const dy = wpSelectionMoving ? (wpSelectionEndY - wpSelectionStartY) : 0;
+  
+  const nxMin = wpSelectionBox.x + dx;
+  const nyMin = wpSelectionBox.y + dy;
+  const nxMax = nxMin + wpSelectionBox.w - 1;
+  const nyMax = nyMin + wpSelectionBox.h - 1;
+
+  for (const item of wpCopiedData) {
+    const nx = wpSelectionBox.x + item.x + dx;
+    const ny = wpSelectionBox.y + item.y + dy;
+    if (nx >= 0 && nx < WORLD_WIDTH && ny >= 0 && ny < WORLD_HEIGHT - 5) {
+      if (item.fg) {
+        const id = typeof item.fg === 'object' ? item.fg.id : item.fg;
+        const blk = wpBlockMap[id];
+        let newData = id;
+        if (blk && blk.animated) newData = { id: id, animationTick: 0 };
+        if (blk && blk.defaultState !== undefined) newData = { id: id, state: blk.defaultState };
+        wpGrid[ny][nx] = newData;
+        updateWPAnimatedCellList(nx, ny, false);
+      }
+      if (item.bg) {
+        const id = typeof item.bg === 'object' ? item.bg.id : item.bg;
+        const blk = wpBlockMap[id];
+        let newData = id;
+        if (blk && blk.animated) newData = { id: id, animationTick: 0 };
+        if (blk && blk.defaultState !== undefined) newData = { id: id, state: blk.defaultState };
+        wpBackgroundGrid[ny][nx] = newData;
+        updateWPAnimatedCellList(nx, ny, false);
+      }
+    }
+  }
+
+  // Pass 2: Update all states in the dropped area and neighbors
+  const stateMinX = Math.max(0, nxMin - 1);
+  const stateMinY = Math.max(0, nyMin - 1);
+  const stateMaxX = Math.min(WORLD_WIDTH - 1, nxMax + 1);
+  const stateMaxY = Math.min(WORLD_HEIGHT - 6, nyMax + 1);
+
+  for (let y = stateMinY; y <= stateMaxY; y++) {
+    for (let x = stateMinX; x <= stateMaxX; x++) {
+      wpUpdateTilingAt(x, y);
+    }
+  }
+
+  wpUpdateStaticCacheRegion(stateMinX, stateMinY, stateMaxX, stateMaxY);
+}
+
+window.wpExecuteFloodFill = function(startX, startY) {
+  if (startY >= WORLD_HEIGHT - 5) return;
+  const newBlock = wpBlockMap[wpSelectedBlockId];
+  if (!newBlock) return;
+  
+  const isBg = newBlock.type === 'background';
+  const targetGrid = isBg ? wpBackgroundGrid : wpGrid;
+  
+  const startData = targetGrid[startY][startX];
+  const targetId = (typeof startData === 'object' && startData !== null) ? startData.id : startData;
+  if (targetId === wpSelectedBlockId) return; // Same block, no fill
+
+  const stack = [{x: startX, y: startY}];
+  let fillCount = 0;
+  let minX = startX, minY = startY, maxX = startX, maxY = startY;
+
+  let blockData = { id: wpSelectedBlockId };
+  if (newBlock.defaultState !== undefined) blockData.state = newBlock.defaultState;
+  const fillVal = (blockData.state !== undefined) ? blockData : wpSelectedBlockId;
+
+  const startFg = wpGrid[startY][startX];
+  const isStartFgEmpty = !(typeof startFg === 'object' && startFg !== null ? startFg.id : startFg);
+
+  while (stack.length > 0) {
+    const {x, y} = stack.pop();
+    if (x < 0 || x >= WORLD_WIDTH || y < 0 || y >= WORLD_HEIGHT - 5) continue;
+    
+    const currData = targetGrid[y][x];
+    const currId = (typeof currData === 'object' && currData !== null) ? currData.id : currData;
+    
+    if (currId === targetId) {
+      if (isBg && isStartFgEmpty) {
+        const fg = wpGrid[y][x];
+        if (typeof fg === 'object' && fg !== null ? fg.id : fg) continue;
+      }
+
+      targetGrid[y][x] = fillVal;
+      updateWPAnimatedCellList(x, y, false);
+      fillCount++;
+      
+      minX = Math.min(minX, x); minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+
+      stack.push({x: x+1, y});
+      stack.push({x: x-1, y});
+      stack.push({x, y: y+1});
+      stack.push({x, y: y-1});
+    }
+  }
+
+  if (fillCount > 0) {
+    if (!isBg) {
+      for (let y = minY - 1; y <= maxY + 1; y++) {
+        for (let x = minX - 1; x <= maxX + 1; x++) wpUpdateTilingAt(x, y);
+      }
+    }
+    wpUpdateStaticCacheRegion(Math.max(0, minX - 1), Math.max(0, minY - 1), Math.min(WORLD_WIDTH - 1, maxX + 1), Math.min(WORLD_HEIGHT - 1, maxY + 1));
+    saveWPHistory();
+    wpNeedsPostProcess = true;
+    wpMarkDirty();
+  }
+};
+
 
 window.redirectOriginal = function(element) {
   const imgEl = element.querySelector('img');

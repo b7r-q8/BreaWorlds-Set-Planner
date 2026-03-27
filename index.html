@@ -66,6 +66,53 @@
         <p>Recent updates and newly added items!</p>
       </div>
       <div id="whats-new-scroll-container" class="wn-body">
+
+        <!-- NEW FEATURES SECTION -->
+        <div class="wn-section wn-features-section">
+          <h2 class="wn-features-heading">New World Planner Tools</h2>
+          <div class="wn-features-list">
+
+            <div class="wn-feature-card">
+              <div class="wn-feature-icon wn-feature-icon-select">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 3a2 2 0 0 0-2 2"/><path d="M19 3a2 2 0 0 1 2 2"/><path d="M21 19a2 2 0 0 1-2 2"/><path d="M5 21a2 2 0 0 1-2-2"/>
+                  <path d="M9 3h1"/><path d="M9 21h1"/><path d="M14 3h1"/><path d="M14 21h1"/>
+                  <path d="M3 9v1"/><path d="M21 9v1"/><path d="M3 14v1"/><path d="M21 14v1"/>
+                </svg>
+              </div>
+              <div class="wn-feature-info">
+                <h3>Selection Tool</h3>
+                <p>Drag to select any area of your world. Move, copy, cut, flip, or delete entire regions with ease. Perfect for rearranging builds!</p>
+              </div>
+            </div>
+
+            <div class="wn-feature-card">
+              <div class="wn-feature-icon wn-feature-icon-fill">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"/><path d="m5 2 5 5"/><path d="M2 13h15"/><path d="M22 20.3c0 .8-.7 1.7-1.5 1.7s-1.5-.9-1.5-1.7c0-.8 1.5-2.3 1.5-2.3s1.5 1.5 1.5 2.3Z"/>
+                </svg>
+              </div>
+              <div class="wn-feature-info">
+                <h3>Bucket Fill</h3>
+                <p>Instantly flood-fill connected areas with your selected block. Place foreground or background blocks across large spaces in a single tap!</p>
+              </div>
+            </div>
+
+            <div class="wn-feature-card">
+              <div class="wn-feature-icon wn-feature-icon-share">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+              </div>
+              <div class="wn-feature-info">
+                <h3>World Save Sharing</h3>
+                <p>Export your world as a file and share it with friends or the community! Import worlds from others to load them straight into your save slots.</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
         <div class="wn-section">
           <h2>Set Planner - Valentine's Event</h2>
           <div id="new-set-planner-list" class="wn-grid"></div>
@@ -178,6 +225,23 @@
 
         </button>
 
+        <button class="wp-tool-btn" data-tool="select" title="Select Area">
+
+          <i data-lucide="box-select"></i>
+
+          <span class="wp-tool-label">Select</span>
+
+        </button>
+
+        <button class="wp-tool-btn" data-tool="fill" title="Fill Bucket">
+
+          <i data-lucide="paint-bucket"></i>
+
+          <span class="wp-tool-label">Fill</span>
+
+        </button>
+
+
         <!-- ZOOM BUTTONS REMOVED AS PER USER REQUEST -->
 
         <button class="wp-tool-btn" onclick="wpUndo()" title="Undo">
@@ -282,6 +346,19 @@
 
     <!-- POPUPS MOVED TO ROOT FOR CENTERED POSITIONING -->
 
+    <div id="wp-selection-menu" class="wp-selection-menu hidden">
+      <button id="wp-btn-copy" class="wp-sel-btn" onclick="wpCopySelection()" title="Copy Selection"><i data-lucide="copy"></i></button>
+      <button id="wp-btn-cut" class="wp-sel-btn" onclick="wpCutSelection()" title="Cut Selection"><i data-lucide="scissors"></i></button>
+      <button id="wp-btn-paste" class="wp-sel-btn" onclick="wpConfirmPaste()" title="Paste Selection" style="display:none;"><i data-lucide="check"></i></button>
+      <div id="wp-sel-div-1" class="wp-sel-divider"></div>
+      <button id="wp-btn-flip-h" class="wp-sel-btn" onclick="wpFlipSelection('horizontal')" title="Flip Horizontal"><i data-lucide="flip-horizontal"></i></button>
+      <button id="wp-btn-flip-v" class="wp-sel-btn" onclick="wpFlipSelection('vertical')" title="Flip Vertical"><i data-lucide="flip-vertical"></i></button>
+      <div id="wp-sel-div-2" class="wp-sel-divider"></div>
+      <button id="wp-btn-clear" class="wp-sel-btn wp-sel-danger" onclick="wpClearSelection()" title="Clear Selection"><i data-lucide="trash-2"></i></button>
+      <button id="wp-btn-cancel" class="wp-sel-btn" onclick="wpCancelSelection()" title="Cancel"><i data-lucide="x"></i></button>
+    </div>
+
+
     <div id="wp-count-modal" class="wp-popup hidden">
 
       <div class="wp-popup-header">
@@ -385,7 +462,13 @@
 
       </div>
 
-      <button class="wp-add-slot-btn" onclick="addNewWPWorldSlot()">+ New Slot</button>
+      <div class="wp-save-footer-actions">
+        <button class="wp-add-slot-btn" onclick="addNewWPWorldSlot()">+ New Slot</button>
+        <button class="wp-add-slot-btn wp-import-slot-btn" onclick="importWPWorldFile()">
+          <i data-lucide="upload" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 6px;"></i>Import World
+        </button>
+      </div>
+      <input type="file" id="wp-world-import-input" accept=".json,application/json" style="display:none;" onchange="handleWPWorldImport(event)">
 
     </div>
 

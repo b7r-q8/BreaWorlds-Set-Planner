@@ -2974,7 +2974,7 @@
       "id": "spr_fg_casino_background",
       "name": "Casino Background",
       "src": "worldplanner/Blocks/spr_fg_casino_background/spr_fg_casino_background_0.png",
-      "type": "foreground",
+      "type": "background",
       "group": "Miscellaneous"
     },
     {
