@@ -4861,18 +4861,67 @@ window.formatLocksHTML = function(wlAmount) {
   }
   
   return html;
+  return html;
+};
+
+window.initFishCalculatorUI = function() {
+  document.querySelectorAll('.fish-row').forEach(row => {
+    const infoContainer = row.querySelector('.fish-info');
+    const oldMeta = infoContainer.querySelector('.fish-meta');
+    if (!oldMeta) return;
+
+    let defaultGems = row.dataset.gems || '0';
+    let defaultWls = '1';
+    let defaultType = 'wls';
+
+    const text = oldMeta.textContent.toLowerCase();
+    const name = row.querySelector('.fish-name').textContent;
+    
+    // Apply user-requested default fixes
+    if (name === 'Small Squid') {
+      defaultGems = '100';
+      defaultWls = '1.5';
+      defaultType = 'per_wl';
+    } else if (name === 'Medium Squid') {
+      defaultGems = '480';
+      defaultWls = '1.75';
+      defaultType = 'per_wl';
+    } else if (text.includes('/wl')) {
+      const match = text.match(/(\d+)(-\d+)?\/wl/);
+      if (match) {
+        defaultWls = match[1]; 
+        defaultType = 'per_wl';
+      }
+    } else if (text.includes(' wl')) {
+      const match = text.match(/(\d+)(-\d+)? wl/);
+      if (match) {
+        defaultWls = match[1];
+        defaultType = 'wls';
+      }
+    }
+
+    const editHtml = `
+      <div class="fish-custom-rates" style="display: flex; align-items: center; gap: 4px; margin-top: 4px;">
+        <input type="number" class="cfg-gem" value="${defaultGems}" style="width: 45px; font-size: 11px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 2px 4px; border-radius: 4px;" oninput="calcFishTotals()">
+        <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" width="12" alt="Gems">
+        <span style="color: rgba(255,255,255,0.3);">|</span>
+        <input type="number" class="cfg-wl-val" value="${defaultWls}" step="0.1" style="width: 40px; font-size: 11px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 2px 4px; border-radius: 4px;" oninput="calcFishTotals()">
+        <select class="cfg-wl-type" style="font-size: 11px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 1px; border-radius: 4px;" onchange="calcFishTotals()">
+          <option value="wls" ${defaultType === 'wls' ? 'selected' : ''}>WL(s)</option>
+          <option value="per_wl" ${defaultType === 'per_wl' ? 'selected' : ''}>/ WL</option>
+        </select>
+      </div>
+    `;
+
+    oldMeta.outerHTML = editHtml;
+  });
 };
 
 window.calcFishTotals = function () {
   let totalGems = 0;
-  let totalWLMin = 0;
-  let totalWLMax = 0;
+  let totalWL = 0;
 
   document.querySelectorAll('.fish-row').forEach(row => {
-    const gems = parseInt(row.dataset.gems) || 0;
-    const wlMin = parseFloat(row.dataset.wlMin) || 0;
-    const wlMax = parseFloat(row.dataset.wlMax) || 0;
-    
     let inputEl = row.querySelector('.fish-qty');
     let qty = parseInt(inputEl.value) || 0;
 
@@ -4881,15 +4930,33 @@ window.calcFishTotals = function () {
       inputEl.value = 99999;
     }
 
-    const rowGems = gems * qty;
-    totalGems += rowGems;
-    totalWLMin += wlMin * qty;
-    totalWLMax += wlMax * qty;
+    const gemInput = row.querySelector('.cfg-gem');
+    const wlValInput = row.querySelector('.cfg-wl-val');
+    const wlTypeSelect = row.querySelector('.cfg-wl-type');
 
-    // Update per-row gem display
-    const rowGemEl = row.querySelector('.fish-row-gems');
-    rowGemEl.textContent = rowGems > 0 ? rowGems.toLocaleString() : '0';
-    rowGemEl.classList.toggle('active', rowGems > 0);
+    if (gemInput && wlValInput && wlTypeSelect) {
+      const gems = parseInt(gemInput.value) || 0;
+      const wlVal = parseFloat(wlValInput.value) || 0;
+      const wlType = wlTypeSelect.value;
+      
+      const rowGems = gems * qty;
+      totalGems += rowGems;
+
+      let rowWls = 0;
+      if (wlVal > 0) {
+        if (wlType === 'per_wl') {
+          rowWls = qty / wlVal;
+        } else {
+          rowWls = qty * wlVal;
+        }
+      }
+      totalWL += rowWls;
+
+      // Update per-row gem display
+      const rowGemEl = row.querySelector('.fish-row-gems');
+      rowGemEl.textContent = rowGems > 0 ? rowGems.toLocaleString() : '0';
+      rowGemEl.classList.toggle('active', rowGems > 0);
+    }
   });
 
   // Update totals
@@ -4898,9 +4965,8 @@ window.calcFishTotals = function () {
 
   gemsEl.innerHTML = `${totalGems.toLocaleString()} <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" class="fish-gem-icon" alt="Gems">`;
 
-  // Show WL average
-  const avgWL = (totalWLMin + totalWLMax) / 2;
-  const roundedWL = Math.round(avgWL * 100) / 100;
+  // Show WL total directly
+  const roundedWL = Math.round(totalWL * 100) / 100;
   wlsEl.innerHTML = formatLocksHTML(roundedWL);
 
   // Micro-animation bump

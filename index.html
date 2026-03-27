@@ -1392,6 +1392,14 @@
       </div>
     </div>
   </div>
+  <script>
+    // Initialize the fish calculator custom value UI fields
+    document.addEventListener('DOMContentLoaded', () => {
+      if (typeof initFishCalculatorUI === 'function') {
+        initFishCalculatorUI();
+      }
+    });
+  </script>
 
   <div id="set-planner-container" style="display: block;">
 
