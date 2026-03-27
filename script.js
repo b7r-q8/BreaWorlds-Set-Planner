@@ -4880,8 +4880,8 @@ window.initFishCalculatorUI = function() {
       background: rgba(0, 0, 0, 0.25);
       border: 1px solid rgba(168, 218, 220, 0.15);
       border-radius: 6px;
-      padding: 2px 6px;
-      height: 20px;
+      padding: 4px 8px;
+      height: 26px;
       transition: all 0.2s;
     }
     .cfg-input-wrap:focus-within {
@@ -4892,57 +4892,28 @@ window.initFishCalculatorUI = function() {
       background: transparent;
       border: none;
       color: #f1faee;
-      font-size: 11px;
-      width: 32px;
+      font-size: 13px;
+      width: 36px;
       text-align: right;
       outline: none;
       font-family: inherit;
-      font-weight: 500;
+      font-weight: 600;
     }
     .cfg-input-wrap input::-webkit-outer-spin-button,
     .cfg-input-wrap input::-webkit-inner-spin-button {
       -webkit-appearance: none; margin: 0;
     }
     .cfg-input-wrap img {
-      height: 11px;
-      margin-left: 5px;
+      height: 16px;
+      margin-left: 6px;
       image-rendering: pixelated;
     }
     .cfg-divider {
       color: rgba(168, 218, 220, 0.2);
       font-size: 14px;
     }
-    .cfg-toggle {
-      background: rgba(168, 218, 220, 0.1);
-      border: none;
-      color: #a8dadc;
-      font-size: 10px;
-      font-weight: bold;
-      cursor: pointer;
-      margin-right: 4px;
-      padding: 2px 4px;
-      border-radius: 4px;
-      font-family: inherit;
-      transition: all 0.2s;
-    }
-    .cfg-toggle:hover { 
-      background: rgba(168, 218, 220, 0.25); 
-      color: #f1faee; 
-    }
   `;
   document.head.appendChild(style);
-
-  window.toggleWlMode = function(btn) {
-    const input = btn.parentElement.querySelector('.cfg-wl-type');
-    if (input.value === 'per_wl') {
-      input.value = 'wls';
-      btn.textContent = 'x';
-    } else {
-      input.value = 'per_wl';
-      btn.textContent = '/';
-    }
-    calcFishTotals();
-  };
 
   document.querySelectorAll('.fish-row').forEach(row => {
     const infoContainer = row.querySelector('.fish-info');
@@ -4988,7 +4959,6 @@ window.initFishCalculatorUI = function() {
         <span class="cfg-divider">•</span>
         <div class="cfg-input-wrap">
           <input type="number" class="cfg-wl-val" value="${defaultWls}" step="0.1" oninput="calcFishTotals()">
-          <button class="cfg-toggle" onclick="toggleWlMode(this)">${defaultType === 'per_wl' ? '/' : 'x'}</button>
           <img src="worldplanner/new/spr_fg_lock/spr_fg_lock_0.png" alt="WL">
           <input type="hidden" class="cfg-wl-type" value="${defaultType}">
         </div>
