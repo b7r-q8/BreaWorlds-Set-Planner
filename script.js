@@ -4920,6 +4920,14 @@ window.initFishCalculatorUI = function() {
       text-align: right;
       display: inline-block;
     }
+    #global-gem-rate::-webkit-outer-spin-button,
+    #global-gem-rate::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    #global-gem-rate {
+      -moz-appearance: textfield;
+    }
   `;
   document.head.appendChild(style);
 
@@ -4938,9 +4946,7 @@ window.initFishCalculatorUI = function() {
         <span class="fish-total-label">Gems Rate</span>
         <div style="display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.25); border: 1px solid rgba(168,218,220,0.15); border-radius: 6px; padding: 2px 8px; margin-top: 6px; height: 32px;">
           <input type="number" id="global-gem-rate" value="800" oninput="calcFishTotals()" style="width: 50px; background: transparent; border: none; color: #f1faee; font-size: 16px; font-weight: bold; text-align: center; outline: none; font-family: 'Poppins', sans-serif;">
-          <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" style="height: 18px; margin: 0 6px; image-rendering: pixelated;">
-          <span style="color: rgba(168,218,220,0.3); font-size: 16px;"> = 1 </span>
-          <img src="worldplanner/new/spr_fg_lock/spr_fg_lock_0.png" style="height: 18px; margin-left: 6px; image-rendering: pixelated;">
+          <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" style="height: 18px; margin-left: 6px; image-rendering: pixelated;">
         </div>
       `;
       
