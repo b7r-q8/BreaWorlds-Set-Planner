@@ -4961,51 +4961,20 @@ window.initFishCalculatorUI = function() {
     if (!oldMeta) return;
 
     let defaultGems = row.dataset.gems || '0';
-    let defaultWls = '1';
 
     const rawName = row.querySelector('.fish-name').textContent;
     const name = rawName.replace(/\s+/g, ' ').trim().toLowerCase();
     
-    // Exact user-requested overrides
-    if (name === 'clownfish') defaultWls = '0.3';
-    else if (name === 'crab') defaultWls = '0.5';
-    else if (name === 'love fish') defaultWls = '0.5';
-    else if (name === 'stingray') defaultWls = '1.5';
-    else if (name === 'small piranha') defaultWls = '0.3';
-    else if (name === 'medium piranha') defaultWls = '0.5';
-    else if (name === 'small tropical') defaultWls = '0.2';
-    else if (name === 'medium tropical') defaultWls = '0.3';
-    else if (name === 'small goldfish') defaultWls = '0.2';
-    else if (name === 'medium goldfish') defaultWls = '0.4';
-    else if (name === 'small salmon') defaultWls = '0.2';
-    else if (name === 'medium salmon') defaultWls = '0.4';
-    else if (name === 'small catfish') defaultWls = '0.1';
-    else if (name === 'medium catfish') defaultWls = '0.2';
-    else if (name === 'big catfish') defaultWls = '0.5';
-    else if (name === 'small trout') defaultWls = '0.1';
-    else if (name === 'medium trout') defaultWls = '0.2';
-    else if (name === 'big trout') defaultWls = '0.5';
-    else if (name === 'small carp') defaultWls = '0.1';
-    else if (name === 'medium carp') defaultWls = '0.2';
-    else if (name === 'big carp') defaultWls = '0.3';
-    else if (name === 'small tuna') defaultWls = '2';
-    else if (name === 'medium tuna') defaultWls = '2.5';
-    else if (name === 'big tuna') defaultWls = '3';
-    else if (name === 'big squid') defaultWls = '2';
-    else if (name === 'lobster') defaultWls = '2';
+    // Explicit override for squids if their gem base was also changed previously:
+    if (name === 'small squid') defaultGems = '100';
+    if (name === 'medium squid') defaultGems = '480';
     
-    // Replaced the editable gem input with a flat readonly text span exactly as requested
     const editHtml = `
       <div class="fish-custom-rates">
         <div style="display: flex; align-items: center; padding: 4px;">
           <span class="cfg-gem-readonly">${defaultGems}</span>
           <img src="worldplanner/new/spr_icon_gems/spr_icon_gems_0.png" alt="Gems" style="height: 16px; margin-left: 6px; image-rendering: pixelated;">
           <input type="hidden" class="cfg-gem" value="${defaultGems}">
-        </div>
-        <span class="cfg-divider">•</span>
-        <div class="cfg-input-wrap">
-          <input type="number" class="cfg-wl-val" value="${defaultWls}" step="0.1" oninput="calcFishTotals()">
-          <img src="worldplanner/new/spr_fg_lock/spr_fg_lock_0.png" alt="WL">
         </div>
       </div>
     `;
