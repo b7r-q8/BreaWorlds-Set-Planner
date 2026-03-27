@@ -7811,8 +7811,8 @@ function drawWPWorld(timestamp) {
       const bid = (typeof bd === 'object') ? bd.id : bd;
       const blk = wpBlockMap[bid];
       if (!blk || blk.noShadow || blk.verticalAlign === 'center') continue;
-      // Skip shadow for fluids (lava/water/acid/mud) — they don't cast shadows in-game
-      const isFluid = bid === 'spr_fg_water_block' || bid === 'spr_fg_acid_block' || bid === 'spr_fg_mud_block' || bid === 'spr_fg_lava_block';
+      // Skip shadow for fluids (lava/water/acid/mud/bloody water) — they don't cast shadows in-game
+      const isFluid = bid === 'spr_fg_water_block' || bid === 'spr_fg_acid_block' || bid === 'spr_fg_mud_block' || bid === 'spr_fg_lava_block' || bid === 'spr_fg_bloody_water_block';
       if (isFluid) continue;
       // Skip shadow for rainbow blocks (they're drawn with overlay, shadow looks doubled)
       const isRainbow = bid && bid.includes('rainbow');
@@ -7934,7 +7934,7 @@ function drawWPWorld(timestamp) {
         const blockNow = now - placedAt;
 
         let frameIndex;
-        const isFluid = bid === 'spr_fg_water_block' || bid === 'spr_fg_acid_block' || bid === 'spr_fg_mud_block' || bid === 'spr_fg_lava_block';
+        const isFluid = bid === 'spr_fg_water_block' || bid === 'spr_fg_acid_block' || bid === 'spr_fg_mud_block' || bid === 'spr_fg_lava_block' || bid === 'spr_fg_bloody_water_block';
 
         if (blk.frameDurations && Array.isArray(blk.frameDurations)) {
           const totalDuration = blk.frameDurations.reduce((a, b) => a + b, 0);
@@ -7978,7 +7978,11 @@ function drawWPWorld(timestamp) {
           } else {
             // Submerged animation (Frames 4-7)
             const m = Math.floor(blockNow / (1000 / fps));
-            frameIndex = 4 + ((m % 4 + 4) % 4);
+            if (blk.frameCount > 4) {
+              frameIndex = 4 + ((m % 4 + 4) % 4);
+            } else {
+              frameIndex = ((m % 4 + 4) % 4);
+            }
           }
         } else {
           const m = Math.floor(blockNow / (1000 / fps));
@@ -8001,14 +8005,25 @@ function drawWPWorld(timestamp) {
     if (img.complete && img.naturalWidth > 0) {
       const nw = img.naturalWidth;
       const nh = img.naturalHeight;
-      const px = Math.round((cell.x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2 + (blk.xOffset || 0) + wpOffsetX) * wpZoom);
-      let py;
+      const rawX = (cell.x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2 + (blk.xOffset || 0) + wpOffsetX) * wpZoom;
+      const px = Math.floor(rawX);
+      const drawW = Math.ceil(rawX + nw * wpZoom) - px;
+      
+      let py, drawH;
       const useStaticIcon = blk.verticalAlign === 'center' && wpZoom < 0.6;
-      if (blk.verticalAlign === 'center' && !useStaticIcon) py = Math.round((cell.y * BLOCK_SIZE + (BLOCK_SIZE - nh) / 2 + wpOffsetY) * wpZoom);
-      else py = Math.round(((cell.y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0) + wpOffsetY) * wpZoom);
+      if (blk.verticalAlign === 'center' && !useStaticIcon) {
+        const rawY = (cell.y * BLOCK_SIZE + (BLOCK_SIZE - nh) / 2 + wpOffsetY) * wpZoom;
+        py = Math.floor(rawY);
+        drawH = Math.ceil(rawY + nh * wpZoom) - py;
+      } else {
+        const rawY = ((cell.y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0) + wpOffsetY) * wpZoom;
+        py = Math.floor(rawY);
+        drawH = Math.ceil(rawY + nh * wpZoom) - py;
+      }
 
       // Draw the block at full opacity (always)
-      wpCtx.drawImage(img, px, py, Math.round(nw * wpZoom), Math.round(nh * wpZoom));
+      // Math.ceil-based width/height scaling prevents 1px gap seams (striping) when zoomed.
+      wpCtx.drawImage(img, px, py, drawW, drawH);
 
       // For rainbow blocks, use multiply blend like PNG export (darker, richer colors)
       if (isRainbow) {
