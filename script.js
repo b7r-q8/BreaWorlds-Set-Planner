@@ -4806,7 +4806,15 @@ window.selectPlanner = function (type) {
   if (fishContainer) fishContainer.style.display = "none";
 
   // Toggle mode-specific UI - SP inventory bar ONLY shows in set planner
-  if (hamburger) hamburger.style.display = (type === "set") ? "flex" : "none";
+  if (hamburger) {
+    hamburger.style.display = (type === "set") ? "flex" : "none";
+    if (type !== "set") hamburger.classList.remove("open");
+  }
+  if (type !== "set") {
+    const sideMenu = document.getElementById("sideMenu");
+    if (sideMenu) sideMenu.classList.remove("open");
+    document.body.classList.remove("menu-open");
+  }
   if (spInventory) spInventory.style.display = (type === "set") ? "flex" : "none";
   if (zoomControls) zoomControls.style.display = (type === "set") ? "flex" : "none";
   if (roadmapBtn) roadmapBtn.style.display = "none";
@@ -4851,7 +4859,14 @@ window.backToSelection = function () {
   if (fishContainer) fishContainer.style.display = "none";
 
   // Hide SP UI
-  if (hamburger) hamburger.style.display = "none";
+  if (hamburger) {
+    hamburger.style.display = "none";
+    hamburger.classList.remove("open");
+  }
+  const sideMenu = document.getElementById("sideMenu");
+  if (sideMenu) sideMenu.classList.remove("open");
+  document.body.classList.remove("menu-open");
+
   if (spInventory) spInventory.style.display = "none";
   if (zoomControls) zoomControls.style.display = "none";
   if (roadmapBtn) roadmapBtn.style.display = "block";
