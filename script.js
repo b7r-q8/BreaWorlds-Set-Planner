@@ -1,4 +1,4 @@
-﻿window.onload = function () {
+window.onload = function () {
   if (window.lucide) {
     lucide.createIcons();
   }
@@ -4746,6 +4746,10 @@ window.addEventListener('load', () => {
         loaderInitial.style.display = 'none';
         loadingSelection.style.display = 'flex';
 
+        // Show roadmap button now that selection is visible
+        const roadmapBtn = document.querySelector('.selection-roadmap-btn');
+        if (roadmapBtn) roadmapBtn.style.display = 'block';
+
         // Show "See What's New" button with matching fade
         const whatsNewBtn = document.querySelector('.whats-new-trigger-btn');
         if (whatsNewBtn) {
@@ -4791,7 +4795,7 @@ window.selectPlanner = function (type) {
 
   // Set Planner Specific UI
   const hamburger = document.querySelector(".hamburger");
-  const inventory = document.querySelector(".inventory");
+  const spInventory = document.getElementById("sp-inventory-bar");
   const zoomControls = document.querySelector(".zoom-controls");
   const roadmapBtn = document.querySelector(".selection-roadmap-btn");
   const spTeleport = document.getElementById("sp-main-menu-btn");
@@ -4801,9 +4805,9 @@ window.selectPlanner = function (type) {
   if (setContainer) setContainer.style.display = "none";
   if (fishContainer) fishContainer.style.display = "none";
 
-  // Toggle mode-specific UI
+  // Toggle mode-specific UI - SP inventory bar ONLY shows in set planner
   if (hamburger) hamburger.style.display = (type === "set") ? "flex" : "none";
-  if (inventory) inventory.style.display = (type === "set") ? "flex" : "none";
+  if (spInventory) spInventory.style.display = (type === "set") ? "flex" : "none";
   if (zoomControls) zoomControls.style.display = (type === "set") ? "flex" : "none";
   if (roadmapBtn) roadmapBtn.style.display = "none";
   if (spTeleport) spTeleport.style.display = (type === "set") ? "flex" : "none";
@@ -4837,20 +4841,25 @@ window.backToSelection = function () {
 
   // Set Planner Specific UI
   const hamburger = document.querySelector(".hamburger");
-  const inventory = document.querySelector(".inventory");
+  const spInventory = document.getElementById("sp-inventory-bar");
   const zoomControls = document.querySelector(".zoom-controls");
   const roadmapBtn = document.querySelector(".selection-roadmap-btn");
   const spTeleport = document.getElementById("sp-main-menu-btn");
 
-  wpContainer.style.display = "none";
+  if (wpContainer) wpContainer.style.display = "none";
   if (setContainer) setContainer.style.display = "none";
   if (fishContainer) fishContainer.style.display = "none";
 
   // Hide SP UI
   if (hamburger) hamburger.style.display = "none";
-  if (inventory) inventory.style.display = "none";
+  if (spInventory) spInventory.style.display = "none";
   if (zoomControls) zoomControls.style.display = "none";
   if (roadmapBtn) roadmapBtn.style.display = "block";
+  
+  // Ghost removal
+  const bgWrap = document.querySelector(".background-wrapper"); if (bgWrap) bgWrap.style.display = "none";
+  const charDisp = document.getElementById("characterDisplay"); if (charDisp) charDisp.style.display = "none";
+  const nameDisp = document.getElementById("player-name"); if (nameDisp) nameDisp.style.display = "none";
   if (spTeleport) spTeleport.style.display = "none";
 
   if (loadingScreen) {
@@ -4858,6 +4867,9 @@ window.backToSelection = function () {
     loadingScreen.classList.remove("fade-out");
     if (loaderInitial) loaderInitial.style.display = "none";
     if (loadingSelection) loadingSelection.style.display = "flex";
+    // Show roadmap button on main menu
+    const selRoadmapBtn = document.querySelector('.selection-roadmap-btn');
+    if (selRoadmapBtn) selRoadmapBtn.style.display = 'block';
   }
 };
 
@@ -9765,6 +9777,7 @@ window.wpFlipSelection = function(dir) {
 
   if (wasNotCopied && !wpPasteMode) {
     wpDropSelectionBuffer();
+    wpCopiedData = null;
     saveWPHistory();
     showWPSelectionMenu();
   }
@@ -10034,15 +10047,21 @@ let wpHotkeys = {
   tools: {
     pencil: null,
     eraser: null,
-    picker: null,
-    bucket: null,
-    selection: null,
     move: null,
-    flip: null,
+    wrench: null,
+    copy: null,
+    select: null,
     fill: null,
-    delete: null,
     undo: null,
-    redo: null
+    redo: null,
+    reset: null,
+    clear: null,
+    grid: null,
+    count: null,
+    reposition: null,
+    save: null,
+    blocks: null,
+    background: null
   },
   inventory: {
     "slot-0": null,
@@ -10066,7 +10085,19 @@ function loadWPHotkeys() {
     try {
       const parsed = JSON.parse(saved);
       if (parsed.tools && parsed.inventory) {
+        // Migrate: if saved data has old keys (picker, bucket, selection, etc.), reset tools
+        const validTools = Object.keys(wpHotkeys.tools);
+        const savedToolKeys = Object.keys(parsed.tools);
+        const hasOldKeys = savedToolKeys.some(k => !validTools.includes(k));
+        if (hasOldKeys) {
+          // Keep inventory, reset tools to new schema preserving matching keys
+          const newTools = {};
+          validTools.forEach(k => { newTools[k] = parsed.tools[k] || null; });
+          parsed.tools = newTools;
+        }
         wpHotkeys = parsed;
+        // Ensure all valid tools exist
+        validTools.forEach(k => { if (wpHotkeys.tools[k] === undefined) wpHotkeys.tools[k] = null; });
       }
     } catch (e) {
       console.error("Failed to parse hotkeys:", e);
@@ -10081,44 +10112,72 @@ window.openWPSettings = function() {
   renderHotkeySettings();
 };
 
+const wpToolLabels = {
+  pencil: "Place", eraser: "Erase", move: "Move", wrench: "Wrench",
+  copy: "Copy", select: "Select", fill: "Fill",
+  undo: "Undo", redo: "Redo", reset: "Reset", clear: "Clear",
+  grid: "Grid", count: "Count", reposition: "Reposition", save: "Save",
+  blocks: "Blocks", background: "Themes"
+};
+const wpToolIcons = {
+  pencil: "pencil", eraser: "eraser", move: "move", wrench: "wrench",
+  copy: "copy", select: "box-select", fill: "paint-bucket",
+  undo: "undo", redo: "redo", reset: "rotate-ccw", clear: "trash-2",
+  grid: "grid", count: "layers", reposition: "maximize", save: "save",
+  blocks: "box", background: "cloud"
+};
+
 function renderHotkeySettings() {
   const toolsList = document.getElementById("wp-hotkeys-list");
   const invList = document.getElementById("wp-inventory-hotkeys-list");
   if (!toolsList || !invList) return;
-
   toolsList.innerHTML = "";
   invList.innerHTML = "";
 
-  // Tools
   Object.keys(wpHotkeys.tools).forEach(tool => {
     const key = wpHotkeys.tools[tool];
     const item = document.createElement("div");
     item.className = "wp-hotkey-item";
+    
+    // Tap to execute row logic
+    item.onclick = (e) => {
+      if (e.target.closest(".wp-key-cap") || e.target.closest(".wp-hotkey-remove")) return;
+      const btn = document.querySelector(`.wp-tool-btn[data-tool="${tool}"]`);
+      if (btn) btn.click();
+    };
+
     item.innerHTML = `
-      <span class="wp-hotkey-label">${tool}</span>
-      <div style="display: flex; gap: 8px;">
+      <div class="wp-hotkey-left">
+        <div class="wp-hotkey-status"></div>
+        <i data-lucide="${wpToolIcons[tool] || 'wrench'}"></i>
+        <span class="wp-hotkey-label">${wpToolLabels[tool] || tool}</span>
+      </div>
+      <div class="wp-hotkey-right">
         <button class="wp-key-cap" data-type="tools" data-id="${tool}" onclick="startHotkeyCapture(this)">${key || ""}</button>
-        <button class="wp-key-clear" onclick="clearHotkey('tools', '${tool}')" style="background: none; border: none; color: #e63946; font-size: 10px; cursor: pointer; opacity: 0.6;">X</button>
+        <button class="wp-hotkey-remove" onclick="clearHotkey('tools', '${tool}')">&times;</button>
       </div>
     `;
     toolsList.appendChild(item);
   });
 
-  // Inventory
   for (let i = 0; i < 10; i++) {
     const slotId = `slot-${i}`;
     const key = wpHotkeys.inventory[slotId];
     const item = document.createElement("div");
     item.className = "wp-hotkey-item";
     item.innerHTML = `
-      <span class="wp-hotkey-label">Slot ${i + 1}</span>
-      <div style="display: flex; gap: 8px;">
+      <div class="wp-hotkey-left">
+        <div class="wp-hotkey-status"></div>
+        <span class="wp-hotkey-label">Slot ${i + 1}</span>
+      </div>
+      <div class="wp-hotkey-right">
         <button class="wp-key-cap" data-type="inventory" data-id="${slotId}" onclick="startHotkeyCapture(this)">${key || ""}</button>
-        <button class="wp-key-clear" onclick="clearHotkey('inventory', '${slotId}')" style="background: none; border: none; color: #e63946; font-size: 10px; cursor: pointer; opacity: 0.6;">X</button>
+        <button class="wp-hotkey-remove" onclick="clearHotkey('inventory', '${slotId}')">&times;</button>
       </div>
     `;
     invList.appendChild(item);
   }
+  if (window.lucide) lucide.createIcons();
 }
 
 window.clearHotkey = function(type, id) {
@@ -10186,10 +10245,20 @@ window.addEventListener("keydown", (e) => {
   if (toolEntry) {
     const toolName = toolEntry[0];
     e.preventDefault();
-    
-    if (toolName === "undo") { window.wpUndo && window.wpUndo(); return; }
-    if (toolName === "redo") { window.wpRedo && window.wpRedo(); return; }
-    
+
+    // Tools that use onclick instead of data-tool attribute
+    switch (toolName) {
+      case "undo": if (window.wpUndo) window.wpUndo(); return;
+      case "redo": if (window.wpRedo) window.wpRedo(); return;
+      case "reset": if (window.wpResetWorld) window.wpResetWorld(); return;
+      case "clear": if (window.wpClearWorldOnly) window.wpClearWorldOnly(); return;
+      case "grid": if (window.wpToggleGrid) window.wpToggleGrid(); return;
+      case "count": if (window.toggleWPPopup) window.toggleWPPopup('wp-count-modal'); return;
+      case "reposition": if (window.wpReposition) window.wpReposition(); return;
+      case "save": if (window.toggleWPPopup) window.toggleWPPopup('wp-save-popup'); return;
+    }
+
+    // Tools with data-tool attribute (pencil, eraser, move, wrench, copy, select, fill, blocks, background)
     const btn = document.querySelector(`.wp-tool-btn[data-tool="${toolName}"]`);
     if (btn) btn.click();
     return;
@@ -10203,12 +10272,15 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault();
     
     // Correctly click the slot in the inventory drawer
-    const slots = document.getElementById("wp-inventory-drawer").querySelectorAll(".wp-inventory-slot");
-    if (slots[index]) {
-      slots[index].click();
-      // Visual feedback
-      slots[index].style.transform = "scale(1.1)";
-      setTimeout(() => { slots[index].style.transform = ""; }, 100);
+    const drawer = document.getElementById("wp-inventory-drawer");
+    if (drawer) {
+      const slots = drawer.querySelectorAll(".wp-slot");
+      if (slots[index]) {
+        slots[index].click();
+        // Visual feedback
+        slots[index].style.transform = "scale(1.1)";
+        setTimeout(() => { slots[index].style.transform = ""; }, 100);
+      }
     }
     return;
   }
@@ -10222,9 +10294,10 @@ window.saveWPHotkeys = function() {
 window.resetWPHotkeys = function() {
   if (confirm("Are you sure you want to reset all hotkeys to unassigned?")) {
     wpHotkeys = {
-      tools: { pencil: null, eraser: null, picker: null, bucket: null, selection: null, move: null, flip: null, fill: null, delete: null, undo: null, redo: null },
+      tools: { pencil: null, eraser: null, move: null, wrench: null, copy: null, select: null, fill: null, undo: null, redo: null, reset: null, clear: null, grid: null, count: null, reposition: null, save: null, blocks: null, background: null },
       inventory: { "slot-0": null, "slot-1": null, "slot-2": null, "slot-3": null, "slot-4": null, "slot-5": null, "slot-6": null, "slot-7": null, "slot-8": null, "slot-9": null }
     };
+    localStorage.setItem("wp_custom_hotkeys", JSON.stringify(wpHotkeys));
     renderHotkeySettings();
   }
 };

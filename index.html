@@ -197,14 +197,6 @@
 
         </button>
 
-        <button class="wp-tool-btn" onclick="openWPSettings()" title="Settings">
-
-          <i data-lucide="settings"></i>
-
-          <span class="wp-tool-label">Settings</span>
-
-        </button>
-
         <button class="wp-tool-btn" data-tool="move" title="Move">
 
           <i data-lucide="move"></i>
@@ -337,6 +329,13 @@
           <i data-lucide="image"></i>
 
           <span class="wp-tool-label">Image</span>
+
+        </button>
+        <button class="wp-tool-btn" onclick="openWPSettings()" title="Settings">
+
+          <i data-lucide="settings"></i>
+
+          <span class="wp-tool-label">Settings</span>
 
         </button>
         <input type="file" id="wp-image-import" accept="image/png, image/jpeg, image/webp" style="display:none;"
@@ -749,11 +748,13 @@
 
           </div>
 
+
         </div>
 
-        <div class="roadmap-btn selection-roadmap-btn" onclick="openRoadmapModal()" style="position: fixed; top: 20px; right: 20px; z-index: 10002;">
+        <div class="roadmap-btn selection-roadmap-btn" onclick="openRoadmapModal()" style="position: fixed; top: 20px; right: 20px; z-index: 10002; display: none;">
           <div class="roadmap-icon-anim roadmap-icon-space"></div> Roadmap
         </div>
+
       </div>
 
 
@@ -1434,7 +1435,7 @@
     });
   </script>
 
-  <div id="set-planner-container" style="display: block;">
+  <div id="set-planner-container" style="display: none;">
 
     <!-- TOP DRAWER MENU (PLATFORMS & BACKGROUNDS) -->
 
@@ -7627,7 +7628,7 @@
 
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <script src="script.js?v=2.46"></script>
+  <script src="script.js?v=2.47"></script>
 
 </body>
 
