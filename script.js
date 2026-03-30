@@ -4757,7 +4757,7 @@ window.addEventListener('load', () => {
         }
 
         // Auto-show modal if not confirmed yet
-        if (!localStorage.getItem('whats_new_confirmed')) {
+        if (!localStorage.getItem('whats_new_v310_confirmed')) {
           if (typeof initWhatsNewModal === 'function') {
             initWhatsNewModal();
           }
@@ -4786,6 +4786,10 @@ window.addEventListener('load', () => {
 const WORLD_WIDTH = 100; // 0 to 99
 const WORLD_HEIGHT = 50; // Increased from 45 to 50
 const BLOCK_SIZE = 32;
+
+window.WORLD_WIDTH = WORLD_WIDTH;
+window.WORLD_HEIGHT = WORLD_HEIGHT;
+window.BLOCK_SIZE = BLOCK_SIZE;
 
 window.selectPlanner = function (type) {
   const wpContainer = document.getElementById("world-planner-container");
@@ -4817,7 +4821,7 @@ window.selectPlanner = function (type) {
   }
   if (spInventory) spInventory.style.display = (type === "set") ? "flex" : "none";
   if (zoomControls) zoomControls.style.display = (type === "set") ? "flex" : "none";
-  if (roadmapBtn) roadmapBtn.style.display = "none";
+  const rmBtn = document.getElementById("main-roadmap-btn"); if (rmBtn) rmBtn.style.display = "none";
   if (spTeleport) spTeleport.style.display = (type === "set") ? "flex" : "none";
 
   if (type === "world") {
@@ -4882,6 +4886,7 @@ window.backToSelection = function () {
     loadingScreen.classList.remove("fade-out");
     if (loaderInitial) loaderInitial.style.display = "none";
     if (loadingSelection) loadingSelection.style.display = "flex";
+    const rmBtn = document.getElementById("main-roadmap-btn"); if (rmBtn) rmBtn.style.display = "flex";
     // Show roadmap button on main menu
     const selRoadmapBtn = document.querySelector('.selection-roadmap-btn');
     if (selRoadmapBtn) selRoadmapBtn.style.display = 'block';
@@ -5164,7 +5169,7 @@ function updateWPAnimatedCellList(tx, ty, isRemoving = false) {
         if (bdFG) {
           const bid = (typeof bdFG === 'object' && bdFG !== null) ? bdFG.id : bdFG;
           const blk = wpBlockMap[bid];
-          if ((bid === 'spr_fg_rainbow_block' || bid === 'rainbow_block') || (blk && blk.framesPath && (typeof bdFG !== 'object' || bdFG.state === undefined || bid === 'spr_fg_xmas_dj_box' || bid === 'spr_fg_gem_machine'))) {
+          if ((bid === 'spr_fg_rainbow_block' || bid === 'rainbow_block') || (blk && blk.framesPath && bid !== 'spr_fg_flamingo' && (typeof bdFG !== 'object' || bdFG.state === undefined || bid === 'spr_fg_xmas_dj_box' || bid === 'spr_fg_gem_machine'))) {
             wpAnimatedCells.push({ x, y, layer: 'fg' });
           }
         }
@@ -5173,7 +5178,7 @@ function updateWPAnimatedCellList(tx, ty, isRemoving = false) {
         if (bdBG) {
           const bid = (typeof bdBG === 'object' && bdBG !== null) ? bdBG.id : bdBG;
           const blk = wpBlockMap[bid];
-          if (blk && blk.framesPath && (typeof bdBG !== 'object' || bdBG.state === undefined || bid === 'spr_fg_xmas_dj_box' || bid === 'spr_fg_gem_machine')) {
+          if (blk && blk.framesPath && bid !== 'spr_fg_flamingo' && (typeof bdBG !== 'object' || bdBG.state === undefined || bid === 'spr_fg_xmas_dj_box' || bid === 'spr_fg_gem_machine')) {
             wpAnimatedCells.push({ x, y, layer: 'bg' });
           }
         }
@@ -5196,7 +5201,7 @@ function updateWPAnimatedCellList(tx, ty, isRemoving = false) {
     if (bdFG) {
       const bidFG = (typeof bdFG === 'object' && bdFG !== null) ? bdFG.id : bdFG;
       const blkFG = wpBlockMap[bidFG];
-      if ((bidFG === 'spr_fg_rainbow_block' || bidFG === 'rainbow_block') || (blkFG && blkFG.framesPath && (typeof bdFG !== 'object' || bdFG.state === undefined || bidFG === 'spr_fg_xmas_dj_box' || bidFG === 'spr_fg_gem_machine'))) {
+      if ((bidFG === 'spr_fg_rainbow_block' || bidFG === 'rainbow_block') || (blkFG && blkFG.framesPath && bidFG !== 'spr_fg_flamingo' && (typeof bdFG !== 'object' || bdFG.state === undefined || bidFG === 'spr_fg_xmas_dj_box' || bidFG === 'spr_fg_gem_machine'))) {
         wpAnimatedCells.push({ x: tx, y: ty, layer: 'fg' });
       }
     }
@@ -5205,7 +5210,7 @@ function updateWPAnimatedCellList(tx, ty, isRemoving = false) {
     if (bdBG) {
       const bidBG = (typeof bdBG === 'object' && bdBG !== null) ? bdBG.id : bdBG;
       const blkBG = wpBlockMap[bidBG];
-      if (blkBG && blkBG.framesPath && (typeof bdBG !== 'object' || bdBG.state === undefined || bidBG === 'spr_fg_xmas_dj_box' || bidBG === 'spr_fg_gem_machine')) {
+      if (blkBG && blkBG.framesPath && bidBG !== 'spr_fg_flamingo' && (typeof bdBG !== 'object' || bdBG.state === undefined || bidBG === 'spr_fg_xmas_dj_box' || bidBG === 'spr_fg_gem_machine')) {
         wpAnimatedCells.push({ x: tx, y: ty, layer: 'bg' });
       }
     }
@@ -5362,6 +5367,7 @@ function loadActiveWorld() {
 
   // Start the constant render loop
   if (wpAnimationId) cancelAnimationFrame(wpAnimationId);
+  if (typeof mpDrawRemoteCursors === 'function') mpDrawRemoteCursors(wpCtx, wpZoom, wpOffsetX, wpOffsetY);
   wpAnimationId = requestAnimationFrame(drawWPWorld);
 }
 
@@ -5469,8 +5475,10 @@ function updateWPStaticCacheAt(x, y, pass, shouldClear = true) {
       const blk = wpBlockMap[bid];
       if (blk) {
         let imgPath = blk.src;
-        if (blk.framesPath && typeof bdbg === 'object' && bdbg.state !== undefined) {
-          imgPath = `${blk.framesPath}${bdbg.state}.png`;
+        const isAnimated = typeof wpAnimatedCells !== 'undefined' && wpAnimatedCells.some(c => c.x === x && c.y === y && c.layer === 'bg');
+        if (blk.framesPath && (isAnimated || (typeof bdbg === 'object' && bdbg.state !== undefined))) {
+          let state = (typeof bdbg === 'object' && bdbg.state !== undefined) ? bdbg.state : 0;
+          imgPath = `${blk.framesPath}${state}.png`;
         }
 
         const img = getWPImage(imgPath);
@@ -5493,7 +5501,8 @@ function updateWPStaticCacheAt(x, y, pass, shouldClear = true) {
     if (bd) {
       const bid = (typeof bd === 'object') ? bd.id : bd;
       const blk = wpBlockMap[bid];
-      if (blk && (!blk.framesPath || (typeof bd === 'object' && bd.state !== undefined && bid !== 'spr_fg_xmas_dj_box' && bid !== 'spr_fg_gem_machine') || blk.isDirt)) {
+      const isAnimated = typeof wpAnimatedCells !== 'undefined' && wpAnimatedCells.some(c => c.x === x && c.y === y && (pass === 'blocks' || pass === 'shadows' ? c.layer === 'fg' : c.layer === 'bg'));
+      if (blk && (!blk.framesPath || !isAnimated || (typeof bd === 'object' && bd.state !== undefined && bid !== 'spr_fg_xmas_dj_box' && bid !== 'spr_fg_gem_machine') || blk.isDirt)) {
         if (bid && !bid.includes('rainbow')) {
           let imgPath = blk.src;
           if (blk.isDirt) imgPath = getDirtSrc(blk, (bd.dirtState || 0));
@@ -5523,7 +5532,8 @@ function updateWPStaticCacheAt(x, y, pass, shouldClear = true) {
       const bid = (typeof bd === 'object') ? bd.id : bd;
       const blk = wpBlockMap[bid];
       if (blk && !blk.noShadow && blk.verticalAlign !== 'center' && blk.type !== 'background') {
-        if (!blk.framesPath || (typeof bd === 'object' && bd.state !== undefined && bid !== 'spr_fg_xmas_dj_box' && bid !== 'spr_fg_gem_machine')) {
+        const isAnimated = typeof wpAnimatedCells !== 'undefined' && wpAnimatedCells.some(c => c.x === x && c.y === y && c.layer === 'fg');
+        if (!blk.framesPath || !isAnimated || (typeof bd === 'object' && bd.state !== undefined && bid !== 'spr_fg_xmas_dj_box' && bid !== 'spr_fg_gem_machine')) {
           let imgPath = blk.src;
           if (blk.isDirt) imgPath = getDirtSrc(blk, (bd.dirtState || 0));
           else if (typeof bd === 'object' && bd.state !== undefined && blk.framesPath) imgPath = `${blk.framesPath}${bd.state}.png`;
@@ -5613,8 +5623,8 @@ function rebuildWPStaticCache() {
   }
 }
 
-window.wpResetWorld = function () {
-  if (confirm("Reset world to default? All changes will be lost.")) {
+window.wpResetWorld = function (fromNetwork = false, skipConfirm = false) {
+  if (skipConfirm || confirm("Reset world to default? All changes will be lost.")) {
     wpGrid = getWPDefaultGrid();
 
     // Also clear background layer
@@ -5632,17 +5642,24 @@ window.wpResetWorld = function () {
     saveActiveWorld();
     updateWPAnimatedCellList();
     updateWPBlockCount();
+    if (!fromNetwork && typeof mpBroadcastWorldAction === "function") mpBroadcastWorldAction("reset");
+    if (typeof initWPHistoryState === 'function') {
+      window.wpHistory = [];
+      window.wpHistoryIndex = -1;
+      initWPHistoryState();
+    }
     wpMarkStaticDirty();
   }
 };
 
-window.wpClearWorldOnly = function () {
-  if (confirm("Clear all blocks except the bedrock foundation?")) {
+window.wpClearWorldOnly = function (fromNetwork = false, skipConfirm = false) {
+  if (skipConfirm || confirm("Clear all blocks except the bedrock foundation?")) {
     // Clear both layers up to bedrock
     for (let y = 0; y < WORLD_HEIGHT - 5; y++) {
       wpGrid[y].fill(null);
       wpBackgroundGrid[y].fill(null);
     }
+    if (!fromNetwork && typeof mpBroadcastWorldAction === 'function') mpBroadcastWorldAction('clear');
     saveWPHistory();
     saveActiveWorld();
     updateWPAnimatedCellList();
@@ -5846,6 +5863,9 @@ function initWorldPlanner() {
     }
 
     applyWPTransform();
+    
+    // Initial history state
+    if (typeof window.initWPHistoryState === 'function') window.initWPHistoryState();
   }, 100);
 
   // Start render loop
@@ -6071,17 +6091,45 @@ function handleWPResize() {
   }
 }
 
+window.wpHistoryBaseline = null;
+
+window.initWPHistoryState = function () {
+  const deepCopyGrid = (grid) => grid.map(row => row.slice().map(cell =>
+    (typeof cell === 'object' && cell !== null) ? { ...cell } : cell
+  ));
+  window.wpHistoryBaseline = {
+    fg: deepCopyGrid(wpGrid),
+    bg: deepCopyGrid(wpBackgroundGrid)
+  };
+};
+
+window.wpUpdateHistoryStateSilently = function (x, y, layer, val) {
+  if (!window.wpHistoryBaseline) return;
+  const target = layer === 'bg' ? window.wpHistoryBaseline.bg : window.wpHistoryBaseline.fg;
+  target[y][x] = (typeof val === 'object' && val !== null) ? { ...val } : val;
+};
+
 window.wpUndo = function () {
-  if (wpHistoryIndex > 0) {
-    wpHistoryIndex--;
+  if (wpHistoryIndex >= 0) {
     const state = wpHistory[wpHistoryIndex];
-    if (state.bg) {
-      wpGrid = JSON.parse(JSON.stringify(state.fg));
-      wpBackgroundGrid = JSON.parse(JSON.stringify(state.bg));
+    if (state.deltas) {
+      // Revert each modified block
+      for (const d of state.deltas) {
+        const targetGrid = d.l === 'bg' ? wpBackgroundGrid : wpGrid;
+        const val = d.prev;
+        targetGrid[d.y][d.x] = (typeof val === 'object' && val !== null) ? { ...val } : val;
+        window.wpUpdateHistoryStateSilently(d.x, d.y, d.l, val);
+        wpUpdateTilingAt(d.x, d.y);
+      }
+      if (typeof mpBroadcastBulkAction === 'function') mpBroadcastBulkAction(state.deltas, true);
     } else {
-      // Compatibility for old snapshots
-      wpGrid = JSON.parse(JSON.stringify(state));
+      // Legacy backwards-compatibility for old snapshot behavior before delta-rewrite
+      if (state.bg) { wpGrid = JSON.parse(JSON.stringify(state.fg)); wpBackgroundGrid = JSON.parse(JSON.stringify(state.bg)); }
+      else { wpGrid = JSON.parse(JSON.stringify(state)); }
+      window.initWPHistoryState(); 
     }
+    
+    wpHistoryIndex--;
     updateWPAnimatedCellList();
     updateWPBlockCount();
     wpMarkStaticDirty();
@@ -6092,12 +6140,22 @@ window.wpRedo = function () {
   if (wpHistoryIndex < wpHistory.length - 1) {
     wpHistoryIndex++;
     const state = wpHistory[wpHistoryIndex];
-    if (state.bg) {
-      wpGrid = JSON.parse(JSON.stringify(state.fg));
-      wpBackgroundGrid = JSON.parse(JSON.stringify(state.bg));
+    if (state.deltas) {
+      for (const d of state.deltas) {
+        const targetGrid = d.l === 'bg' ? wpBackgroundGrid : wpGrid;
+        const val = d.next;
+        targetGrid[d.y][d.x] = (typeof val === 'object' && val !== null) ? { ...val } : val;
+        window.wpUpdateHistoryStateSilently(d.x, d.y, d.l, val);
+        wpUpdateTilingAt(d.x, d.y);
+      }
+      if (typeof mpBroadcastBulkAction === 'function') mpBroadcastBulkAction(state.deltas, false);
     } else {
-      wpGrid = JSON.parse(JSON.stringify(state));
+      // Legacy
+      if (state.bg) { wpGrid = JSON.parse(JSON.stringify(state.fg)); wpBackgroundGrid = JSON.parse(JSON.stringify(state.bg)); }
+      else { wpGrid = JSON.parse(JSON.stringify(state)); }
+      window.initWPHistoryState();
     }
+
     updateWPAnimatedCellList();
     updateWPBlockCount();
     wpMarkStaticDirty();
@@ -6105,25 +6163,44 @@ window.wpRedo = function () {
 };
 
 function saveWPHistory() {
-  // Remove future states if we are in the middle of history
+  if (!window.wpHistoryBaseline) window.initWPHistoryState();
+
   if (wpHistoryIndex < wpHistory.length - 1) {
     wpHistory.splice(wpHistoryIndex + 1);
   }
 
-  const deepCopyGrid = (grid) => grid.map(row => row.slice().map(cell =>
-    (typeof cell === 'object' && cell !== null) ? { ...cell } : cell
-  ));
-
-  const snapshot = {
-    fg: deepCopyGrid(wpGrid),
-    bg: deepCopyGrid(wpBackgroundGrid)
-  };
-
-  wpHistory.push(snapshot);
-  if (wpHistory.length > MAX_HISTORY) {
-    wpHistory.shift();
+  const changes = [];
+  
+  // Find all deltas between Current Grid and Baseline
+  for (let y = 0; y < WORLD_HEIGHT; y++) {
+    for (let x = 0; x < WORLD_WIDTH; x++) {
+      // Check FG
+      const fgOld = window.wpHistoryBaseline.fg[y][x];
+      const fgNew = wpGrid[y][x];
+      if (JSON.stringify(fgOld) !== JSON.stringify(fgNew)) {
+        changes.push({ x, y, l: 'fg', prev: fgOld, next: fgNew });
+        window.wpHistoryBaseline.fg[y][x] = (typeof fgNew === 'object' && fgNew !== null) ? { ...fgNew } : fgNew;
+      }
+      // Check BG
+      const bgOld = window.wpHistoryBaseline.bg[y][x];
+      const bgNew = wpBackgroundGrid[y][x];
+      if (JSON.stringify(bgOld) !== JSON.stringify(bgNew)) {
+        changes.push({ x, y, l: 'bg', prev: bgOld, next: bgNew });
+        window.wpHistoryBaseline.bg[y][x] = (typeof bgNew === 'object' && bgNew !== null) ? { ...bgNew } : bgNew;
+      }
+    }
   }
-  wpHistoryIndex = wpHistory.length - 1;
+
+  // Only push if there are actual diffs
+  if (changes.length > 0) {
+    wpHistory.push({ deltas: changes });
+    if (wpHistory.length > MAX_HISTORY) {
+      wpHistory.shift();
+    }
+    wpHistoryIndex = wpHistory.length - 1;
+    return changes; // Return deltas for multiplayer broadcasting
+  }
+  return null;
 }
 
 window.wpToggleGrid = function () {
@@ -6212,7 +6289,7 @@ async function saveWPWorldToSlot(slotNumber) {
   renderWPWorldSlots();
 }
 
-function loadWPWorldFromSlot(slotNumber) {
+function loadWPWorldFromSlot(slotNumber, skipToggle = false) {
   const dataStr = localStorage.getItem(`wpSaveSlot_${slotNumber}`);
   if (!dataStr) return;
 
@@ -6292,7 +6369,11 @@ function loadWPWorldFromSlot(slotNumber) {
     saveWPHistory();
     saveActiveWorld();
     wpMarkStaticDirty();
-    toggleWPPopup('wp-save-popup');
+    if (!skipToggle) toggleWPPopup('wp-save-popup');
+    else {
+      // Just ensure popups are closed for MP host
+      document.querySelectorAll('.wp-popup').forEach(p => p.classList.add('hidden'));
+    }
     
     // Force a full redraw
     setTimeout(() => {
@@ -6940,6 +7021,9 @@ function setupWPEvents() {
         } else {
           if (wpSelectionBox && wpCopiedData && !wpPasteMode) {
             wpDropSelectionBuffer();
+            if (typeof window.mpBroadcastSelectionEnd === 'function') {
+                window.mpBroadcastSelectionEnd();
+            }
             saveWPHistory(); // GUARANTEE HISTORY SAVE ON DROP!
             wpNeedsPostProcess = true;
           }
@@ -6990,7 +7074,7 @@ function setupWPEvents() {
     handleWPInteraction(e);
   };
 
-  // Centralized mouseup handler Ã¢â‚¬â€ runs on document to catch releases outside canvas
+  // Centralized mouseup handler Ã¢â‚¬â€  runs on document to catch releases outside canvas
   function wpHandleMouseUp(e) {
     // If right mouse was released, clear panning
     if (e && e.button === 2) {
@@ -7062,7 +7146,18 @@ function setupWPEvents() {
   window.onmouseup = wpHandleMouseUp;
   document.addEventListener('mouseup', wpHandleMouseUp);
 
+  window.wpLastMouseX = 0;
+  window.wpLastMouseY = 0;
+
   wpCanvas.onmousemove = (e) => {
+    const rect = wpCanvas.getBoundingClientRect();
+    window.wpLastMouseX = (e.clientX - rect.left) / wpZoom - wpOffsetX;
+    window.wpLastMouseY = (e.clientY - rect.top) / wpZoom - wpOffsetY;
+
+    if (typeof mpSendCursorPosition === 'function') {
+      mpSendCursorPosition(window.wpLastMouseX, window.wpLastMouseY);
+    }
+
     // Safety guard: if no mouse buttons are pressed, force-reset panning/painting
     // This prevents the "stuck panning" bug when mouseup is missed (e.g. right-click)
     if (e.buttons === 0) {
@@ -7158,6 +7253,10 @@ function setupWPEvents() {
         const canvasTouchY = (e.touches[0].clientY - rect.top) / wpZoom - wpOffsetY;
         const x = Math.floor(canvasTouchX / BLOCK_SIZE);
         const y = Math.floor(canvasTouchY / BLOCK_SIZE);
+
+        if (typeof mpSendCursorPosition === 'function') {
+          mpSendCursorPosition(canvasTouchX, canvasTouchY);
+        }
 
         if (wpCurrentTool === 'select') {
           if (wpPasteMode) {
@@ -7314,6 +7413,14 @@ function setupWPEvents() {
         // Paint while moving
         handleWPInteraction(e.touches[0]);
       }
+      
+      if (typeof mpSendCursorPosition === 'function') {
+        const rect = wpCanvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        const cx = (touch.clientX - rect.left) / wpZoom - wpOffsetX;
+        const cy = (touch.clientY - rect.top) / wpZoom - wpOffsetY;
+        mpSendCursorPosition(cx, cy);
+      }
     }
   }, { passive: false });
 
@@ -7364,6 +7471,9 @@ function pickWPBlock(e) {
 
     wpSelectedBlockId = block.id;
     wpCurrentTool = 'pencil';
+    if (typeof window.mpSendCursorPosition === 'function') {
+      window.mpSendCursorPosition(window.wpLastMouseX, window.wpLastMouseY, true);
+    }
     if (block.type) wpCurrentTab = block.type;
 
     // Update UI
@@ -7508,6 +7618,10 @@ function handleWPInteractionAt(x, y, isBatched = false) {
       if (currentId === wpSelectedBlockId) {
         targetGrid[y][x] = null; // Erase!
         wasUpdated = true; // Flag for updates
+        
+        if (typeof mpBroadcastBlockErase === 'function') {
+          mpBroadcastBlockErase(x, y, isBackground ? 'bg' : 'fg');
+        }
 
         // Trigger generic updates for removal
         updateWPAnimatedCellList(x, y, true);
@@ -7547,6 +7661,10 @@ function handleWPInteractionAt(x, y, isBatched = false) {
     
     targetGrid[y][x] = finalData;
     wasUpdated = true;
+    
+    if (typeof mpBroadcastBlockPlace === 'function') {
+      mpBroadcastBlockPlace(x, y, wpSelectedBlockId, isBackground ? 'bg' : 'fg', finalData);
+    }
 
     // Prefetch frames
     if (newBlock.framesPath && newBlock.frameCount) {
@@ -7556,7 +7674,7 @@ function handleWPInteractionAt(x, y, isBatched = false) {
     }
 
     if (!isBackground) {
-      // Only update immediate cardinal neighbors Ã¢â‚¬â€ no chain walk
+      // Only update immediate cardinal neighbors Ã¢â‚¬â€  no chain walk
       wpUpdateTilingAt(x, y);     // Self
       wpUpdateTilingAt(x, y + 1); // Below
       wpUpdateTilingAt(x, y - 1); // Above
@@ -7589,7 +7707,7 @@ function handleWPInteractionAt(x, y, isBatched = false) {
 
     if (wpEraserTargetLayer === 'fg' && wpGrid[y][x] !== null) {
       wpGrid[y][x] = null;
-      // Only update immediate cardinal neighbors Ã¢â‚¬â€ no chain walk
+      // Only update immediate cardinal neighbors Ã¢â‚¬â€  no chain walk
       wpUpdateTilingAt(x, y + 1);
       wpUpdateTilingAt(x, y - 1);
       wpUpdateTilingAt(x + 1, y);
@@ -7601,6 +7719,9 @@ function handleWPInteractionAt(x, y, isBatched = false) {
     }
 
     if (wasRemoved) {
+      if (typeof mpBroadcastBlockErase === 'function') {
+        mpBroadcastBlockErase(x, y, wpEraserTargetLayer);
+      }
       updateWPAnimatedCellList(x, y, true);
       wpNeedsPostProcess = true;
       if (!isBatched) {
@@ -7634,6 +7755,10 @@ function handleWPInteractionAt(x, y, isBatched = false) {
       if (gridType === 'fg') wpGrid[y][x] = newData;
       else wpBackgroundGrid[y][x] = newData;
 
+      if (typeof mpBroadcastWrenchAction === 'function') {
+        mpBroadcastWrenchAction(x, y, gridType, blockId, newState);
+      }
+
       saveActiveWorld();
       updateWPAnimatedCellList();
 
@@ -7655,6 +7780,9 @@ function handleWPInteractionAt(x, y, isBatched = false) {
     if (targetId) {
       wpSelectedBlockId = targetId;
       wpCurrentTool = 'pencil';
+      if (typeof window.mpSendCursorPosition === 'function') {
+        window.mpSendCursorPosition(window.wpLastMouseX, window.wpLastMouseY, true);
+      }
 
       // Update UI buttons
       const buttons = document.querySelectorAll('.wp-tool-btn[data-tool]');
@@ -7908,7 +8036,10 @@ function drawWPWorld(timestamp) {
 
   // Skip frame if nothing changed and no animation tick due
   // USER REQUEST: Always redraw if Wrench tool is active to keep wiggle animation smooth
-  if (!wpDirty && !(hasAnimatedBlocks && animTick) && wpCurrentTool !== 'wrench') {
+  let isMultiplayerActive = false;
+  try { isMultiplayerActive = mpActive; } catch(e) {}
+
+  if (!wpDirty && !(hasAnimatedBlocks && animTick) && wpCurrentTool !== 'wrench' && !isMultiplayerActive) {
     wpAnimationId = requestAnimationFrame(drawWPWorld);
     return;
   }
@@ -7941,7 +8072,7 @@ function drawWPWorld(timestamp) {
 
   // Sorting removed (now handled incrementally in updateWPAnimatedCellList)
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ BLIT STATIC CACHE (Separate passes for layering) Ã¢â€â‚¬Ã¢â€â‚¬
+  // Ã¢â€ â‚¬Ã¢â€ â‚¬ BLIT STATIC CACHE (Separate passes for layering) Ã¢â€ â‚¬Ã¢â€ â‚¬
   const sx = vStartX * BLOCK_SIZE;
   const sy = vStartY * BLOCK_SIZE;
   const sw = (vEndX - vStartX + 1) * BLOCK_SIZE;
@@ -8001,7 +8132,7 @@ function drawWPWorld(timestamp) {
       const bid = (typeof bd === 'object') ? bd.id : bd;
       const blk = wpBlockMap[bid];
       if (!blk || blk.noShadow || blk.verticalAlign === 'center') continue;
-      // Skip shadow for fluids (lava/water/acid/mud/bloody water) Ã¢â‚¬â€ they don't cast shadows in-game
+      // Skip shadow for fluids (lava/water/acid/mud/bloody water) Ã¢â‚¬â€  they don't cast shadows in-game
       const isFluid = bid === 'spr_fg_water_block' || bid === 'spr_fg_acid_block' || bid === 'spr_fg_mud_block' || bid === 'spr_fg_lava_block' || bid === 'spr_fg_bloody_water_block';
       if (isFluid) continue;
       // Skip shadow for rainbow blocks (they're drawn with overlay, shadow looks doubled)
@@ -8244,7 +8375,7 @@ function drawWPWorld(timestamp) {
     drawAnimBlock(cell);
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ RAINBOW EFFECT ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ RAINBOW EFFECT ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬
   // PERF: Skip rainbow effect during active pan
   if (hasRainbow) {
     const cycleWidth = 1600;
@@ -8280,7 +8411,7 @@ function drawWPWorld(timestamp) {
     wpCtx.restore();
   }
 
-  // ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ GRID (LOD: Skip if zoomed out too far) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬
+  // ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ GRID (LOD: Skip if zoomed out too far) ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬
   if (wpShowGrid && wpZoom > 0.3) {
     wpCtx.save();
     wpCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
@@ -8300,8 +8431,8 @@ function drawWPWorld(timestamp) {
     wpCtx.restore();
   }
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ WRENCH INDICATOR Ã¢â€â‚¬Ã¢â€â‚¬
-  // Ã¢â€â‚¬Ã¢â€â‚¬ WRENCH INDICATOR Ã¢â€â‚¬Ã¢â€â‚¬
+  // Ã¢â€ â‚¬Ã¢â€ â‚¬ WRENCH INDICATOR Ã¢â€ â‚¬Ã¢â€ â‚¬
+  // Ã¢â€ â‚¬Ã¢â€ â‚¬ WRENCH INDICATOR Ã¢â€ â‚¬Ã¢â€ â‚¬
   if (wpCurrentTool === 'wrench') {
     // Ensure wrench icon is loaded
     if (!window.wpWrenchIcon) {
@@ -8358,11 +8489,12 @@ function drawWPWorld(timestamp) {
     }
   }
 
-  // Ã¢â€â‚¬Ã¢â€â‚¬ SELECTION TOOL DRAWING Ã¢â€â‚¬Ã¢â€â‚¬
+  // Ã¢â€ â‚¬Ã¢â€ â‚¬ SELECTION TOOL DRAWING Ã¢â€ â‚¬Ã¢â€ â‚¬
   if (wpCurrentTool === 'select' || wpPasteMode) {
     drawWPSelection(wpCtx, wpZoom, wpOffsetX, wpOffsetY);
   }
 
+  if (typeof mpDrawRemoteCursors === 'function') mpDrawRemoteCursors(wpCtx, wpZoom, wpOffsetX, wpOffsetY);
   wpAnimationId = requestAnimationFrame(drawWPWorld);
 }
 
@@ -8371,13 +8503,14 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && !wpAnimationId) {
     const container = document.getElementById('world-planner-container');
     if (container && container.style.display !== 'none') {
-      wpAnimationId = requestAnimationFrame(drawWPWorld);
+      if (typeof mpDrawRemoteCursors === 'function') mpDrawRemoteCursors(wpCtx, wpZoom, wpOffsetX, wpOffsetY);
+  wpAnimationId = requestAnimationFrame(drawWPWorld);
     }
   }
 });
 
 
-// O(1) block lookup map ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â populated in loadWPManifest
+// O(1) block lookup map ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â  populated in loadWPManifest
 let wpBlockMap = {};
 
 async function loadWPManifest() {
@@ -8548,8 +8681,11 @@ function renderWPCollection() {
     item.onclick = () => {
       wpSelectedBlockId = block.id;
       pushToWPInventory(block.id);
-      renderWPCollection(); // Update active state
-      closeWPCatalogue(); // Auto-close modal after selection
+      renderWPCollection(); 
+      closeWPCatalogue(); 
+      if (typeof window.mpSendCursorPosition === 'function') {
+        window.mpSendCursorPosition(window.wpLastMouseX, window.wpLastMouseY, true);
+      }
       
       const swapPopup = document.getElementById('wp-swap-popup');
       if (swapPopup && !swapPopup.classList.contains('hidden')) {
@@ -8635,6 +8771,9 @@ function renderWPInventory() {
         slot.appendChild(img);
         slot.onclick = () => {
           wpSelectedBlockId = blockId;
+          if (typeof window.mpSendCursorPosition === 'function') {
+            window.mpSendCursorPosition(window.wpLastMouseX, window.wpLastMouseY, true);
+          }
           updateWPBlockCount();
           renderWPInventory();
         };
@@ -8654,7 +8793,7 @@ window.searchBlocks = function () {
   if (catalogue) catalogue.classList.remove('hidden');
 };
 
-function setWPTheme(themeId) {
+function setWPTheme(themeId, fromNetwork = false) {
   const theme = wpManifestThemes.find(t => t.id === themeId);
   if (!theme) return;
 
@@ -8666,7 +8805,26 @@ function setWPTheme(themeId) {
     localStorage.setItem('wp_planner_theme_bg', `url("${theme.src}")`);
     localStorage.setItem('wp_planner_theme_id', themeId);
   }
+
+  // Sync to other players
+  if (!fromNetwork && typeof mpBroadcastThemeChange === 'function') {
+    mpBroadcastThemeChange(themeId);
+  }
 }
+
+window.mpBroadcastSelectionEnd = function() {
+  if (!mpActive) return;
+  const data = { type: 'selection_end', peerId: mpPeer.id };
+  if (mpIsHost) mpBroadcast(data);
+  else mpConnections[0].send(data);
+};
+
+window.mpBroadcastThemeChange = function(themeId) {
+  if (!mpActive) return;
+  const data = { type: 'theme_change', themeId: themeId };
+  if (mpIsHost) mpBroadcast(data);
+  else mpConnections[0].send(data);
+};
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -8684,7 +8842,7 @@ function loadImage(src) {
 
 let wpBlockColorMap = null;
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ CIE Lab Color Space Utilities Ã¢â€â‚¬Ã¢â€â‚¬
+// Ã¢â€ â‚¬Ã¢â€ â‚¬ CIE Lab Color Space Utilities Ã¢â€ â‚¬Ã¢â€ â‚¬
 
 // Convert sRGB [0-255] to linear RGB [0-1]
 function srgbToLinear(c) {
@@ -8705,7 +8863,7 @@ function rgbToLab(r, g, b) {
   return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
 }
 
-// CIE76 ÃŽâ€E distance (perceptual)
+// CIE76 ÃŽâ€ E distance (perceptual)
 function labColorDistance(lab1, lab2) {
   const dL = lab1[0] - lab2[0];
   const dA = lab1[1] - lab2[1];
@@ -8988,11 +9146,8 @@ window.confirmWPImageImport = async function () {
   const img = window.wpImportImageCurrent;
   const placement = document.getElementById('wp-import-placement').value;
   const resizeLogic = document.getElementById('wp-import-resize').value;
-  
-  // Enforce obtainable default
   const obtainableOnly = true;
 
-  // Force re-compute if cached data is stale (v1 format without lab)
   if (wpBlockColorMap && wpBlockColorMap.length > 0 && !wpBlockColorMap[0].lab) {
     wpBlockColorMap = null;
   }
@@ -9005,15 +9160,12 @@ window.confirmWPImageImport = async function () {
   let targetH = img.height;
 
   if (resizeLogic === 'stretch') {
-    // Stretched across the whole world
     targetW = WORLD_WIDTH;
     targetH = WORLD_HEIGHT - 5;
   } else if (resizeLogic === 'scale') {
-    // Proportional scaling to ensure the image is NEVER squished or stretched
     const maxW = WORLD_WIDTH;
     const maxH = WORLD_HEIGHT - 5;
     const ratio = Math.min(maxW / img.width, maxH / img.height);
-    
     targetW = Math.max(1, Math.round(img.width * ratio));
     targetH = Math.max(1, Math.round(img.height * ratio));
   }
@@ -9027,11 +9179,8 @@ window.confirmWPImageImport = async function () {
   const startX = Math.floor((WORLD_WIDTH - targetW) / 2);
   const startY = (WORLD_HEIGHT - 5) - targetH;
 
-  // v2: NO palette reduction Ã¢â‚¬â€ match each pixel directly against ALL blocks
-  // This is more accurate than the old 16-color palette system
-
-  // Determine if we should also fill backgrounds (for "both" mode)
   const fillBothLayers = (placement === 'both');
+  let changedDeltas = [];
 
   for (let y = 0; y < targetH; y++) {
     for (let x = 0; x < targetW; x++) {
@@ -9048,73 +9197,70 @@ window.confirmWPImageImport = async function () {
 
       if (a > 128) {
         if (fillBothLayers) {
-          // "Foreground & Background" mode: 
-          // Find the absolute best match across BOTH layers.
           const bestOverall = getClosestWPBlock(r, g, b, 'both', obtainableOnly);
-
           if (bestOverall) {
             const isBg = (bestOverall.type === 'background');
             const blockDataToSet = (bestOverall.defaultState !== undefined) ? { id: bestOverall.id, state: bestOverall.defaultState } : bestOverall.id;
+            
+            changedDeltas.push({ x: worldX, y: worldY, l: isBg ? 'bg' : 'fg', v: blockDataToSet });
 
             if (isBg) {
-              // Best match is a background block. No foreground needed.
               wpBackgroundGrid[worldY][worldX] = blockDataToSet;
               wpGrid[worldY][worldX] = null;
+              changedDeltas.push({ x: worldX, y: worldY, l: 'fg', v: null });
             } else {
-              // Best match is a foreground block.
               wpGrid[worldY][worldX] = blockDataToSet;
-
-              // Check if it's a partial block (doesn't cover the full grid)
               if (bestOverall.opaqueRatio < 0.95) {
-                // Find a background to place behind it
                 const bestBG = getClosestWPBlock(r, g, b, 'background', obtainableOnly);
                 if (bestBG) {
-                  const bgDataToSet = (bestBG.defaultState !== undefined) ? { id: bestBG.id, state: bestBG.defaultState } : bestBG.id;
-                  wpBackgroundGrid[worldY][worldX] = bgDataToSet;
-                } else {
-                  wpBackgroundGrid[worldY][worldX] = null;
+                    const bgDataToSet = (bestBG.defaultState !== undefined) ? { id: bestBG.id, state: bestBG.defaultState } : bestBG.id;
+                    wpBackgroundGrid[worldY][worldX] = bgDataToSet;
+                    changedDeltas.push({ x: worldX, y: worldY, l: 'bg', v: bgDataToSet });
                 }
               } else {
-                // It's a solid block, clear background behind it to prevent unnecessary blocks
                 wpBackgroundGrid[worldY][worldX] = null;
+                changedDeltas.push({ x: worldX, y: worldY, l: 'bg', v: null });
               }
             }
           }
         } else {
-          // Single-layer mode (foreground only or background only)
           const bestBlock = getClosestWPBlock(r, g, b, placement, obtainableOnly);
-
           if (bestBlock) {
             const blockId = bestBlock.id;
             const isBg = (bestBlock.type === 'background');
             const blockDataToSet = (bestBlock.defaultState !== undefined) ? { id: blockId, state: bestBlock.defaultState } : blockId;
+            
+            changedDeltas.push({ x: worldX, y: worldY, l: isBg ? 'bg' : 'fg', v: blockDataToSet });
 
             if (isBg) {
               wpBackgroundGrid[worldY][worldX] = blockDataToSet;
               wpGrid[worldY][worldX] = null;
+              changedDeltas.push({ x: worldX, y: worldY, l: 'fg', v: null });
             } else {
               wpGrid[worldY][worldX] = blockDataToSet;
               wpBackgroundGrid[worldY][worldX] = null;
+              changedDeltas.push({ x: worldX, y: worldY, l: 'bg', v: null });
             }
           }
         }
+        updateWPAnimatedCellList(worldX, worldY, false);
       }
     }
   }
 
-  // v2: Apply tiling for dirt states, pillars, vines, barrier rope, gingerbread, spikes etc.
-  // This makes dirt behave the same as when drawn manually (grass top vs underground)
-  for (let y = 0; y < targetH; y++) {
-    for (let x = 0; x < targetW; x++) {
-      const worldX = startX + x;
-      const worldY = startY + y;
-      if (worldX >= 0 && worldX < WORLD_WIDTH && worldY >= 0 && worldY < WORLD_HEIGHT) {
-        wpUpdateTilingAt(worldX, worldY);
+  for (let wy = startY - 1; wy <= startY + targetH; wy++) {
+    for (let wx = startX - 1; wx <= startX + targetW; wx++) {
+      if (wx >= 0 && wx < WORLD_WIDTH && wy >= 0 && wy < WORLD_HEIGHT) {
+        wpUpdateTilingAt(wx, wy);
       }
     }
   }
 
-  // Finalize
+  if (typeof mpBroadcastBulkAction === 'function' && changedDeltas.length > 0) {
+      const formattedDeltas = changedDeltas.map(d => ({ x: d.x, y: d.y, l: d.l, next: d.v }));
+      mpBroadcastBulkAction(formattedDeltas, false);
+  }
+
   saveWPHistory();
   saveActiveWorld();
   updateWPAnimatedCellList();
@@ -9318,7 +9464,7 @@ function initWhatsNewModal() {
     if (!confirmBtn.disabled) {
       overlay.style.display = 'none';
       // Set confirmation flag in localStorage
-      localStorage.setItem('whats_new_confirmed', 'true');
+      localStorage.setItem('whats_new_v310_confirmed', 'true');
     }
   };
   
@@ -9716,7 +9862,8 @@ function drawWPSelection(ctx, zoom, offX, offY) {
 window.wpConfirmPaste = function() {
   if (wpPasteMode && wpSelectionBox && wpCopiedData) {
     wpDropSelectionBuffer();
-    saveWPHistory();
+    const deltas = saveWPHistory();
+    if (deltas && typeof mpBroadcastBulkAction === 'function') mpBroadcastBulkAction(deltas, false);
     wpPasteMode = false;
     wpClipboardData = null;
     wpSelectionBox = null;
@@ -9737,7 +9884,8 @@ window.wpCopySelection = function() {
   
   if (wasMoved) {
     wpDropSelectionBuffer();
-    saveWPHistory();
+    const deltas = saveWPHistory();
+    if (deltas && typeof mpBroadcastBulkAction === 'function') mpBroadcastBulkAction(deltas, false);
     wpNeedsPostProcess = true;
   }
   
@@ -9753,7 +9901,8 @@ window.wpCutSelection = function() {
   wpClipboardData = JSON.parse(JSON.stringify(wpCopiedData));
   wpClipboardWidth = wpSelectionBox.w;
   wpClipboardHeight = wpSelectionBox.h;
-  saveWPHistory();
+  const deltas = saveWPHistory();
+  if (deltas && typeof mpBroadcastBulkAction === 'function') mpBroadcastBulkAction(deltas, false);
   wpNeedsPostProcess = true;
   hideWPSelectionMenu();
   wpPasteMode = true;
@@ -9793,7 +9942,8 @@ window.wpFlipSelection = function(dir) {
   if (wasNotCopied && !wpPasteMode) {
     wpDropSelectionBuffer();
     wpCopiedData = null;
-    saveWPHistory();
+    const deltas = saveWPHistory();
+    if (deltas && typeof mpBroadcastBulkAction === 'function') mpBroadcastBulkAction(deltas, false);
     showWPSelectionMenu();
   }
   wpNeedsPostProcess = true;
@@ -9815,7 +9965,8 @@ window.wpClearSelection = function() {
        }
     }
   }
-  saveWPHistory();
+  const deltas = saveWPHistory();
+  if (deltas && typeof mpBroadcastBulkAction === 'function') mpBroadcastBulkAction(deltas, false);
   updateWPBlockCount();
   saveActiveWorld();
   wpCancelSelection();
@@ -9837,6 +9988,10 @@ window.wpCancelSelection = function() {
   wpClipboardData = null;
   hideWPSelectionMenu();
   wpMarkDirty();
+  
+  if (typeof mpSendCursorPosition === 'function') {
+    mpSendCursorPosition(wpLastGridX, wpLastGridY, true); // Force send box: null
+  }
 };
 
 function wpCopySelectionToDragBuffer(clearOriginal) {
@@ -9864,6 +10019,23 @@ function wpCopySelectionToDragBuffer(clearOriginal) {
       }
     }
     wpUpdateStaticCacheRegion(wpSelectionBox.x - 1, wpSelectionBox.y - 1, wpSelectionBox.x+wpSelectionBox.w + 1, wpSelectionBox.y+wpSelectionBox.h + 1);
+    
+    // Multiplayer Sync: Broadcast the "Cut"
+    if (typeof mpBroadcastBulkAction === 'function') {
+      const deltas = [];
+      for(let y=wpSelectionBox.y; y<wpSelectionBox.y+wpSelectionBox.h; y++) {
+        for(let x=wpSelectionBox.x; x<wpSelectionBox.x+wpSelectionBox.w; x++) {
+          deltas.push({ x: x, y: y, l: 'fg', next: null });
+          deltas.push({ x: x, y: y, l: 'bg', next: null });
+        }
+      }
+      if (deltas.length > 0) mpBroadcastBulkAction(deltas, false);
+    }
+  }
+
+  // --- ADDED BROADCST OF SELECTION START ---
+  if (typeof mpBroadcastSelectionStart === 'function') {
+    mpBroadcastSelectionStart(wpSelectionBox, wpCopiedData);
   }
 }
 
@@ -9917,6 +10089,20 @@ function wpDropSelectionBuffer() {
   wpUpdateStaticCacheRegion(stateMinX, stateMinY, stateMaxX, stateMaxY);
   updateWPBlockCount();
   saveActiveWorld();
+
+  // Multiplayer Sync: Broadcast the "Drop"
+  if (typeof mpBroadcastBulkAction === 'function') {
+    const deltas = [];
+    for (const item of wpCopiedData) {
+      const nx = wpSelectionBox.x + item.x + dx;
+      const ny = wpSelectionBox.y + item.y + dy;
+      if (nx >= 0 && nx < WORLD_WIDTH && ny >= 0 && ny < WORLD_HEIGHT - 5) {
+        if (item.fg) deltas.push({ x: nx, y: ny, l: 'fg', next: item.fg });
+        if (item.bg) deltas.push({ x: nx, y: ny, l: 'bg', next: item.bg });
+      }
+    }
+    if (deltas.length > 0) mpBroadcastBulkAction(deltas, false);
+  }
 }
 
 window.wpExecuteFloodFill = function(startX, startY) {
@@ -9934,6 +10120,7 @@ window.wpExecuteFloodFill = function(startX, startY) {
   const stack = [{x: startX, y: startY}];
   let fillCount = 0;
   let minX = startX, minY = startY, maxX = startX, maxY = startY;
+  const mpChanges = [];
 
   let blockData = { id: wpSelectedBlockId };
   if (newBlock.defaultState !== undefined) blockData.state = newBlock.defaultState;
@@ -9955,7 +10142,11 @@ window.wpExecuteFloodFill = function(startX, startY) {
         if (typeof fg === 'object' && fg !== null ? fg.id : fg) continue;
       }
 
-      targetGrid[y][x] = fillVal;
+      // 2. FILL TOOL OVERHAUL: We must enforce deep-cloning of `fillVal` so each tile retains an exclusive memory signature. 
+      // Sharing an identical payload object corrupted the entire map when any one block was wrenched later.
+      const preciseVal = (typeof fillVal === 'object' && fillVal !== null) ? { ...fillVal } : fillVal;
+      targetGrid[y][x] = preciseVal;
+      mpChanges.push({x, y, l: isBg ? 'bg' : 'fg', v: preciseVal});
       updateWPAnimatedCellList(x, y, false);
       fillCount++;
       
@@ -9970,6 +10161,7 @@ window.wpExecuteFloodFill = function(startX, startY) {
   }
 
   if (fillCount > 0) {
+    if (typeof mpBroadcastFillAction === 'function') mpBroadcastFillAction(mpChanges);
     if (!isBg) {
       for (let y = minY - 1; y <= maxY + 1; y++) {
         for (let x = minX - 1; x <= maxX + 1; x++) wpUpdateTilingAt(x, y);

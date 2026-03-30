@@ -21,7 +21,7 @@
 
   <meta name="keywords" content="BreaWorlds, Set Planner, Character Customizer, Outfit Builder, BreaWorlds Items">
 
-  <link rel="stylesheet" href="style.css?v=1.23">
+  <link rel="stylesheet" href="style.css?v=1.30">
   <link rel="stylesheet" href="tutorial.css">
 
 
@@ -71,6 +71,18 @@
         <div class="wn-section wn-features-section">
           <h2 class="wn-features-heading">New World Planner Tools</h2>
           <div class="wn-features-list">
+
+            <div class="wn-feature-card">
+              <div class="wn-feature-icon wn-feature-icon-online">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <div class="wn-feature-info">
+                <h3>Online Multiplayer</h3>
+                <p>Build together with friends in real-time! Share your room code to collaborate on massive world designs, synchronized instantly across all devices.</p>
+              </div>
+            </div>
 
             <div class="wn-feature-card">
               <div class="wn-feature-icon wn-feature-icon-select">
@@ -181,12 +193,15 @@
 
     <div class="wp-toolbar" id="wp-toolbar">
 
+        <button class="wp-tool-btn" onclick="openMPLobby()" title="Online Build">
+          <i data-lucide="users"></i>
+          <span class="wp-tool-label">Online</span>
+        </button>
+        <div class="wp-tool-divider"></div>
+
         <button class="wp-tool-btn active" data-tool="pencil" title="Place Block">
-
           <i data-lucide="pencil"></i>
-
           <span class="wp-tool-label">Place</span>
-
         </button>
 
         <button class="wp-tool-btn" data-tool="eraser" title="Erase">
@@ -307,11 +322,8 @@
         <div class="wp-tool-divider"></div>
 
         <button class="wp-tool-btn" data-tool="blocks" title="Blocks">
-
           <i data-lucide="box"></i>
-
           <span class="wp-tool-label">Blocks</span>
-
         </button>
 
         <button class="wp-tool-btn" data-tool="background" title="Themes">
@@ -679,6 +691,95 @@
       <div class="wp-popup-footer" style="padding: 15px 20px; display: flex; gap: 12px; border-top: 1px solid rgba(168, 218, 220, 0.1); background: rgba(168, 218, 220, 0.02);">
         <button class="wp-confirm-btn" onclick="saveWPHotkeys()" style="flex: 1; height: 38px; background: #a8dadc; color: #1d3557; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">Confirm and Close</button>
         <button class="wp-reset-btn" onclick="resetWPHotkeys()" style="flex: 1; height: 38px; background: rgba(168, 218, 220, 0.1); color: #a8dadc; border: 1px solid rgba(168, 218, 220, 0.2); border-radius: 8px; font-weight: bold; cursor: pointer;">Reset and Close</button>
+      </div>
+    </div>
+
+    <!-- MULTIPLAYER LOBBY POPUP -->
+    <div id="mp-lobby-popup" class="wp-popup hidden" style="width: 450px; padding: 0; overflow: hidden; z-index: 10001; border: 1px solid rgba(168, 218, 220, 0.2);">
+      <div class="mp-premium-header">
+        <div class="mp-header-bg"></div>
+        <h3 class="mp-header-title"><i data-lucide="globe" style="width: 20px; color: #4ECDC4;"></i> Online Build</h3>
+        <button class="wp-popup-close mp-header-close" onclick="closeMPLobby()">&times;</button>
+      </div>
+      
+      <div class="mp-premium-content">
+        <div class="mp-input-wrapper">
+          <label class="mp-premium-label">Your Username <span class="mp-required">*</span></label>
+          <div class="mp-input-container">
+            <i data-lucide="user" class="mp-input-icon"></i>
+            <input type="text" id="mp-username-input" class="mp-premium-input" placeholder="Enter username..." maxlength="16">
+          </div>
+        </div>
+
+        <div class="mp-action-split">
+          <!-- Create Server -->
+          <div class="mp-action-card mp-card-host">
+            <div class="mp-card-icon-wrap">
+              <i data-lucide="server" class="mp-card-icon"></i>
+            </div>
+            <h4 class="mp-card-title">Host a World</h4>
+            <p class="mp-card-desc">Start a new server and invite friends.</p>
+            <button class="mp-btn mp-btn-primary" onclick="mpStartHostFlow()">Create Server</button>
+          </div>
+
+          <!-- Join Server -->
+          <div class="mp-action-card mp-card-join">
+            <div class="mp-card-icon-wrap">
+              <i data-lucide="users" class="mp-card-icon"></i>
+            </div>
+            <h4 class="mp-card-title">Join a World</h4>
+            <p class="mp-card-desc">Enter a 6-letter room code.</p>
+            <input type="text" id="mp-join-code-input" class="mp-premium-input mp-code-input" placeholder="CODE" maxlength="6">
+            <button class="mp-btn mp-btn-secondary" onclick="mpJoinServerFlow()">Join Server</button>
+          </div>
+        </div>
+        
+        <div id="mp-lobby-error" class="mp-error-msg"></div>
+      </div>
+    </div>
+
+    <!-- HOST WORLD SELECTOR (Sub-modal) -->
+    <div id="mp-host-selector-popup" class="wp-popup hidden" style="width: 450px; max-width: 90vw; z-index: 10002;">
+      <div class="wp-popup-header">
+        <h3>Select World to Host</h3>
+        <button class="wp-popup-close" onclick="closeMPHostSelector()">&times;</button>
+      </div>
+      <div style="padding: 15px;">
+        <button onclick="mpHostCurrentWorld()" style="width: 100%; padding: 12px; margin-bottom: 15px; background: #1d3557; border: 1px dashed #a8dadc; color: white; font-weight: bold; border-radius: 8px; cursor: pointer;">+ Host Current World</button>
+        <div style="color: #a8dadc; text-align: center; margin-bottom: 15px; font-size: 14px;">— Or Load Existing Save —</div>
+        <div class="wp-save-slots" id="mpHostSlotsContainer" style="max-height: 40vh; overflow-y: auto;">
+          <!-- Save slots injected dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- SERVER STATUS BAR (Always visible when connected) -->
+    <div id="mp-status-bar" style="display: none;">
+      <div class="mp-status-inner">
+        <div class="mp-status-indicator" id="mp-conn-dot"></div>
+        <div class="mp-status-data">
+          <div style="font-size: 11px; color: rgba(168,218,220,0.7); text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; justify-content: space-between;">
+            <span id="mp-status-role">Hosting Room</span>
+            <span id="mp-status-uptime">00:00</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 15px; margin-top: 4px;">
+            <div style="font-size: 18px; font-family: monospace; font-weight: bold; color: white; background: rgba(0,0,0,0.3); padding: 2px 8px; border-radius: 4px; letter-spacing: 2px; display: flex; align-items: center; gap: 8px;" title="Room Code">
+              <span id="mp-status-code">------</span>
+              <button onclick="mpCopyRoomCode()" style="background: none; border: none; color: #a8dadc; cursor: pointer; padding: 0; outline: none;" title="Copy Code"><i data-lucide="copy" style="width: 14px; height: 14px;"></i></button>
+            </div>
+            <div style="font-size: 14px; color: white; display: flex; align-items: center; gap: 6px;" title="Players Online">
+              <i data-lucide="users" style="width: 16px; height: 16px; color: #4ECDC4;"></i>
+              <span id="mp-status-count">1/8</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Player List Chips -->
+        <div id="mp-player-chips" style="display: flex; gap: 6px; margin-left: 15px; border-left: 1px solid rgba(255,255,255,0.1); padding-left: 15px;">
+          <!-- player chips go here -->
+        </div>
+
+        <button onclick="mpDisconnectBtn()" id="mp-disconnect-btn" class="wp-tool-btn" style="width: auto; height: 36px; padding: 0 15px; margin-left: auto; border: 1px solid rgba(230, 57, 70, 0.4); color: #e63946; background: rgba(230, 57, 70, 0.1);">Disconnect</button>
       </div>
     </div>
 
@@ -7628,7 +7729,11 @@
 
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <script src="script.js?v=2.48"></script>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+  <script src="multiplayer.js?v=3.10"></script>
+
+  <script src="script.js?v=3.10"></script>
 
 </body>
 

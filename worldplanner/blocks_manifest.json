@@ -5070,8 +5070,7 @@
       "src": "worldplanner/Blocks/spr_fg_flamingo/spr_fg_flamingo_0.png",
       "type": "foreground",
       "framesPath": "worldplanner/Blocks/spr_fg_flamingo/spr_fg_flamingo_",
-      "frameCount": 4,
-      "fps": 5,
+      "frameCount": 1,
       "group": "Seasonal"
     },
     {
