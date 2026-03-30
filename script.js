@@ -4757,7 +4757,8 @@ window.addEventListener('load', () => {
         }
 
         // Auto-show modal if not confirmed yet
-        if (!localStorage.getItem('whats_new_v310_confirmed')) {
+        // Auto-show modal if not confirmed yet
+        if (!localStorage.getItem('whats_new_v251_confirmed')) {
           if (typeof initWhatsNewModal === 'function') {
             initWhatsNewModal();
           }
@@ -6373,6 +6374,18 @@ function loadWPWorldFromSlot(slotNumber, skipToggle = false) {
     else {
       // Just ensure popups are closed for MP host
       document.querySelectorAll('.wp-popup').forEach(p => p.classList.add('hidden'));
+    }
+
+    // MULTIPLAYER SYNC: Broadcast the full world to all other players
+    if (typeof mpActive !== 'undefined' && mpActive && typeof mpBroadcastFillAction === 'function') {
+      const allChanges = [];
+      for (let y = 0; y < WORLD_HEIGHT; y++) {
+        for (let x = 0; x < WORLD_WIDTH; x++) {
+          allChanges.push({ x, y, l: 'bg', v: wpBackgroundGrid[y][x] });
+          allChanges.push({ x, y, l: 'fg', v: wpGrid[y][x] });
+        }
+      }
+      mpBroadcastFillAction(allChanges);
     }
     
     // Force a full redraw
@@ -9464,7 +9477,7 @@ function initWhatsNewModal() {
     if (!confirmBtn.disabled) {
       overlay.style.display = 'none';
       // Set confirmation flag in localStorage
-      localStorage.setItem('whats_new_v310_confirmed', 'true');
+      localStorage.setItem('whats_new_v251_confirmed', 'true');
     }
   };
   
