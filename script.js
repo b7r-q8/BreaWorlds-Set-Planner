@@ -6655,6 +6655,15 @@ window.handleWPWorldImport = async function(event) {
       }
     }
 
+    // --- APPLY TILING (critical for connective blocks: barrier rope, gingerbread, etc.) ---
+    for (let y = 0; y < WORLD_HEIGHT; y++) {
+      for (let x = 0; x < WORLD_WIDTH; x++) {
+        if (data.grid[y] && data.grid[y][x]) {
+          wpUpdateTilingAt(x, y);
+        }
+      }
+    }
+
     // Create a new slot
     const allSlots = JSON.parse(localStorage.getItem('wpSaveSlotsList') || '[]');
     let next = 1;
@@ -6792,7 +6801,7 @@ async function generateWPWorldExportDataURL(gridData, bgGridData, baseThemeId, b
     eCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
   }
 
-  // 5. Unified Drawing Pass (Synchronous using cache)
+  // 5. Three-Pass Drawing (matches live renderer layer order: BG → Shadows → FG)
   const shadowAlpha = 0.4, shadowOffset = 4 * scale;
   const rainbowMaskCanvas = document.createElement('canvas');
   rainbowMaskCanvas.width = exportCanvas.width;
@@ -6801,68 +6810,80 @@ async function generateWPWorldExportDataURL(gridData, bgGridData, baseThemeId, b
   disableWPSmoothing(rmCtx);
   let hasRainbow = false;
 
+  // Helper to draw a block at position
+  const drawBlock = (bd, blk, x, y, layerName) => {
+    const bid = typeof bd === 'object' ? bd.id : bd;
+    const isRainbow = bid && bid.includes('rainbow');
+    const path = getPath(bd, blk, x, y, layerName);
+    const img = imageCache[path];
+    if (img) {
+      const nw = img.naturalWidth, nh = img.naturalHeight;
+      const px = x * BLOCK_SIZE * scale + (BLOCK_SIZE - nw) / 2 * scale;
+      let py = (blk.verticalAlign === 'center') ? (y * BLOCK_SIZE * scale + (BLOCK_SIZE - nh) / 2 * scale) : ((y + 1) * BLOCK_SIZE * scale - nh * scale + (blk.yOffset || 0) * scale);
+      eCtx.drawImage(img, px, py, nw * scale, nh * scale);
+      if (isRainbow) {
+        hasRainbow = true;
+        rmCtx.drawImage(img, px, py, nw * scale, nh * scale);
+      }
+    }
+  };
+
+  // Pass 1: All Background Blocks
+  for (let y = 0; y < WORLD_HEIGHT; y++) {
+    if (!bgGridData[y]) continue;
+    for (let x = 0; x < WORLD_WIDTH; x++) {
+      const bd = bgGridData[y][x];
+      if (!bd) continue;
+      const blk = wpBlockMap[typeof bd === 'object' ? bd.id : bd];
+      if (blk) drawBlock(bd, blk, x, y, 'bg');
+    }
+  }
+
+  // Pass 2: All Foreground Shadows
+  // Fix: ensure the staging canvas exists before drawing
+  if (!wpShadowStagingCanvas) {
+    wpShadowStagingCanvas = document.createElement('canvas');
+    wpShadowStagingCanvas.width = 256;
+    wpShadowStagingCanvas.height = 256;
+    wpShadowStagingCtx = wpShadowStagingCanvas.getContext('2d');
+  }
   for (let y = 0; y < WORLD_HEIGHT; y++) {
     if (!gridData[y]) continue;
     for (let x = 0; x < WORLD_WIDTH; x++) {
-      // Pass A: Shadows (Drawn before blocks for this row)
       const bdFG = gridData[y][x];
-      if (bdFG) {
-        const blk = wpBlockMap[typeof bdFG === 'object' ? bdFG.id : bdFG];
-        if (blk && !blk.noShadow && blk.verticalAlign !== 'center') {
-          const path = getPath(bdFG, blk, x, y, 'fg');
-          const img = imageCache[path];
-          if (img) {
-            const nw = img.naturalWidth, nh = img.naturalHeight;
+      if (!bdFG) continue;
+      const blk = wpBlockMap[typeof bdFG === 'object' ? bdFG.id : bdFG];
+      if (!blk || blk.noShadow || blk.verticalAlign === 'center') continue;
+      const path = getPath(bdFG, blk, x, y, 'fg');
+      const img = imageCache[path];
+      if (!img) continue;
+      const nw = img.naturalWidth, nh = img.naturalHeight;
 
-            // Fix: ensure the staging canvas exists before drawing to it
-            if (!wpShadowStagingCanvas) {
-              wpShadowStagingCanvas = document.createElement('canvas');
-              wpShadowStagingCanvas.width = 256;
-              wpShadowStagingCanvas.height = 256;
-              wpShadowStagingCtx = wpShadowStagingCanvas.getContext('2d');
-            }
+      // DRAW SHADOW VIA STAGING (Fixes iOS coloring)
+      wpShadowStagingCtx.clearRect(0, 0, 256, 256);
+      wpShadowStagingCtx.drawImage(img, 0, 0);
+      wpShadowStagingCtx.globalCompositeOperation = 'source-in';
+      wpShadowStagingCtx.fillStyle = 'black';
+      wpShadowStagingCtx.fillRect(0, 0, nw, nh);
+      wpShadowStagingCtx.globalCompositeOperation = 'source-over';
 
-            // DRAW SHADOW VIA STAGING (Fixes iOS coloring)
-            wpShadowStagingCtx.clearRect(0, 0, 256, 256);
-            wpShadowStagingCtx.drawImage(img, 0, 0);
-            wpShadowStagingCtx.globalCompositeOperation = 'source-in';
-            wpShadowStagingCtx.fillStyle = 'black';
-            wpShadowStagingCtx.fillRect(0, 0, nw, nh);
-            wpShadowStagingCtx.globalCompositeOperation = 'source-over';
+      eCtx.save();
+      eCtx.globalAlpha = shadowAlpha;
+      const px = x * BLOCK_SIZE * scale + (BLOCK_SIZE - nw) / 2 * scale + shadowOffset + (blk.xOffset || 0) * scale;
+      const py = (y + 1) * BLOCK_SIZE * scale - nh * scale + shadowOffset + (blk.yOffset || 0) * scale;
+      eCtx.drawImage(wpShadowStagingCanvas, 0, 0, nw, nh, px, py, nw * scale, nh * scale);
+      eCtx.restore();
+    }
+  }
 
-            eCtx.save();
-            eCtx.globalAlpha = shadowAlpha;
-            const px = x * BLOCK_SIZE * scale + (BLOCK_SIZE - nw) / 2 * scale + shadowOffset + (blk.xOffset || 0) * scale;
-            const py = (y + 1) * BLOCK_SIZE * scale - nh * scale + shadowOffset + (blk.yOffset || 0) * scale;
-            eCtx.drawImage(wpShadowStagingCanvas, 0, 0, nw, nh, px, py, nw * scale, nh * scale);
-            eCtx.restore();
-          }
-        }
-      }
-
-      // Pass B: Blocks (BG then FG)
-      [{ g: bgGridData, l: 'bg' }, { g: gridData, l: 'fg' }].forEach(layer => {
-        const bd = layer.g[y] ? layer.g[y][x] : null;
-        if (!bd) return;
-        const bid = typeof bd === 'object' ? bd.id : bd;
-        const blk = wpBlockMap[bid];
-        if (!blk) return;
-
-        const isRainbow = bid && bid.includes('rainbow');
-        const path = getPath(bd, blk, x, y, layer.l);
-        const img = imageCache[path];
-        if (img) {
-          const nw = img.naturalWidth, nh = img.naturalHeight;
-          const px = x * BLOCK_SIZE * scale + (BLOCK_SIZE - nw) / 2 * scale;
-          let py = (blk.verticalAlign === 'center') ? (y * BLOCK_SIZE * scale + (BLOCK_SIZE - nh) / 2 * scale) : ((y + 1) * BLOCK_SIZE * scale - nh * scale + (blk.yOffset || 0) * scale);
-
-          eCtx.drawImage(img, px, py, nw * scale, nh * scale);
-          if (isRainbow) {
-            hasRainbow = true;
-            rmCtx.drawImage(img, px, py, nw * scale, nh * scale);
-          }
-        }
-      });
+  // Pass 3: All Foreground Blocks
+  for (let y = 0; y < WORLD_HEIGHT; y++) {
+    if (!gridData[y]) continue;
+    for (let x = 0; x < WORLD_WIDTH; x++) {
+      const bd = gridData[y][x];
+      if (!bd) continue;
+      const blk = wpBlockMap[typeof bd === 'object' ? bd.id : bd];
+      if (blk) drawBlock(bd, blk, x, y, 'fg');
     }
   }
 
