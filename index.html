@@ -17,37 +17,86 @@
   <title>BreaWorlds Tools | Set Planner & World Designer</title>
 
   <meta name="description"
-    content="Create and customize your BreaWorlds character outfits and design stunning worlds. The ultimate set planner for character customization and world building. Plan sets, design worlds, and show off your creativity with BreaWorlds Tools.">
+    content="Create and customize your BreaWorlds character outfits and design stunning worlds. The ultimate set planner and world designer for BreaWorlds. Browse hundreds of items, plan your dream sets, and build pixel-perfect worlds with BW Tools.">
 
-  <meta name="keywords" content="BreaWorlds, Set Planner, Character Customizer, Outfit Builder, BreaWorlds Items">
+  <meta name="keywords" content="BreaWorlds, BreaWorlds Tools, BW Tools, BW Planner, BW Set Planner, Set Planner, World Planner, World Designer, Character Customizer, Outfit Builder, BreaWorlds Items, BreaWorlds Set, BreaWorlds World Builder, Brea Worlds, BW Set, BW World">
 
-  <link rel="stylesheet" href="style.css?v=2.51">
+  <link rel="stylesheet" href="style.css?v=2.53">
   <link rel="stylesheet" href="tutorial.css">
-
-
 
   <!-- Website Metadata & Social Sharing (Open Graph) -->
 
   <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="roadmap/setplanner1_circle_32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="roadmap/setplanner1_circle_16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="roadmap/setplanner1_circle_180.png">
+  <link rel="shortcut icon" href="roadmap/setplanner1_circle.png">
 
-  <link rel="icon" type="image/png" sizes="32x32" href="roadmap/setplanner1.png">
-
-  <link rel="icon" type="image/png" sizes="16x16" href="roadmap/setplanner1.png">
-
-  <link rel="apple-touch-icon" sizes="180x180" href="roadmap/setplanner1.png">
-
-  <link rel="shortcut icon" href="roadmap/setplanner1.png">
-
-  <meta property="og:title" content="BreaWorlds Tools">
-
+  <!-- Open Graph -->
+  <meta property="og:title" content="BreaWorlds Tools | Set Planner & World Designer">
   <meta property="og:description"
-    content="Create your dream BreaWorlds character outfits and design custom worlds. Customize hundreds of items and build your ideal world.">
-
+    content="Create and customize your BreaWorlds character outfits and design stunning worlds. Browse hundreds of items, plan your dream sets, and build pixel-perfect worlds with BW Tools.">
   <meta property="og:type" content="website">
-
   <meta property="og:url" content="https://bwsetplanner.com">
+  <meta property="og:site_name" content="BreaWorlds Tools">
+  <meta property="og:image" content="https://bwsetplanner.com/featured/firstimage.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image" content="https://bwsetplanner.com/featured/secondimage.png">
+  <meta property="og:image" content="https://bwsetplanner.com/featured/thirdimage.png">
+  <meta property="og:image" content="https://bwsetplanner.com/featured/fourthimage.png">
 
-  <meta property="og:image" content="https://bwsetplanner.com/roadmap/setplanner1.png">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="BreaWorlds Tools | Set Planner & World Designer">
+  <meta name="twitter:description" content="Create and customize your BreaWorlds character outfits and design stunning worlds. The ultimate BW Set Planner and World Designer.">
+  <meta name="twitter:image" content="https://bwsetplanner.com/featured/firstimage.png">
+
+  <!-- Structured Data for Search Engines -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "BreaWorlds Tools",
+    "alternateName": ["BW Tools", "BW Planner", "BW Set Planner", "BreaWorlds Set Planner"],
+    "url": "https://bwsetplanner.com",
+    "description": "Create and customize your BreaWorlds character outfits and design stunning worlds. The ultimate set planner and world designer for BreaWorlds.",
+    "applicationCategory": "GameApplication",
+    "operatingSystem": "Web Browser",
+    "image": [
+      "https://bwsetplanner.com/featured/firstimage.png",
+      "https://bwsetplanner.com/featured/secondimage.png",
+      "https://bwsetplanner.com/featured/thirdimage.png",
+      "https://bwsetplanner.com/featured/fourthimage.png"
+    ],
+    "screenshot": [
+      {
+        "@type": "ImageObject",
+        "url": "https://bwsetplanner.com/featured/firstimage.png",
+        "caption": "BreaWorlds Tools Main Menu"
+      },
+      {
+        "@type": "ImageObject",
+        "url": "https://bwsetplanner.com/featured/secondimage.png",
+        "caption": "BreaWorlds Set Planner"
+      },
+      {
+        "@type": "ImageObject",
+        "url": "https://bwsetplanner.com/featured/thirdimage.png",
+        "caption": "BreaWorlds World Planner"
+      },
+      {
+        "@type": "ImageObject",
+        "url": "https://bwsetplanner.com/featured/fourthimage.png",
+        "caption": "BreaWorlds Fish Calculator"
+      }
+    ],
+    "author": {
+      "@type": "Person",
+      "name": "B7R"
+    }
+  }
+  </script>
 
   <meta name="theme-color" content="#0a0a1a">
 
@@ -529,12 +578,18 @@
 
 
 
-    <!-- DIRECT SET PLANNER TELEPORT -->
-
-    <button class="wp-teleport-btn main-menu-wrench-btn" onclick="backToSelection()" title="Back to Main Menu">
-      <img src="roadmap/spr_wrench.png" alt="Menu">
-      <span>Main Menu</span>
-    </button>
+    <!-- WRENCH SLIDE-IN MAIN MENU (World Planner) -->
+    <div class="wrench-menu-container" id="wp-wrench-menu">
+      <button class="wrench-trigger" onclick="toggleWrenchMenu('wp')" title="Main Menu">
+        <img src="roadmap/spr_wrench.png" alt="Menu">
+      </button>
+      <div class="wrench-slide-panel">
+        <button class="wrench-panel-btn" onclick="backToSelection()">
+          <i data-lucide="home"></i>
+          <span>Main Menu</span>
+        </button>
+      </div>
+    </div>
 
     <!-- TUTORIAL POPUP -->
 
@@ -863,16 +918,18 @@
       <span class="version-tag">Early Access</span>
       <button class="whats-new-trigger-btn" onclick="initWhatsNewModal()">See What's New</button>
 
-
+      <button class="report-bugs-btn" id="report-bugs-btn" onclick="openBugReportModal()">
+        <i data-lucide="bug" style="width:16px;height:16px;"></i>
+        <span>Report Bugs</span>
+      </button>
 
       <div class="loader-copyright">
-
         <span>Sprites Copyrighted and Owned by</span>
-
         <span class="studio-name">Bitdawn Studios</span>
-
-        <span class="discord-contact">For any bugs or concerns please DM in Discord @wisoholic</span>
-
+        <div class="main-menu-credit" id="main-menu-credit">
+          <span class="credit-label">Created By</span>
+          <span class="credit-name">B7R</span>
+        </div>
       </div>
 
     </div>
@@ -1603,37 +1660,44 @@
 
 
 
-    <!-- UNEQUIP ALL BUTTON & DOWNLOAD BUTTON -->
+    <!-- ACTION BUTTONS BAR -->
 
-    <div class="inventory unequip-bar" id="sp-unequip-bar">
+    <div class="inventory action-bar" id="sp-unequip-bar">
 
-      <div class="inventory-slot unequip-all no-inventory" onclick="unequipAll()" data-static="true">
+      <button class="action-btn action-btn-remove" onclick="unequipAll()" data-static="true">
+        <div class="action-btn-icon"><i data-lucide="shirt" style="width:18px;height:18px;"></i></div>
+        <span class="action-btn-label">Remove Set</span>
+        <div class="action-btn-glow"></div>
+      </button>
 
-        Remove All Clothing
+      <button class="action-btn action-btn-download" onclick="openDownloadModal()" data-static="true">
+        <div class="action-btn-icon"><i data-lucide="download" style="width:18px;height:18px;"></i></div>
+        <span class="action-btn-label">Download Set</span>
+        <div class="action-btn-glow"></div>
+      </button>
 
-      </div>
-
-      <div class="inventory-slot download-all no-inventory" onclick="openDownloadModal()" data-static="true">
-
-        Download Set
-
-      </div>
-
-      <div class="inventory-slot player-options-btn no-inventory" onclick="openPlayerOptionsModal()" data-static="true">
-
-        Player Options
-
-      </div>
+      <button class="action-btn action-btn-options" onclick="openPlayerOptionsModal()" data-static="true">
+        <div class="action-btn-icon"><i data-lucide="sliders-horizontal" style="width:18px;height:18px;"></i></div>
+        <span class="action-btn-label">Player Options</span>
+        <div class="action-btn-glow"></div>
+      </button>
 
     </div>
 
 
 
-    <!-- DIRECT SET PLANNER TELEPORT -->
-    <button class="wp-teleport-btn main-menu-wrench-btn" id="sp-main-menu-btn" onclick="backToSelection()" title="Back to Main Menu" style="position: fixed; top: 20px; right: 20px; z-index: 5000;">
-      <img src="roadmap/spr_wrench.png" alt="Menu">
-      <span>Main Menu</span>
-    </button>
+    <!-- WRENCH SLIDE-IN MAIN MENU (Set Planner) -->
+    <div class="wrench-menu-container wrench-menu-sp" id="sp-wrench-menu" style="position: fixed; top: 20px; right: 20px; z-index: 5000;">
+      <button class="wrench-trigger" onclick="toggleWrenchMenu('sp')" title="Main Menu">
+        <img src="roadmap/spr_wrench.png" alt="Menu">
+      </button>
+      <div class="wrench-slide-panel">
+        <button class="wrench-panel-btn" onclick="backToSelection()">
+          <i data-lucide="home"></i>
+          <span>Main Menu</span>
+        </button>
+      </div>
+    </div>
 
     <!-- ROADMAP BUTTONS -->
 
@@ -1706,16 +1770,11 @@
 
       <div class="menu-header">
 
-        <div class="menu-filter-btn" onclick="toggleEquippedFilter()" title="Show Equipped Only"><i
-            data-lucide="eye"></i></div>
-        <div class="menu-random-btn" onclick="randomizeSet()" title="Randomize Set"><i data-lucide="dice-5"></i></div>
-        <div class="menu-reset-btn" onclick="resetMenus()" title="Reset Menus"><i data-lucide="rotate-ccw"></i></div>
-        <h3 class="creator-text-large">Created By B7R</h3>
-
-        <p
-          style="font-size: 12px; text-align: center; margin: 0 0 10px 0; background: linear-gradient(90deg, #a8dadc, #457b9d, #1d3557); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: bold; letter-spacing: 0.5px; text-shadow: 0 0 10px rgba(168, 218, 220, 0.6), 0 0 20px rgba(69, 123, 157, 0.4);">
-
-          Contributors: Daffy, totolka, Karaman, BangLiy</p>
+        <div class="menu-header-actions">
+          <div class="menu-filter-btn" onclick="toggleEquippedFilter()" title="Show Equipped Only"><i data-lucide="eye"></i></div>
+          <div class="menu-random-btn" onclick="randomizeSet()" title="Randomize Set"><i data-lucide="dice-5"></i></div>
+          <div class="menu-reset-btn" onclick="resetMenus()" title="Reset Menus"><i data-lucide="rotate-ccw"></i></div>
+        </div>
 
         <input type="text" id="menuSearch" placeholder="Search items..." oninput="searchItems()" />
 
@@ -2490,6 +2549,10 @@
 
             <li data-layer="hair" data-src="hair/slimy.png" data-scale="1.4" data-x="-8" data-y="-27">
               <img src="hair/slimyd.png" class="item-icon"> Black Slimy Hair
+            </li>
+
+            <li data-layer="hair" data-src="worldplanner/new/spr_wa_sidepart_brown_hair_head2/spr_wa_sidepart_brown_hair_head2_0.png" data-scale="1.4" data-x="-8" data-y="-29">
+              <img src="worldplanner/new/spr_wa_sidepart_brown_hair_head2/spr_wa_sidepart_brown_hair_head2_0.png" class="item-icon"> Brown Sidepiece Hair
             </li>
 
             <li data-layer="hair" data-src="hair/hair22.png" data-scale="1.4" data-x="-7.5" data-y="20">
@@ -7720,9 +7783,83 @@
 
 
 
+  <!-- BUG REPORT MODAL -->
+  <div id="bug-report-overlay" class="bug-overlay" style="display:none;">
+    <div class="bug-modal">
+      <div class="bug-modal-header">
+        <h2><i data-lucide="bug" style="width:22px;height:22px;vertical-align:middle;margin-right:8px;"></i>Bug Report</h2>
+        <button class="bug-modal-close" onclick="closeBugReportModal()">&times;</button>
+      </div>
+
+      <!-- TAB SWITCHER -->
+      <div class="bug-tabs">
+        <button class="bug-tab active" data-bugtab="submit" onclick="switchBugTab('submit')">Submit Report</button>
+        <button class="bug-tab" data-bugtab="mybugs" onclick="switchBugTab('mybugs')">My Reports</button>
+        <button class="bug-tab bug-tab-admin" data-bugtab="admin" onclick="switchBugTab('admin')" style="display:none;">Admin Panel</button>
+      </div>
+
+      <!-- SUBMIT TAB -->
+      <div class="bug-tab-content" id="bug-tab-submit">
+        <div class="bug-form-group">
+          <label>Title <span class="bug-required">*</span></label>
+          <input type="text" id="bug-title" placeholder="Brief description of the bug..." maxlength="100">
+        </div>
+        <div class="bug-form-group">
+          <label>Description <span class="bug-required">*</span></label>
+          <textarea id="bug-description" placeholder="Steps to reproduce, what happened vs what you expected..." rows="4" maxlength="1000"></textarea>
+        </div>
+        <div class="bug-form-group">
+          <label>Attach Screenshot / Video <span class="bug-optional">(optional, max 10MB)</span></label>
+          <div class="bug-attach-zone" id="bug-attach-zone" onclick="document.getElementById('bug-file-input').click()">
+            <i data-lucide="image-plus" style="width:32px;height:32px;opacity:0.5;"></i>
+            <span>Click to attach image or video</span>
+          </div>
+          <input type="file" id="bug-file-input" accept="image/*,video/*" style="display:none;" onchange="handleBugAttachment(event)">
+          <div id="bug-attach-preview" class="bug-attach-preview" style="display:none;">
+            <span id="bug-attach-name"></span>
+            <button onclick="removeBugAttachment()" class="bug-attach-remove">&times;</button>
+          </div>
+        </div>
+        <button class="bug-submit-btn" onclick="submitBugReport()">
+          <i data-lucide="send" style="width:16px;height:16px;"></i>
+          Submit Report
+        </button>
+        <div id="bug-submit-status" class="bug-status"></div>
+      </div>
+
+      <!-- MY REPORTS TAB -->
+      <div class="bug-tab-content" id="bug-tab-mybugs" style="display:none;">
+        <div class="bug-section">
+          <h3 class="bug-section-title bug-section-ongoing">Ongoing</h3>
+          <div id="bug-list-ongoing" class="bug-list"></div>
+        </div>
+        <div class="bug-section">
+          <h3 class="bug-section-title bug-section-fixed">Fixed <span class="bug-fixed-emoji"></span></h3>
+          <div id="bug-list-fixed" class="bug-list"></div>
+        </div>
+      </div>
+
+      <!-- ADMIN TAB -->
+      <div class="bug-tab-content" id="bug-tab-admin" style="display:none;">
+        <div class="bug-section">
+          <h3 class="bug-section-title bug-section-ongoing">Ongoing Reports</h3>
+          <div id="bug-admin-ongoing" class="bug-list"></div>
+        </div>
+        <div class="bug-section">
+          <h3 class="bug-section-title bug-section-fixed">Fixed Reports <span class="bug-fixed-emoji"></span></h3>
+          <div id="bug-admin-fixed" class="bug-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-storage-compat.js"></script>
 
   <script src="multiplayer.js?v=2.51"></script>
 

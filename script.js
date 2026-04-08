@@ -3099,7 +3099,7 @@ function isIOS() {
 // UNEQUIP ALL FUNCTION
 // ---------------------------------------------------------
 window.unequipAll = function (force = false) {
-  if (!force && !confirm('Are you sure you want to remove all clothing?')) return;
+  if (!force && !confirm('Are you sure you want to remove the set?')) return;
 
   // Use a transparent placeholder to force Safari to purge the old image from GPU memory
   const placeholder = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
@@ -4756,6 +4756,18 @@ window.addEventListener('load', () => {
           whatsNewBtn.classList.add('visible');
         }
 
+        // Show "Created By B7R" credit with delay
+        setTimeout(() => {
+          const creditEl = document.getElementById('main-menu-credit');
+          if (creditEl) creditEl.classList.add('visible');
+        }, 400);
+
+        // Show "Report Bugs" button with delay
+        setTimeout(() => {
+          const bugBtn = document.getElementById('report-bugs-btn');
+          if (bugBtn) bugBtn.classList.add('visible');
+        }, 600);
+
         // Auto-show modal if not confirmed yet
         // Auto-show modal if not confirmed yet
         if (!localStorage.getItem('whats_new_v251_confirmed')) {
@@ -4803,7 +4815,7 @@ window.selectPlanner = function (type) {
   const spInventory = document.getElementById("sp-inventory-bar");
   const zoomControls = document.querySelector(".zoom-controls");
   const roadmapBtn = document.querySelector(".selection-roadmap-btn");
-  const spTeleport = document.getElementById("sp-main-menu-btn");
+  const spTeleport = document.getElementById("sp-wrench-menu");
 
   // Hide all first
   wpContainer.style.display = "none";
@@ -4825,6 +4837,9 @@ window.selectPlanner = function (type) {
   const rmBtn = document.getElementById("main-roadmap-btn"); if (rmBtn) rmBtn.style.display = "none";
   if (spTeleport) spTeleport.style.display = (type === "set") ? "flex" : "none";
 
+  // Close any open wrench menus
+  document.querySelectorAll('.wrench-menu-container').forEach(el => el.classList.remove('open'));
+
   if (type === "world") {
     wpContainer.style.display = "flex";
     initWorldPlanner();
@@ -4832,6 +4847,93 @@ window.selectPlanner = function (type) {
     if (fishContainer) fishContainer.style.display = "block";
   } else {
     if (setContainer) setContainer.style.display = "block";
+
+    // Re-apply saved player options so name/level/badge persist across menu navigation
+    const savedPlayerOpts = JSON.parse(localStorage.getItem('playerOptions') || '{}');
+    if (savedPlayerOpts.name) {
+      const playerNameDiv = document.getElementById('player-name');
+      if (playerNameDiv) {
+        playerNameDiv.textContent = savedPlayerOpts.name;
+        playerNameDiv.style.display = 'block';
+
+        // Apply saved color
+        const color = savedPlayerOpts.color || 'white';
+        if (color === 'rainbow') {
+          playerNameDiv.style.background = 'none';
+          playerNameDiv.style.webkitBackgroundClip = 'unset';
+          playerNameDiv.style.backgroundClip = 'unset';
+          playerNameDiv.style.webkitTextFillColor = 'unset';
+          playerNameDiv.style.color = '#ff0000';
+          playerNameDiv.style.animation = 'rainbow-fade 45s linear infinite';
+          playerNameDiv.style.textShadow = '4px 6px 0px rgba(0, 0, 0, 1), 0px 4px 2px rgba(0, 0, 0, 0.9)';
+          playerNameDiv.style.filter = 'none';
+        } else if (color === 'diamond') {
+          playerNameDiv.style.background = 'linear-gradient(135deg, #C0C0C0, #F0F0F0, #C0C0C0)';
+          playerNameDiv.style.webkitBackgroundClip = 'text';
+          playerNameDiv.style.backgroundClip = 'text';
+          playerNameDiv.style.webkitTextFillColor = 'transparent';
+          playerNameDiv.style.color = 'transparent';
+          playerNameDiv.style.animation = 'none';
+          playerNameDiv.style.textShadow = 'none';
+          playerNameDiv.style.filter = 'drop-shadow(4px 6px 0px rgba(0, 0, 0, 1)) drop-shadow(0px 4px 2px rgba(0, 0, 0, 0.9))';
+        } else if (color === 'gradient1') {
+          playerNameDiv.style.background = 'linear-gradient(180deg, #0c3bf6, #fe0065)';
+          playerNameDiv.style.webkitBackgroundClip = 'text';
+          playerNameDiv.style.backgroundClip = 'text';
+          playerNameDiv.style.webkitTextFillColor = 'transparent';
+          playerNameDiv.style.color = 'transparent';
+          playerNameDiv.style.animation = 'none';
+          playerNameDiv.style.textShadow = 'none';
+          playerNameDiv.style.filter = 'drop-shadow(4px 6px 0px rgba(0, 0, 0, 1)) drop-shadow(0px 4px 2px rgba(0, 0, 0, 0.9))';
+        } else if (color === 'gradient2') {
+          playerNameDiv.style.background = 'linear-gradient(180deg, #517dfd, #ff4f96)';
+          playerNameDiv.style.webkitBackgroundClip = 'text';
+          playerNameDiv.style.backgroundClip = 'text';
+          playerNameDiv.style.webkitTextFillColor = 'transparent';
+          playerNameDiv.style.color = 'transparent';
+          playerNameDiv.style.animation = 'none';
+          playerNameDiv.style.textShadow = 'none';
+          playerNameDiv.style.filter = 'drop-shadow(4px 6px 0px rgba(0, 0, 0, 1)) drop-shadow(0px 4px 2px rgba(0, 0, 0, 0.9))';
+        } else if (color === 'gradient3') {
+          playerNameDiv.style.background = 'linear-gradient(180deg, #fefb1d, #fefeda, #fea700)';
+          playerNameDiv.style.webkitBackgroundClip = 'text';
+          playerNameDiv.style.backgroundClip = 'text';
+          playerNameDiv.style.webkitTextFillColor = 'transparent';
+          playerNameDiv.style.color = 'transparent';
+          playerNameDiv.style.animation = 'none';
+          playerNameDiv.style.textShadow = 'none';
+          playerNameDiv.style.filter = 'drop-shadow(4px 6px 0px rgba(0, 0, 0, 1)) drop-shadow(0px 4px 2px rgba(0, 0, 0, 0.9))';
+        } else {
+          const colorMap = {
+            'white': '#FFFFFF', 'blue': '#4A90E2', 'green': '#50C878',
+            'purple': '#9B59B6', 'pink': '#FF69B4', 'red': '#d6453b',
+            'lightgreen': '#38e231', 'lightblue': '#2c96eb'
+          };
+          playerNameDiv.style.color = colorMap[color] || '#FFFFFF';
+          playerNameDiv.style.background = 'none';
+          playerNameDiv.style.webkitTextFillColor = 'unset';
+          playerNameDiv.style.webkitBackgroundClip = 'unset';
+          playerNameDiv.style.backgroundClip = 'unset';
+          playerNameDiv.style.animation = 'none';
+          playerNameDiv.style.textShadow = '4px 6px 0px rgba(0, 0, 0, 1), 0px 4px 2px rgba(0, 0, 0, 0.9)';
+          playerNameDiv.style.filter = 'none';
+        }
+      }
+    }
+    if (savedPlayerOpts.level) {
+      const playerLevelImg = document.getElementById('player-level');
+      if (playerLevelImg) {
+        playerLevelImg.src = savedPlayerOpts.level;
+        playerLevelImg.style.display = 'block';
+      }
+    }
+    if (savedPlayerOpts.badge) {
+      const playerBadgeImg = document.getElementById('player-badge');
+      if (playerBadgeImg) {
+        playerBadgeImg.src = savedPlayerOpts.badge;
+        playerBadgeImg.style.display = 'block';
+      }
+    }
   }
 
   // Fade out loading screen after selection (if not already hidden)
@@ -4857,7 +4959,7 @@ window.backToSelection = function () {
   const spInventory = document.getElementById("sp-inventory-bar");
   const zoomControls = document.querySelector(".zoom-controls");
   const roadmapBtn = document.querySelector(".selection-roadmap-btn");
-  const spTeleport = document.getElementById("sp-main-menu-btn");
+  const spTeleport = document.getElementById("sp-wrench-menu");
 
   if (wpContainer) wpContainer.style.display = "none";
   if (setContainer) setContainer.style.display = "none";
@@ -4882,6 +4984,9 @@ window.backToSelection = function () {
   const nameDisp = document.getElementById("player-name"); if (nameDisp) nameDisp.style.display = "none";
   if (spTeleport) spTeleport.style.display = "none";
 
+  // Close any open wrench menus
+  document.querySelectorAll('.wrench-menu-container').forEach(el => el.classList.remove('open'));
+
   if (loadingScreen) {
     loadingScreen.style.display = "flex";
     loadingScreen.classList.remove("fade-out");
@@ -4891,6 +4996,12 @@ window.backToSelection = function () {
     // Show roadmap button on main menu
     const selRoadmapBtn = document.querySelector('.selection-roadmap-btn');
     if (selRoadmapBtn) selRoadmapBtn.style.display = 'block';
+
+    // Show credit and report bugs buttons
+    const creditEl = document.getElementById('main-menu-credit');
+    if (creditEl) creditEl.classList.add('visible');
+    const bugBtn = document.getElementById('report-bugs-btn');
+    if (bugBtn) bugBtn.classList.add('visible');
   }
 };
 
@@ -6702,6 +6813,14 @@ async function generateWPWorldExportDataURL(gridData, bgGridData, baseThemeId, b
           const img = imageCache[path];
           if (img) {
             const nw = img.naturalWidth, nh = img.naturalHeight;
+
+            // Fix: ensure the staging canvas exists before drawing to it
+            if (!wpShadowStagingCanvas) {
+              wpShadowStagingCanvas = document.createElement('canvas');
+              wpShadowStagingCanvas.width = 256;
+              wpShadowStagingCanvas.height = 256;
+              wpShadowStagingCtx = wpShadowStagingCanvas.getContext('2d');
+            }
 
             // DRAW SHADOW VIA STAGING (Fixes iOS coloring)
             wpShadowStagingCtx.clearRect(0, 0, 256, 256);
@@ -10527,5 +10646,400 @@ document.addEventListener("DOMContentLoaded", () => {
   loadWPHotkeys();
 });
 
+// ==========================================
+// NEW FEATURE: WRENCH SLIDE-IN MENU
+// ==========================================
+window.toggleWrenchMenu = function(menuId) {
+  const wpMenu = document.getElementById('wp-wrench-menu');
+  const spMenu = document.getElementById('sp-wrench-menu');
+  
+  if (menuId === 'wp' && wpMenu) {
+    if (wpMenu.classList.contains('open')) {
+      wpMenu.classList.remove('open');
+    } else {
+      if (spMenu) spMenu.classList.remove('open');
+      wpMenu.classList.add('open');
+    }
+  } else if (menuId === 'sp' && spMenu) {
+    if (spMenu.classList.contains('open')) {
+      spMenu.classList.remove('open');
+    } else {
+      if (wpMenu) wpMenu.classList.remove('open');
+      spMenu.classList.add('open');
+    }
+  }
+};
 
+// Close wrench menus if clicked outside
+document.addEventListener('click', function(event) {
+  const wpMenu = document.getElementById('wp-wrench-menu');
+  const spMenu = document.getElementById('sp-wrench-menu');
+  
+  if (wpMenu && wpMenu.classList.contains('open') && !wpMenu.contains(event.target)) {
+    wpMenu.classList.remove('open');
+  }
+  if (spMenu && spMenu.classList.contains('open') && !spMenu.contains(event.target)) {
+    spMenu.classList.remove('open');
+  }
+});
 
+// ==========================================
+// NEW FEATURE: BUG REPORT SYSTEM (FIREBASE CLOUD STORAGE)
+// ==========================================
+const firebaseConfig = {
+  apiKey: "AIzaSyCitT8cJmVf2ZozFf10RAYAUIjfouYyPvM",
+  authDomain: "bw-planner-245ac.firebaseapp.com",
+  projectId: "bw-planner-245ac",
+  storageBucket: "bw-planner-245ac.firebasestorage.app",
+  messagingSenderId: "596167875090",
+  appId: "1:596167875090:web:465342815273fb337916cb",
+  measurementId: "G-F4G9N1CQ44"
+};
+
+// Initialize Firebase
+let app, db;
+if (typeof firebase !== 'undefined') {
+  app = firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  // We are skipping Firebase Storage to avoid credit card requirements
+} else {
+  console.error("Firebase SDK not loaded.");
+}
+
+let currentBugAttachment = null;
+let isAdminMode = false;
+
+// Admin Unlock Function (Called from Console)
+window.enableAdminMode = function(password) {
+  if (password === 'secret') {
+    isAdminMode = true;
+    console.log('%cAdmin Mode Unlocked!', 'color: #fb8500; font-size: 16px; font-weight: bold;');
+    const adminTab = document.querySelector('.bug-tab-admin');
+    if (adminTab) {
+      adminTab.style.display = 'block';
+      loadAdminBugReports();
+    }
+    return true;
+  }
+  return false;
+};
+
+// Modal Controls
+window.openBugReportModal = function() {
+  const modal = document.getElementById('bug-report-overlay');
+  if (modal) {
+    modal.style.display = 'flex';
+    const adminTab = document.querySelector('.bug-tab-admin');
+    if (adminTab) adminTab.style.display = isAdminMode ? 'block' : 'none';
+    switchBugTab('submit');
+  }
+};
+
+window.closeBugReportModal = function() {
+  const modal = document.getElementById('bug-report-overlay');
+  if (modal) modal.style.display = 'none';
+  document.getElementById('bug-title').value = '';
+  document.getElementById('bug-description').value = '';
+  document.getElementById('bug-submit-status').textContent = '';
+  removeBugAttachment();
+};
+
+window.switchBugTab = function(tabName) {
+  document.querySelectorAll('.bug-tab').forEach(t => t.classList.remove('active'));
+  const targetTab = document.querySelector(`.bug-tab[data-bugtab="${tabName}"]`);
+  if(targetTab) targetTab.classList.add('active');
+  
+  document.querySelectorAll('.bug-tab-content').forEach(c => c.style.display = 'none');
+  const targetContent = document.getElementById(`bug-tab-${tabName}`);
+  if(targetContent) targetContent.style.display = 'block';
+  
+  if (tabName === 'mybugs') loadMyBugReports();
+  if (tabName === 'admin' && isAdminMode) loadAdminBugReports();
+};
+
+// Attachment Handling (Compress Image for Firestore)
+window.handleBugAttachment = function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  if (!file.type.startsWith('image/')) {
+    alert('Only screenshots/images are supported to keep this free.');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const MAX_WIDTH = 1000;
+      const MAX_HEIGHT = 1000;
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height *= MAX_WIDTH / width;
+          width = MAX_WIDTH;
+        }
+      } else {
+        if (height > MAX_HEIGHT) {
+          width *= MAX_HEIGHT / height;
+          height = MAX_HEIGHT;
+        }
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6); // Compress to 60% quality JPEG
+
+      currentBugAttachment = {
+        data: compressedDataUrl,
+        name: file.name
+      };
+      
+      const attachZone = document.getElementById('bug-attach-zone');
+      if(attachZone) attachZone.style.display = 'none';
+      const preview = document.getElementById('bug-attach-preview');
+      if(preview) preview.style.display = 'flex';
+      const nameEl = document.getElementById('bug-attach-name');
+      if(nameEl) {
+        nameEl.textContent = file.name;
+        nameEl.style.whiteSpace = 'nowrap';
+        nameEl.style.overflow = 'hidden';
+        nameEl.style.textOverflow = 'ellipsis';
+      }
+    };
+    img.src = event.target.result;
+  };
+  reader.readAsDataURL(file);
+};
+
+window.removeBugAttachment = function() {
+  currentBugAttachment = null;
+  const input = document.getElementById('bug-file-input');
+  if(input) input.value = '';
+  const attachZone = document.getElementById('bug-attach-zone');
+  if(attachZone) attachZone.style.display = 'flex';
+  const preview = document.getElementById('bug-attach-preview');
+  if(preview) preview.style.display = 'none';
+};
+
+// Submit Logic
+window.submitBugReport = async function() {
+  if (!db) {
+    alert("Firebase Database not ready yet.");
+    return;
+  }
+  
+  const title = document.getElementById('bug-title').value.trim();
+  const desc = document.getElementById('bug-description').value.trim();
+  const statusEl = document.getElementById('bug-submit-status');
+  
+  if (!title || !desc) {
+    statusEl.innerHTML = '<span class="error">Title and Description are required.</span>';
+    return;
+  }
+  
+  statusEl.innerHTML = '<span style="color: #fb8500;">Saving to database...</span>';
+  
+  const report = {
+    timestamp: Date.now(),
+    title: title,
+    description: desc,
+    status: 'ongoing',
+    attachmentDataUrl: currentBugAttachment ? currentBugAttachment.data : null
+  };
+  
+  try {
+    await db.collection('reports').add(report);
+    statusEl.innerHTML = '<span class="success">Report submitted successfully! Thank you.</span>';
+    setTimeout(() => {
+      document.getElementById('bug-title').value = '';
+      document.getElementById('bug-description').value = '';
+      removeBugAttachment();
+      statusEl.innerHTML = '';
+      switchBugTab('mybugs');
+    }, 1500);
+  } catch(err) {
+    console.error("Firebase Error: ", err);
+    statusEl.innerHTML = '<span class="error">Failed to save report. Please check your connection.</span>';
+  }
+};
+
+// Load Logic
+window.loadMyBugReports = async function() {
+  if (!db) return;
+  try {
+    const snapshot = await db.collection('reports').orderBy('timestamp', 'desc').get();
+    
+    const ongoingList = document.getElementById('bug-list-ongoing');
+    const fixedList = document.getElementById('bug-list-fixed');
+    ongoingList.innerHTML = '';
+    fixedList.innerHTML = '';
+    let ongoingCount = 0; let fixedCount = 0;
+    
+    snapshot.forEach(doc => {
+      const r = doc.data();
+      r.id = doc.id;
+      const card = createBugCardHTML(r, false);
+      if (r.status === 'fixed') {
+        fixedList.insertAdjacentHTML('beforeend', card);
+        fixedCount++;
+      } else {
+        ongoingList.insertAdjacentHTML('beforeend', card);
+        ongoingCount++;
+      }
+    });
+    
+    if (ongoingCount === 0) ongoingList.innerHTML = '<div class="bug-empty">No ongoing reports.</div>';
+    if (fixedCount === 0) fixedList.innerHTML = '<div class="bug-empty">No fixed reports.</div>';
+  } catch(err) { console.error("Error loading bugs: ", err); }
+};
+
+// Admin Load Logic
+window.loadAdminBugReports = async function() {
+  if (!db || !isAdminMode) return;
+  try {
+    const snapshot = await db.collection('reports').orderBy('timestamp', 'desc').get();
+    
+    const ongoingList = document.getElementById('bug-admin-ongoing');
+    const fixedList = document.getElementById('bug-admin-fixed');
+    ongoingList.innerHTML = '';
+    fixedList.innerHTML = '';
+    let ongoingCount = 0; let fixedCount = 0;
+    
+    snapshot.forEach(doc => {
+      const r = doc.data();
+      r.id = doc.id;
+      const card = createBugCardHTML(r, true);
+      if (r.status === 'fixed') {
+        fixedList.insertAdjacentHTML('beforeend', card);
+        fixedCount++;
+      } else {
+        ongoingList.insertAdjacentHTML('beforeend', card);
+        ongoingCount++;
+      }
+    });
+    
+    if (ongoingCount === 0) ongoingList.innerHTML = '<div class="bug-empty">No pending reports.</div>';
+    if (fixedCount === 0) fixedList.innerHTML = '<div class="bug-empty">No fixed reports.</div>';
+  } catch(err) { console.error("Error loading admin bugs: ", err); }
+};
+
+function createBugCardHTML(report, forAdmin) {
+  const dateStr = new Date(report.timestamp).toLocaleString();
+  let attachHtml = '';
+  
+  if (report.attachmentDataUrl) {
+    attachHtml = `<div class="bug-card-attachment"><img src="${report.attachmentDataUrl}" alt="Bug screenshot"></div>`;
+  }
+
+  let actionsHtml = '';
+  if (forAdmin) {
+    actionsHtml = `<div class="bug-card-actions">`;
+    if (report.status === 'ongoing') {
+      actionsHtml += `<button class="bug-action-btn bug-action-fix" onclick="adminFixBug('${report.id}')">Mark Fixed</button>`;
+    } else {
+      actionsHtml += `<button class="bug-action-btn bug-action-fix" onclick="adminUnfixBug('${report.id}')">Unmark Fixed</button>`;
+    }
+    actionsHtml += `<button class="bug-action-btn bug-action-delete" onclick="adminDeleteBug('${report.id}')">Delete</button></div>`;
+  } else if (report.status === 'ongoing') {
+    actionsHtml = `<div class="bug-card-actions">
+      <button class="bug-action-btn bug-action-delete" onclick="adminDeleteBug('${report.id}')">Withdraw Report</button>
+    </div>`;
+  }
+
+  const statusClass = (report.status === 'fixed') ? 'bug-card-fixed' : '';
+
+  return `
+    <div class="bug-card ${statusClass}" id="bug-card-${report.id}">
+      <div class="bug-card-header">
+        <span class="bug-card-title">${report.title}</span>
+        <span class="bug-card-date">${dateStr}</span>
+      </div>
+      <div class="bug-card-desc">${report.description.replace(/\n/g, '<br>')}</div>
+      ${attachHtml}
+      ${actionsHtml}
+    </div>
+  `;
+}
+
+// Admin Actions
+window.adminFixBug = async function(id) {
+  if (!db) return;
+  try {
+    await db.collection('reports').doc(id).update({ status: 'fixed' });
+    setTimeout(() => loadAdminBugReports(), 100);
+  } catch(err) { console.error("Error fixing bug: ", err); }
+};
+
+window.adminUnfixBug = async function(id) {
+  if (!db) return;
+  try {
+    await db.collection('reports').doc(id).update({ status: 'ongoing' });
+    setTimeout(() => loadAdminBugReports(), 100);
+  } catch(err) { console.error("Error unfixing bug: ", err); }
+};
+
+window.adminDeleteBug = async function(id) {
+  if (!db) return;
+  if (!confirm("Are you sure you want to delete this report?")) return;
+  
+  try {
+    await db.collection('reports').doc(id).delete();
+    const adminTab = document.querySelector('.bug-tab-admin');
+    if (adminTab && adminTab.classList.contains('active')) {
+      loadAdminBugReports();
+    } else {
+      loadMyBugReports();
+    }
+  } catch(err) { console.error("Error deleting bug: ", err); }
+};
+
+// ==========================================
+// NEW FEATURE: PRELOAD BLOCKS LOGIC
+// ==========================================
+function preloadAllBlocks() {
+  console.log("Starting early pre-fetch of block assets...");
+  fetch('worldplanner/blocks_manifest.json')
+    .then(r => r.json())
+    .then(data => {
+      const manifestCategories = data.manifest.categories;
+      const themeList = data.manifest.themes;
+      const imagesToLoad = [];
+      
+      // Load blocks
+      manifestCategories.forEach(cat => {
+        Object.values(cat.blocks).forEach(blk => {
+          if (blk.src) imagesToLoad.push(blk.src);
+          // Only check first frame to save bandwidth/connections
+          if (blk.framesPath && blk.frameCount > 0) {
+             imagesToLoad.push(`${blk.framesPath}${blk.frameStart || 0}.png`);
+          }
+        });
+      });
+      
+      // Load theme backgrounds
+      if (themeList) {
+        themeList.forEach(t => {
+          if (t.src) imagesToLoad.push(t.src);
+        });
+      }
+      
+      // Create off-screen image elements to force browser cache
+      imagesToLoad.forEach(src => {
+        const img = new Image();
+        img.src = src;
+      });
+      console.log(`Pre-fetching ${imagesToLoad.length} assets.`);
+    })
+    .catch(e => console.warn("Background preloading failed (will load when World Planner opens)", e));
+}
+
+// Start preloading immediately on load
+window.addEventListener('load', () => {
+  preloadAllBlocks();
+});
