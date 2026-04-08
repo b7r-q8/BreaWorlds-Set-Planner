@@ -7809,12 +7809,12 @@
           <textarea id="bug-description" placeholder="Steps to reproduce, what happened vs what you expected..." rows="4" maxlength="1000"></textarea>
         </div>
         <div class="bug-form-group">
-          <label>Attach Screenshot / Video <span class="bug-optional">(optional, max 10MB)</span></label>
+          <label>Attach Screenshot <span class="bug-optional">(optional, max 10MB)</span></label>
           <div class="bug-attach-zone" id="bug-attach-zone" onclick="document.getElementById('bug-file-input').click()">
             <i data-lucide="image-plus" style="width:32px;height:32px;opacity:0.5;"></i>
-            <span>Click to attach image or video</span>
+            <span>Click to attach image</span>
           </div>
-          <input type="file" id="bug-file-input" accept="image/*,video/*" style="display:none;" onchange="handleBugAttachment(event)">
+          <input type="file" id="bug-file-input" accept="image/*" style="display:none;" onchange="handleBugAttachment(event)">
           <div id="bug-attach-preview" class="bug-attach-preview" style="display:none;">
             <span id="bug-attach-name"></span>
             <button onclick="removeBugAttachment()" class="bug-attach-remove">&times;</button>
