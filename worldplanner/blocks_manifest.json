@@ -3785,7 +3785,7 @@
     {
       "id": "spr_fg_player_mannequin",
       "name": "Mannequin",
-      "src": "worldplanner/Blocks/spr_fg_player_mannequin/spr_fg_player_mannequin_0.png",
+      "src": "worldplanner/new/spr_fg_player_mannequin/spr_fg_player_mannequin_0.png",
       "type": "foreground",
       "group": "Miscellaneous"
     },

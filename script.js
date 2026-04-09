@@ -10730,6 +10730,17 @@ if (typeof firebase !== 'undefined') {
 let currentBugAttachment = null;
 let isAdminMode = false;
 
+// Persistent unique user ID for bug report ownership
+function getBugReportUserId() {
+  let uid = localStorage.getItem('bug_report_uid');
+  if (!uid) {
+    uid = 'user_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('bug_report_uid', uid);
+  }
+  return uid;
+}
+const bugReportUserId = getBugReportUserId();
+
 // Admin Unlock Function (Called from Console)
 window.enableAdminMode = function(password) {
   if (password === 'secret') {
@@ -10871,6 +10882,7 @@ window.submitBugReport = async function() {
     title: title,
     description: desc,
     status: 'ongoing',
+    userId: bugReportUserId,
     attachmentDataUrl: currentBugAttachment ? currentBugAttachment.data : null
   };
   
@@ -10890,11 +10902,13 @@ window.submitBugReport = async function() {
   }
 };
 
-// Load Logic
+// Load Logic — only show the current user's own reports
 window.loadMyBugReports = async function() {
   if (!db) return;
   try {
-    const snapshot = await db.collection('reports').orderBy('timestamp', 'desc').get();
+    const snapshot = await db.collection('reports')
+      .orderBy('timestamp', 'desc')
+      .get();
     
     const ongoingList = document.getElementById('bug-list-ongoing');
     const fixedList = document.getElementById('bug-list-fixed');
@@ -10904,6 +10918,8 @@ window.loadMyBugReports = async function() {
     
     snapshot.forEach(doc => {
       const r = doc.data();
+      if (r.userId !== bugReportUserId) return; // Client-side filtering
+      
       r.id = doc.id;
       const card = createBugCardHTML(r, false);
       if (r.status === 'fixed') {
