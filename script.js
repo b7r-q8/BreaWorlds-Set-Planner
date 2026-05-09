@@ -943,10 +943,26 @@ function loadState() {
         skinBtn.classList.add('equipped');
       }
       // Re-sync body parts now that activeSkinColor is set.
-      // This ensures: 1) clothing switches to no-skin variants (invisSrc)
-      //               2) diaper overlays become visible
-      //               3) applySkinTint is called internally (async, with diaper management)
       syncBodyParts();
+    } else {
+      // Default to Tan if they had no skin color saved (old default) and no special character equipped
+      let isSpecialCharacter = false;
+      const headData = state.equippedItems && state.equippedItems['head'];
+      if (headData && headData.src) {
+        if (headData.src.includes('invisibleskin') || headData.src.includes('gsc/head.png') || headData.src.includes('sc/head.png') || headData.src.includes('jester_head2.png')) {
+          isSpecialCharacter = true;
+        }
+      }
+      
+      if (!isSpecialCharacter) {
+        activeSkinColor = '#d49e7a';
+        const skinBtn = document.querySelector(`#specialsMenu li[data-skin-color="#d49e7a"]`);
+        if (skinBtn) {
+          document.querySelectorAll('#specialsMenu li').forEach(li => li.classList.remove('equipped'));
+          skinBtn.classList.add('equipped');
+        }
+        syncBodyParts();
+      }
     }
 
     // Restore Dark Jester Character if it was active
