@@ -21,7 +21,7 @@
 
   <meta name="keywords" content="BreaWorlds, BreaWorlds Tools, BW Tools, BW Planner, BW Set Planner, Set Planner, World Planner, World Designer, Character Customizer, Outfit Builder, BreaWorlds Items, BreaWorlds Set, BreaWorlds World Builder, Brea Worlds, BW Set, BW World">
 
-  <link rel="stylesheet" href="style.css?v=2.53">
+  <link rel="stylesheet" href="style.css?v=2.54">
   <link rel="stylesheet" href="tutorial.css">
 
   <!-- Website Metadata & Social Sharing (Open Graph) -->
@@ -210,7 +210,8 @@
     <div class="wp-canvas-container" id="wp-viewport">
 
       <div id="wp-grid-bg"></div>
-      <canvas id="worldCanvas"></canvas>
+       <canvas id="worldCanvas"></canvas>
+       <div class="wp-coords-display" id="wp-coords-display" style="display: none;">0, 0</div>
 
     </div>
 
@@ -285,6 +286,14 @@
 
         </button>
 
+        <button class="wp-tool-btn" data-tool="invert" title="Invert Block">
+
+          <i data-lucide="arrow-left-right"></i>
+
+          <span class="wp-tool-label">Invert</span>
+
+        </button>
+
         <button class="wp-tool-btn" data-tool="select" title="Select Area">
 
           <i data-lucide="box-select"></i>
@@ -352,6 +361,7 @@
 
         </button>
 
+
         <button class="wp-tool-btn" onclick="wpReposition()" title="Reposition View">
 
           <i data-lucide="maximize"></i>
@@ -369,6 +379,11 @@
         </button>
 
         <div class="wp-tool-divider"></div>
+
+        <button class="wp-tool-btn" onclick="openSpotlightModal()" title="Spotlight (Isolate Block)">
+          <i data-lucide="search"></i>
+          <span class="wp-tool-label">Spotlight</span>
+        </button>
 
         <button class="wp-tool-btn" data-tool="blocks" title="Blocks">
           <i data-lucide="box"></i>
@@ -417,6 +432,8 @@
       <div id="wp-sel-div-1" class="wp-sel-divider"></div>
       <button id="wp-btn-flip-h" class="wp-sel-btn" onclick="wpFlipSelection('horizontal')" title="Flip Horizontal"><i data-lucide="flip-horizontal"></i></button>
       <button id="wp-btn-flip-v" class="wp-sel-btn" onclick="wpFlipSelection('vertical')" title="Flip Vertical"><i data-lucide="flip-vertical"></i></button>
+      <button id="wp-btn-invert" class="wp-sel-btn" onclick="wpInvertSelection()" title="Invert (Mirror Sprites)"><i data-lucide="arrow-left-right"></i></button>
+      <button id="wp-btn-rotate" class="wp-sel-btn" onclick="wpRotateSelection()" title="Rotate 90°"><i data-lucide="rotate-cw"></i></button>
       <div id="wp-sel-div-2" class="wp-sel-divider"></div>
       <button id="wp-btn-clear" class="wp-sel-btn wp-sel-danger" onclick="wpClearSelection()" title="Clear Selection"><i data-lucide="trash-2"></i></button>
       <button id="wp-btn-cancel" class="wp-sel-btn" onclick="wpCancelSelection()" title="Cancel"><i data-lucide="x"></i></button>
@@ -439,6 +456,17 @@
 
       </div>
 
+    </div>
+
+    <!-- SPOTLIGHT MODAL -->
+    <div id="wp-spotlight-modal" class="wp-popup hidden" style="width: 320px;">
+      <div class="wp-popup-header">
+        <h3>Spotlight</h3>
+        <button class="wp-popup-close" onclick="closeSpotlightModal()">&times;</button>
+      </div>
+      <div class="wp-spotlight-info">Tap a block to isolate it on the grid</div>
+      <div id="wpSpotlightList" class="wp-count-modal-content"></div>
+      <button class="wp-spotlight-clear-btn" onclick="clearSpotlight()">Clear Spotlight</button>
     </div>
 
 
@@ -907,9 +935,8 @@
 
         </div>
 
-        <div class="roadmap-btn selection-roadmap-btn" onclick="openRoadmapModal()" style="position: fixed; top: 20px; right: 20px; z-index: 10002; display: none;">
-          <div class="roadmap-icon-anim roadmap-icon-space"></div> Roadmap
-        </div>
+
+
 
       </div>
 
@@ -1595,6 +1622,50 @@
 
   <div id="set-planner-container" style="display: none;">
 
+    <!-- FLOATING ITEMS (faded ambient decoration) -->
+    <div class="item-scatter-container sp-scatter-container">
+
+      <img src="hats/hat25.png" class="item-scatter sp-scatter"
+        style="top: 12%; left: 8%; --d: 7s; --r: 12deg;">
+
+      <img src="pets/spr_wa_pet_reaper_pet2/1.png" class="item-scatter sp-scatter"
+        style="top: 18%; right: 12%; --d: 9s; --r: -8deg;">
+
+      <img src="cars/spr_wa_yellow_car_ride2.png" class="item-scatter sp-scatter"
+        style="bottom: 28%; left: 10%; --d: 8s; --r: 5deg;">
+
+      <img src="display/spr_wa_vampire_cape.png" class="item-scatter sp-scatter"
+        style="bottom: 18%; right: 8%; --d: 10s; --r: -12deg;">
+
+      <img src="display/spr_wa_vip_wings.png" class="item-scatter sp-scatter"
+        style="top: 55%; left: 4%; --d: 12s; --r: 20deg;">
+
+      <img src="hair/hair1.png" class="item-scatter sp-scatter"
+        style="top: 38%; right: 6%; --d: 13s; --r: 8deg; width: 45px;">
+
+      <img src="hair/hair39.png" class="item-scatter sp-scatter"
+        style="bottom: 42%; left: 18%; --d: 11s; --r: -18deg; width: 45px;">
+
+      <img src="faces/faces36.png" class="item-scatter sp-scatter"
+        style="top: 8%; left: 38%; --d: 14s; --r: 0deg; width: 40px;">
+
+      <img src="eyes/eyes1.png" class="item-scatter sp-scatter"
+        style="bottom: 8%; left: 42%; --d: 15s; --r: 0deg; width: 30px;">
+
+      <img src="shirts/shirt2/shirt2.png" class="item-scatter sp-scatter"
+        style="top: 65%; right: 22%; --d: 16s; --r: -5deg; width: 50px;">
+
+      <img src="capes/cape1/vcapeabove.png" class="item-scatter sp-scatter"
+        style="top: 4%; right: 38%; --d: 17s; --r: 10deg; width: 40px;">
+
+      <img src="hands/sword4.png" class="item-scatter sp-scatter"
+        style="top: 28%; left: 28%; --d: 19s; --r: 40deg; width: 55px;">
+
+      <img src="shoes/shoes1.png" class="item-scatter sp-scatter"
+        style="top: 82%; left: 48%; --d: 21s; --r: 15deg; width: 30px;">
+
+    </div>
+
     <!-- TOP DRAWER MENU (PLATFORMS & BACKGROUNDS) -->
 
     <div id="top-drawer" class="top-drawer">
@@ -1799,6 +1870,28 @@
             <!-- Items will be injected dynamically by script.js -->
           </ul>
 
+          <!-- GENDER -->
+          <li class="menu-item-with-icon" onclick="toggleSubmenu('genderMenu')">
+            <div class="roadmap-item-icon-container">
+              <img src="specials/normalbase.png" class="roadmap-image-icon">
+            </div>
+            <span class="roadmap-item-text category-label">Gender</span>
+          </li>
+          <ul class="submenu" id="genderMenu">
+            <li onclick="setGender(this, 'male')" id="maleOption" class="equipped">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/male.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Male</span>
+            </li>
+            <li onclick="setGender(this, 'female')" id="femaleOption">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/female.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Female</span>
+            </li>
+          </ul>
+
           <!-- SPECIALS -->
 
           <li class="menu-item-with-icon" onclick="toggleSubmenu('specialsMenu')">
@@ -1815,16 +1908,203 @@
 
           <ul class="submenu" id="specialsMenu">
 
+            <!-- CHARACTERS -->
+            <li onclick="equipNormalJester(this)">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/normaljester/spr_character_n_jester_head2.png" class="roadmap-image-icon">
+              </div>
+              <span class="roadmap-item-text">Jester Character</span>
+            </li>
+
+            <li onclick="equipDarkJester(this)">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/djc/spr_character_jester_head2.png" class="roadmap-image-icon">
+              </div>
+              <span class="roadmap-item-text">Dark Jester Character</span>
+            </li>
+
+            <li onclick="equipGoldenSkeleton(this)">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/gsc/head.png" class="roadmap-image-icon">
+              </div>
+              <span class="roadmap-item-text">Golden Skeleton Character</span>
+            </li>
+
+            <li onclick="equipSkeleton(this)">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/sc/head.png" class="roadmap-image-icon">
+              </div>
+              <span class="roadmap-item-text">Skeleton Character</span>
+            </li>
+
             <li onclick="equipInvisCharacter(this)" data-scale="1" data-x="0" data-y="0">
-
-              <img src="specials/invis.png" class="item-icon"> Invisible Skin
-
+              <div class="roadmap-item-icon-container">
+                <img src="specials/invis.png" class="roadmap-image-icon">
+              </div>
+              <span class="roadmap-item-text">Invisible Skin</span>
             </li>
 
             <li onclick="equipNormalCharacter(this)">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/draculaskin.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Dracula Skin</span>
+            </li>
 
-              <img src="specials/normalbase.png" class="item-icon"> Base Character
+            <!-- RAINBOW SKIN -->
+            <li onclick="equipSkinColor(this, 'rainbow')" data-skin-color="rainbow">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/rainbowskin.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Rainbow Skin</span>
+            </li>
 
+            <!-- SKIN COLORS: Light to Dark -->
+            <li onclick="equipSkinColor(this, '#fee3c6')" data-skin-color="#fee3c6">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/lighpeach.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Light Peach</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#fde7ad')" data-skin-color="#fde7ad">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/cream.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Cream</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#f8d998')" data-skin-color="#f8d998">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/warmsand.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Warm Sand</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#f9d4a0')" data-skin-color="#f9d4a0">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/peach.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Peach</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#ecc091')" data-skin-color="#ecc091">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/goldentan.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Golden Tan</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#f2c280')" data-skin-color="#f2c280">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/honey.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Honey</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#d49e7a')" data-skin-color="#d49e7a">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/tan.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Tan</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#cf965f')" data-skin-color="#cf965f">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/caramel.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Caramel</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#bb6536')" data-skin-color="#bb6536">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/bronze.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Bronze</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#ad8a60')" data-skin-color="#ad8a60">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/tawny.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Tawny</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#b26644')" data-skin-color="#b26644">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/auburn.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Auburn</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#935f37')" data-skin-color="#935f37">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/sienna.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Sienna</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#7f4422')" data-skin-color="#7f4422">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/cocoa.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Cocoa</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#733f17')" data-skin-color="#733f17">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/chestnut.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Chestnut</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#5f3310')" data-skin-color="#5f3310">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/espresso.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Espresso</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#291709')" data-skin-color="#291709">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/obsidian.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Obsidian</span>
+            </li>
+
+            <!-- FANTASY COLORS -->
+            <li onclick="equipSkinColor(this, '#538bdb')" data-skin-color="#538bdb">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/blue.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Blue</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#5cc43c')" data-skin-color="#5cc43c">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/green.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Green</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#808080')" data-skin-color="#808080">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/grey.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Grey</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#ff882b')" data-skin-color="#ff882b">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/orange.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Orange</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#c93ecd')" data-skin-color="#c93ecd">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/pink.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Pink</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#6a26a5')" data-skin-color="#6a26a5">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/purple.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Purple</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#d64a29')" data-skin-color="#d64a29">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/red.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Red</span>
+            </li>
+            <li onclick="equipSkinColor(this, '#ffdd37')" data-skin-color="#ffdd37">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/display/yellow.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Yellow</span>
             </li>
 
           </ul>
@@ -2987,7 +3267,7 @@
 
 
 
-            <li id="faces29item" data-layer="faces" data-src="faces/faces29.png" data-scale="1.3" data-x="-5"
+             <li id="faces29item" data-layer="faces" data-src="faces/faces29.png" data-scale="1.3" data-x="-5"
               data-y="-19">
 
               <img src="display/spr_wa_mechanical_bunny_armor_helmet.png" class="item-icon"> Mechanical Bunny Helmet
@@ -3956,7 +4236,7 @@
 
 
             <li data-layer="wings" data-animated="true" data-frames="wings/wing37/" data-frame-count="2" data-fps="4"
-              data-scale="4" data-x="-10" data-y="107">
+              data-scale="4.8" data-x="-7" data-y="27">
 
               <img src="wings/spr_wa_nightmare_wings_0.png" class="item-icon"> Nightmare Wings
 
@@ -5486,8 +5766,8 @@
 
 
 
-            <li data-layer="pants" data-src="pants/pants34/clownshorts.png" data-scale="0.74" data-x="-2.5"
-              data-y="303.8" data-invis-src="pants/pants34/spr_wa_clown_slacks_leg_1.png" data-invis-scale="0.74"
+            <li data-layer="pants" data-src="pants/pants34/clownshorts.png" data-scale="0.74" data-x="-3"
+              data-y="313.5" data-invis-src="pants/pants34/spr_wa_clown_slacks_leg_1.png" data-invis-scale="0.74"
               data-invis-x="-2.5" data-invis-y="303.8">
 
               <img src="pants/pants34/spr_wa_clown_slacks_leg_1.png" class="item-icon"> Clown Slacks
@@ -6197,8 +6477,8 @@
 
 
 
-            <li data-layer="shoes" data-src="shoes/shoes10/spr_wa_clown_boots_leg_1.png" data-scale="0.5" data-x="-19.5"
-              data-y="335" data-right-scale="0.5" data-right-x="75.5" data-right-y="335">
+            <li data-layer="shoes" data-src="shoes/shoes10/spr_wa_clown_boots_leg_1.png" data-scale="0.52" data-x="-19.5"
+              data-y="336" data-right-scale="0.52" data-right-x="78" data-right-y="336">
 
               <img src="display/spr_wa_clown_boots.png" class="item-icon"> Clown Boots
 
@@ -6230,8 +6510,8 @@
 
             </li>
 
-            <li data-layer="shoes" data-src="shoes/shoes14/spr_wa_festive_xmas_booties_leg_1.png" data-scale="0.33"
-              data-x="-46" data-y="298" data-right-scale="0.33" data-right-x="48.5" data-right-y="298">
+            <li data-layer="shoes" data-src="shoes/shoes14/spr_wa_festive_xmas_booties_leg_1.png" data-scale="0.4"
+              data-x="-42" data-y="293" data-right-scale="0.4" data-right-x="54" data-right-y="293">
 
               <img src="display/spr_wa_festive_xmas_booties.png" class="item-icon"> Festive Xmas Booties
 
@@ -6289,8 +6569,8 @@
 
 
 
-            <li data-layer="shoes" data-src="shoes/shoes21/spr_wa_green_xmas_booties_leg_1.png" data-scale="0.33"
-              data-x="-46.5" data-y="298" data-right-scale="0.33" data-right-x="48.9" data-right-y="298">
+            <li data-layer="shoes" data-src="shoes/shoes21/spr_wa_green_xmas_booties_leg_1.png" data-scale="0.4"
+              data-x="-42" data-y="293" data-right-scale="0.4" data-right-x="54" data-right-y="293">
 
               <img src="display/spr_wa_green_xmas_booties.png" class="item-icon"> Green Xmas Booties
 
@@ -6325,8 +6605,8 @@
             </li>
 
             <li data-layer="shoes" data-src="shoes/shoes26/spr_wa_mechanical_bunny_armor_boots_leg_1.png"
-              data-scale="0.312" data-x="-41" data-y="290" data-right-scale="0.312" data-right-x="55"
-              data-right-y="290">
+              data-scale="0.35" data-x="-45" data-y="285" data-right-scale="0.35" data-right-x="58"
+              data-right-y="285">
 
               <img src="display/spr_wa_mechanical_bunny_armor_boots.png" class="item-icon"> Mechanical Bunny Boots
 
@@ -6383,8 +6663,8 @@
 
             </li>
 
-            <li data-layer="shoes" data-src="shoes/shoes33/spr_wa_red_xmas_booties_leg_1.png" data-scale="0.33"
-              data-x="-46" data-y="298" data-right-scale="0.33" data-right-x="48.5" data-right-y="298">
+            <li data-layer="shoes" data-src="shoes/shoes33/spr_wa_red_xmas_booties_leg_1.png" data-scale="0.4"
+              data-x="-42" data-y="293" data-right-scale="0.4" data-right-x="54" data-right-y="293">
 
               <img src="display/spr_wa_red_xmas_booties.png" class="item-icon"> Red Xmas Booties
 
@@ -6408,6 +6688,13 @@
               data-x="-46.5" data-y="314.9" data-right-scale="0.45" data-right-x="50" data-right-y="314.9">
 
               <img src="display/spr_wa_shoes_martys.png" class="item-icon"> Marty Force 1s
+
+            </li>
+			
+			<li data-layer="shoes" data-src="shoes/shoes45/af1d.png" data-scale="0.33"
+              data-x="-41" data-y="275" data-right-scale="0.33" data-right-x="55" data-right-y="275">
+
+              <img src="shoes/shoes45/af1.png" class="item-icon"> Fly Force 1s
 
             </li>
 
@@ -6668,8 +6955,8 @@
 
             </li>
 
-            <li data-layer="pets" data-animated="true" data-frames="lunar/spr_wa_pet_sun/spr_wa_pet_sun_pet2/"
-              data-frame-count="10" data-fps="5" data-scale="2.7" data-x="0" data-y="120">
+            <li data-layer="pets" data-animated="true" data-frames="worldplanner/new/spr_wa_pet_sun_pet2/"
+              data-frame-count="9" data-fps="5" data-scale="2.7" data-x="0" data-y="120">
 
               <img src="lunar/spr_wa_pet_sun/spr_wa_pet_sun_0.png" class="item-icon"> Pet Sun
 
@@ -7227,57 +7514,57 @@
 
           <ul class="submenu" id="scarfsMenu">
 
-            <li data-layer="scarfs" data-src="scarfs/spr_wa_black_wool_scarf_neck_1.png" data-scale="1.4" data-x="-8"
-              data-y="106">
+            <li data-layer="scarfs" data-src="scarfs/spr_wa_black_wool_scarf_neck_1.png" data-scale="1.39" data-x="-8"
+              data-y="105.5">
 
               <img src="scarfs/spr_wa_black_wool_scarf_neck_1.png" class="item-icon"> Black Scarf
 
             </li>
 
-            <li data-layer="scarfs" data-src="scarfs/spr_wa_blue_wool_scarf_neck_1.png" data-scale="1.4" data-x="-8"
-              data-y="106">
+            <li data-layer="scarfs" data-src="scarfs/spr_wa_blue_wool_scarf_neck_1.png" data-scale="1.39" data-x="-8"
+              data-y="105.5">
 
               <img src="scarfs/spr_wa_blue_wool_scarf_neck_1.png" class="item-icon"> Blue Scarf
 
             </li>
 
-            <li data-layer="scarfs" data-src="scarfs/spr_wa_green_wool_scarf_neck_1.png" data-scale="1.4" data-x="-8"
-              data-y="106">
+            <li data-layer="scarfs" data-src="scarfs/spr_wa_green_wool_scarf_neck_1.png" data-scale="1.39" data-x="-8"
+              data-y="105.5">
 
               <img src="scarfs/spr_wa_green_wool_scarf_neck_1.png" class="item-icon"> Green Scarf
 
             </li>
 
-            <li data-layer="scarfs" data-src="scarfs/spr_wa_red_wool_scarf_neck_1.png" data-scale="1.4" data-x="-8"
-              data-y="106">
+            <li data-layer="scarfs" data-src="scarfs/spr_wa_red_wool_scarf_neck_1.png" data-scale="1.39" data-x="-8"
+              data-y="105.5">
 
               <img src="scarfs/spr_wa_red_wool_scarf_neck_1.png" class="item-icon"> Red Scarf
 
             </li>
 
-            <li data-layer="scarfs" data-src="scarfs/spr_wa_white_wool_scarf_neck_1.png" data-scale="1.4" data-x="-8"
-              data-y="106">
+            <li data-layer="scarfs" data-src="scarfs/spr_wa_white_wool_scarf_neck_1.png" data-scale="1.39" data-x="-8"
+              data-y="105.5">
 
               <img src="scarfs/spr_wa_white_wool_scarf_neck_1.png" class="item-icon"> White Scarf
 
             </li>
 
-            <li data-layer="scarfs" data-src="scarfs/spr_wa_xmas_scarf_one_neck_1.png" data-scale="1.4" data-x="-17"
-              data-y="106">
+            <li data-layer="scarfs" data-src="scarfs/spr_wa_xmas_scarf_one_neck_1.png" data-scale="1.39" data-x="-8"
+              data-y="105.5">
 
               <img src="scarfs/spr_wa_xmas_scarf_one_neck_1.png" class="item-icon"> Festive Scarf
 
             </li>
 
-            <li data-layer="scarfs" data-src="scarfs/spr_wa_xmas_scarf_two_neck_1.png" data-scale="1.4" data-x="-17"
-              data-y="106">
+            <li data-layer="scarfs" data-src="scarfs/spr_wa_xmas_scarf_two_neck_1.png" data-scale="1.39" data-x="-8"
+              data-y="105.5">
 
               <img src="scarfs/spr_wa_xmas_scarf_two_neck_1.png" class="item-icon"> Xmas Scarf
 
             </li>
 
-            <li data-layer="scarfs" data-src="scarfs/spr_wa_yellow_wool_scarf_neck_1.png" data-scale="1.4" data-x="-8"
-              data-y="106">
+            <li data-layer="scarfs" data-src="scarfs/spr_wa_yellow_wool_scarf_neck_1.png" data-scale="1.39" data-x="-8"
+              data-y="105.5">
 
               <img src="scarfs/spr_wa_yellow_wool_scarf_neck_1.png" class="item-icon"> Yellow Scarf
 
@@ -7327,9 +7614,15 @@
 
             <!-- BACK -->
 
+            <div id="platform-shadow-left" class="platform-extender platform-shadow-ext left"></div>
+
+            <div id="platform-shadow-right" class="platform-extender platform-shadow-ext right"></div>
+
             <div id="platform-left" class="platform-extender left"></div>
 
             <div id="platform-right" class="platform-extender right"></div>
+
+            <img id="platform-shadow" class="layer platforms platform-shadow">
 
             <img id="platforms" class="layer platforms">
 
@@ -7344,8 +7637,10 @@
             <img id="base" src="specials/base.png" class="base">
 
             <img id="body" src="specials/body.png" class="body">
+            <img id="diaperbody" src="specials/diaperbody.png" class="body diaperbody" style="display: none;">
 
             <img id="leg" src="specials/leg.png" class="leg">
+            <img id="diaperleg" src="specials/diaperleg.png" class="leg diaperleg" style="display: none;">
 
             <img id="feet" src="specials/feet.png" class="feet">
 
@@ -7356,6 +7651,20 @@
             <!-- ARM -->
 
             <img id="arm" src="specials/arm.png" class="layer arm">
+
+            <!-- DARK JESTER CHARACTER LAYERS -->
+            <img id="djc-body" class="layer djc-body" style="display: none;">
+            <img id="djc-head" class="layer djc-head" style="display: none;">
+            <img id="djc-left-leg" class="layer djc-left-leg" style="display: none;">
+            <img id="djc-right-leg" class="layer djc-right-leg" style="display: none;">
+            <img id="djc-right-arm" class="layer djc-right-arm" style="display: none;">
+
+            <!-- NORMAL JESTER CHARACTER LAYERS -->
+            <img id="njc-body" class="layer njc-body" style="display: none;">
+            <img id="njc-head" class="layer njc-head" style="display: none;">
+            <img id="njc-left-leg" class="layer njc-left-leg" style="display: none;">
+            <img id="njc-right-leg" class="layer njc-right-leg" style="display: none;">
+            <img id="njc-right-arm" class="layer njc-right-arm" style="display: none;">
 
 
 

@@ -15,6 +15,413 @@ let wpLastSmoothingReset = 0;
 // Feature toggles
 let enableRockerBodySwap = true;
 let showRockerMakeupItem = true;
+let currentGender = 'male'; // 'male' or 'female'
+
+// ==================== EYE BLINK SYSTEM ====================
+let blinkIntervalId = null;
+let blinkTimeoutId = null;
+const blinkCache = {}; // cache for eye2.png and pupil.png Image objects
+
+function getBlinkImage(src) {
+  if (!blinkCache[src]) {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.src = src;
+    blinkCache[src] = { img, loaded: false };
+    img.onload = () => { blinkCache[src].loaded = true; };
+  }
+  return blinkCache[src];
+}
+
+function startBlinkAnimation() {
+  stopBlinkAnimation();
+  
+  // Pre-cache both sprites
+  getBlinkImage('specials/eye2.png');
+  getBlinkImage('specials/pupil.png');
+  getBlinkImage('specials/female/eye2.png');
+  getBlinkImage('specials/female/pupil.png');
+  
+  blinkIntervalId = setInterval(() => {
+    const isInvis = isInvisSkinActive();
+    const pupilLayer = document.getElementById('pupil');
+    const headLayer = document.getElementById('head');
+    
+    // If invis skin is active, the eyes are on the head layer. Otherwise, they're on the pupil layer.
+    const targetLayer = isInvis ? headLayer : pupilLayer;
+    if (!targetLayer || targetLayer.style.display === 'none') return;
+    
+    if (isInvis) {
+      // Invisible skin: hide eyes for a frame then show again
+      const prevOpacity = targetLayer.style.opacity || '1';
+      targetLayer.style.opacity = '0';
+      blinkTimeoutId = setTimeout(() => {
+        targetLayer.style.opacity = prevOpacity;
+      }, 150);
+      return;
+    }
+    
+    // Normal/tinted skin: swap target layer to eye2.png (tinted if needed)
+    const genderPath = currentGender === 'female' ? 'female/' : '';
+    const eye2Src = 'specials/' + genderPath + 'eye2.png';
+    const pupilSrc = 'specials/' + genderPath + 'pupil.png';
+    
+    const eye2Cache = getBlinkImage(eye2Src);
+    const pupilCache = getBlinkImage(pupilSrc);
+    if (!eye2Cache.loaded || !pupilCache.loaded) return;
+    
+    // Save current src to restore later
+    const savedSrc = targetLayer.src;
+    
+    if (activeSkinColor && activeSkinColor !== 'rainbow') {
+      // Solid skin color: tint eye2.png with the skin color
+      targetLayer.src = tintSpriteCanvas(eye2Cache.img, activeSkinColor);
+      blinkTimeoutId = setTimeout(() => {
+        targetLayer.src = savedSrc;
+      }, 150);
+    } else if (activeSkinColor === 'rainbow') {
+      // Rainbow skin: tint eye2.png with current rainbow hue
+      const color = `hsl(${globalRainbowHue}, 100%, 60%)`;
+      targetLayer.src = tintSpriteCanvas(eye2Cache.img, color);
+      blinkTimeoutId = setTimeout(() => {
+        targetLayer.src = savedSrc;
+      }, 150);
+    } else {
+      // No skin color (default): show untinted eye2.png
+      targetLayer.src = eye2Src;
+      blinkTimeoutId = setTimeout(() => {
+        targetLayer.src = savedSrc;
+      }, 150);
+    }
+  }, 5000);
+}
+
+function stopBlinkAnimation() {
+  if (blinkIntervalId) { clearInterval(blinkIntervalId); blinkIntervalId = null; }
+  if (blinkTimeoutId) { clearTimeout(blinkTimeoutId); blinkTimeoutId = null; }
+}
+
+// Start blinking once the page loads
+document.addEventListener('DOMContentLoaded', () => {
+  startBlinkAnimation();
+});
+// ==========================================================
+
+// ==================== SKIN COLOR SYSTEM ====================
+// Current active skin color (null = default white/specials, 'rainbow' = animated)
+let activeSkinColor = null;
+let skinRainbowAnimFrame = null;
+
+// Global Rainbow Clock for syncing items (like Myth Cape) with the Rainbow Skin
+let globalRainbowHue = 0;
+const mythCapeCache = {};
+
+let _rainbowLoopRunning = false;
+
+function globalRainbowLoop() {
+  // Use performance.now() to make the rainbow cycle speed framerate-independent.
+  // 30 degrees per second is roughly equivalent to the old 0.5 deg/frame at 60fps.
+  globalRainbowHue = (performance.now() * 0.03) % 360;
+  document.documentElement.style.setProperty('--global-rainbow-hue', globalRainbowHue + 'deg');
+  
+  // Custom canvas-based tinting for Myth Cape to exactly match Rainbow Skin
+  const capesLayer = document.getElementById('capes');
+  if (capesLayer && capesLayer.classList.contains('rainbow-overlay-active')) {
+    // The Myth Cape is a static item, so we directly tint its base image
+    const srcPath = 'capes/cape24/1.png';
+    
+    if (!mythCapeCache[srcPath]) {
+      const img = new Image();
+      img.crossOrigin = "Anonymous";
+      img.src = srcPath;
+      mythCapeCache[srcPath] = { img: img, loaded: false };
+      img.onload = () => { mythCapeCache[srcPath].loaded = true; };
+    } else if (mythCapeCache[srcPath].loaded) {
+      const color = `hsl(${globalRainbowHue}, 100%, 60%)`;
+      capesLayer.src = tintSpriteCanvas(mythCapeCache[srcPath].img, color);
+    }
+  }
+
+  // PERF: Only continue loop if rainbow features are still active
+  const capeNeedsRainbow = capesLayer && capesLayer.classList.contains('rainbow-overlay-active');
+  if (activeSkinColor === 'rainbow' || capeNeedsRainbow) {
+    requestAnimationFrame(globalRainbowLoop);
+  } else {
+    _rainbowLoopRunning = false;
+  }
+}
+
+// PERF: Start rainbow loop on-demand instead of always running at 60fps
+function ensureGlobalRainbowRunning() {
+  if (!_rainbowLoopRunning) {
+    _rainbowLoopRunning = true;
+    requestAnimationFrame(globalRainbowLoop);
+  }
+}
+// Don't start on load — will be started when rainbow skin or cape is equipped
+
+// Cache for original (untinted) body part images
+const skinOriginalImages = {};
+
+// All skin color options
+const SKIN_COLORS = [
+  '#fee3c6', '#fde7ad', '#f8d998', '#f9d4a0', '#ecc091', '#f2c280',
+  '#d49e7a', '#bb6536', '#cf965f', '#ad8a60', '#935f37', '#733f17',
+  '#b26644', '#7f4422', '#5f3310', '#291709', '#538bdb', '#5cc43c',
+  '#d64a29', '#ffdd37', '#ff882b', '#6a26a5', '#808080', '#c93ecd'
+];
+
+// Body part IDs that get skin tinting
+const SKIN_TINT_PARTS = ['base', 'body', 'arm', 'leg', 'feet', 'head'];
+
+// Load and cache an original sprite image
+function loadSkinOriginal(partId) {
+  return new Promise((resolve) => {
+    const cacheKey = partId + '_' + currentGender;
+    if (skinOriginalImages[cacheKey]) {
+      resolve(skinOriginalImages[cacheKey]);
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      skinOriginalImages[cacheKey] = img;
+      resolve(img);
+    };
+    img.onerror = () => resolve(null);
+    // Use the specials path for the originals
+    let specialsPath = 'specials/';
+    if (currentGender === 'female' && (partId === 'body' || partId === 'pupil' || partId === 'eye2')) {
+        specialsPath = 'specials/female/';
+    }
+    img.src = specialsPath + partId + '.png';
+  });
+}
+
+// Tint a sprite image with a given color using canvas multiply blend
+function tintSpriteCanvas(originalImg, hexColor) {
+  const canvas = document.createElement('canvas');
+  canvas.width = originalImg.width;
+  canvas.height = originalImg.height;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+
+  // Draw original sprite
+  ctx.drawImage(originalImg, 0, 0);
+
+  // Apply color tint using multiply blend mode
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = hexColor;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Restore alpha from original (multiply affects transparency)
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.drawImage(originalImg, 0, 0);
+
+  return canvas.toDataURL('image/png');
+}
+
+// Apply skin color tint to all body parts
+async function applySkinTint(hexColor) {
+  for (const partId of SKIN_TINT_PARTS) {
+    const original = await loadSkinOriginal(partId);
+    if (!original) continue;
+
+    // Prevent race conditions: abort if skin color was changed or cleared while loading image
+    const isRainbow = activeSkinColor === 'rainbow' && hexColor.startsWith('hsl');
+    if (activeSkinColor !== hexColor && !isRainbow) return;
+
+    const tintedDataUrl = tintSpriteCanvas(original, hexColor);
+    const el = document.getElementById(partId);
+    if (el) {
+      // Only tint if element is using specials/ src (not invis/rocker)
+      const currentSrc = el.getAttribute('src') || el.src || '';
+      if (currentSrc.includes('specials/') || currentSrc.startsWith('data:')) {
+        el.src = tintedDataUrl;
+      }
+    }
+  }
+
+  // Ensure diaper overlays are visible after tinting completes.
+  // This runs at the END of the async work so it always fires after body/leg are tinted.
+  const isInvis = isInvisSkinActive();
+  const isRocker = isRockerMakeupActive();
+  const isGhost = isGhostOutfitActive();
+  const dBody = document.getElementById('diaperbody');
+  const dLeg = document.getElementById('diaperleg');
+  if (dBody) {
+    const bodyHidden = document.getElementById('body')?.style.display === 'none';
+    dBody.style.display = (bodyHidden || !activeSkinColor || isGhost || isInvis || isRocker) ? 'none' : 'block';
+    dBody.style.opacity = '1';
+  }
+  if (dLeg) {
+    const legHidden = document.getElementById('leg')?.style.display === 'none';
+    dLeg.style.display = (legHidden || !activeSkinColor || isGhost || isInvis || isRocker) ? 'none' : 'block';
+    dLeg.style.opacity = '1';
+  }
+}
+
+// Clear skin tint - restore original specials sprites
+function clearSkinTint() {
+  stopSkinRainbow();
+  activeSkinColor = null;
+  SKIN_TINT_PARTS.forEach(partId => {
+    const el = document.getElementById(partId);
+    if (el) {
+      const currentSrc = el.getAttribute('src') || el.src || '';
+      if (currentSrc.startsWith('data:') || currentSrc.includes('specials/')) {
+        el.src = 'specials/' + partId + '.png';
+      }
+    }
+  });
+  // Hide diaper overlays when tint is cleared
+  const dBody = document.getElementById('diaperbody');
+  const dLeg = document.getElementById('diaperleg');
+  if (dBody) dBody.style.display = 'none';
+  if (dLeg) dLeg.style.display = 'none';
+}
+
+// Gender System
+window.setGender = function(element, gender) {
+    currentGender = gender;
+    
+    // Update UI - mark as equipped in the gender menu
+    document.querySelectorAll('#genderMenu li').forEach(li => li.classList.remove('equipped'));
+    if (element) {
+        element.classList.add('equipped');
+    } else {
+        // If called without element (e.g. from loadState), find the right one
+        const targetId = gender === 'male' ? 'maleOption' : 'femaleOption';
+        const targetLi = document.getElementById(targetId);
+        if (targetLi) targetLi.classList.add('equipped');
+    }
+    
+    syncBodyParts();
+    updateMenuIconsForGender();
+    saveState();
+}
+
+function updateMenuIconsForGender() {
+    const genderPath = currentGender === 'female' ? 'female/' : '';
+    const pupilSrc = 'specials/' + genderPath + 'pupil.png';
+    
+    // Update all gender-pupil images in the menu
+    document.querySelectorAll('.gender-pupil').forEach(img => {
+        img.src = pupilSrc;
+    });
+    
+    // Update the Base Character icon if it exists
+    const baseCharIcon = document.getElementById('baseCharacterIcon');
+    if (baseCharIcon) {
+        const pupilEl = baseCharIcon.querySelector('.gender-icon-pupil');
+        if (pupilEl) pupilEl.src = pupilSrc;
+    }
+}
+
+// Generate tinted head icons for all skin color menu items
+function generateSkinMenuIcons() {
+    const headImg = new Image();
+    headImg.crossOrigin = 'anonymous';
+    headImg.onload = function() {
+        document.querySelectorAll('img.skin-icon-head[data-tint-color]').forEach(function(imgEl) {
+            const color = imgEl.dataset.tintColor;
+            if (color === 'rainbow') {
+                // For rainbow, just show the untinted head
+                imgEl.src = 'specials/head.png';
+                return;
+            }
+            // Use the existing tintSpriteCanvas function to tint the head
+            const tintedDataUrl = tintSpriteCanvas(headImg, color);
+            imgEl.src = tintedDataUrl;
+        });
+    };
+    headImg.src = 'specials/head.png';
+}
+
+// Rainbow skin animation
+function startSkinRainbow() {
+  stopSkinRainbow();
+  activeSkinColor = 'rainbow';
+  ensureGlobalRainbowRunning(); // PERF: Start rainbow loop on demand
+
+  function animateRainbow() {
+    if (activeSkinColor !== 'rainbow') return;
+    globalRainbowHue = (performance.now() * 0.03) % 360; // Ensure hue is fresh
+    const color = `hsl(${globalRainbowHue}, 100%, 60%)`;
+    applySkinTint(color);
+    skinRainbowAnimFrame = requestAnimationFrame(animateRainbow);
+  }
+  skinRainbowAnimFrame = requestAnimationFrame(animateRainbow);
+}
+
+function stopSkinRainbow() {
+  if (skinRainbowAnimFrame) {
+    cancelAnimationFrame(skinRainbowAnimFrame);
+    skinRainbowAnimFrame = null;
+  }
+}
+
+// Equip a skin color from the specials menu
+window.equipSkinColor = function(element, color) {
+  // Stop any active rainbow
+  stopSkinRainbow();
+
+  // Ensure we're on Normal character (not invis or DJC or NJC or GSC) - do this WITHOUT calling
+  // equipNormalCharacter since that clears skin tint
+  if (isInvisSkinActive() || isDarkJesterActive() || isNormalJesterActive() || isGoldenSkeletonActive() || isSkeletonActive()) {
+    // Clean up DJC/NJC specific layers
+    if (isDarkJesterActive()) hideDjcLayers();
+    if (isNormalJesterActive()) hideNjcLayers();
+    
+    // Restore arm to normal positioning (may have been overridden by DJC)
+    const armRestore = document.getElementById('arm');
+    if (armRestore) armRestore.style.transform = '';
+
+    // Restore body parts to normal (non-invis) state
+    const baseElement = document.getElementById('base');
+    const headElement = document.getElementById('head');
+    const genderPath = currentGender === 'female' ? 'female/' : '';
+    
+    if (baseElement) {
+      baseElement.style.display = 'block';
+      baseElement.src = 'specials/base.png';
+      baseElement.style.opacity = '1';
+      baseElement.style.clipPath = '';
+    }
+    if (headElement) {
+      headElement.style.display = 'block';
+      headElement.src = 'specials/head.png';
+      headElement.style.opacity = '1';
+    }
+    
+    const pupilLayer = document.getElementById('pupil');
+    if (pupilLayer) {
+        pupilLayer.src = 'specials/' + genderPath + 'pupil.png';
+    }
+    const bodyParts = ['body', 'leg', 'feet', 'pupil', 'arm'];
+    bodyParts.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.style.display = 'block';
+        el.style.opacity = '1';
+      }
+    });
+  }
+
+  if (color === 'rainbow') {
+    startSkinRainbow();
+  } else {
+    activeSkinColor = color;
+    applySkinTint(color);
+  }
+
+  // Mark as equipped in the specials menu
+  document.querySelectorAll('#specialsMenu li').forEach(li => li.classList.remove('equipped'));
+  element.classList.add('equipped');
+
+  syncBodyParts();
+  saveState();
+}
 
 // Central mapping for Rocker Makeup variants
 const rockerVariants = {
@@ -60,7 +467,7 @@ function isRockerMakeupActive() {
 }
 
 // In-page scene scale (character only, platforms stay full quality)
-let sceneScale = 1;
+let sceneScale = 0.5;
 let manualZoom = false;
 let activeAnimations = {};
 
@@ -75,15 +482,15 @@ function applySceneScale() {
 
   // Update scale based on current width (only if user hasn't zoomed manually)
   if (!manualZoom) {
-    if (window.innerWidth <= 600) {
-      sceneScale = 0.85;
+    if (window.innerWidth <= 768) {
+      sceneScale = 0.3;
     } else {
-      sceneScale = 1.0;
+      sceneScale = 0.5;
     }
   }
 
   // Force clamp again just to be absolutely sure
-  const minScale = 0.6;
+  const minScale = 0.3;
   const maxScale = 1.4;
   sceneScale = Math.min(maxScale, Math.max(minScale, sceneScale));
 
@@ -137,7 +544,7 @@ window.debugLayout = function () {
 
 window.changeSceneScale = function (delta) {
   manualZoom = true;
-  const minScale = 0.6;
+  const minScale = 0.3;
   const maxScale = 1.4;
   sceneScale = Math.min(maxScale, Math.max(minScale, (parseFloat(sceneScale) || 1.0) + delta));
   applySceneScale();
@@ -146,10 +553,10 @@ window.changeSceneScale = function (delta) {
 
 window.resetZoom = function () {
   manualZoom = false; // Allow auto-scaling again
-  if (window.innerWidth <= 600) {
-    sceneScale = 0.85;
+  if (window.innerWidth <= 768) {
+    sceneScale = 0.3;
   } else {
-    sceneScale = 1.0;
+    sceneScale = 0.5;
   }
   applySceneScale();
   saveState();
@@ -160,6 +567,10 @@ function saveState() {
   const state = {
     manualZoom: manualZoom,
     sceneScale: sceneScale,
+    skinColor: activeSkinColor,
+    currentGender: currentGender,
+    darkJesterActive: isDarkJesterActive(),
+    normalJesterActive: isNormalJesterActive(),
     equippedItems: {},
     background: document.body.style.backgroundImage || '',
     platformSrc: document.getElementById("platforms")?.dataset.originalSrc || document.getElementById("platforms")?.src || '',
@@ -182,21 +593,34 @@ function saveState() {
     if (isVisible && hasContent) {
       // Special handling for base character parts (no menu element)
       if (['base', 'body', 'leg', 'feet', 'pupil'].includes(layerName)) {
+        // If skin color is active, body parts use data: URLs - save the original path instead
+        let savedSrc = layer.src;
+        if (activeSkinColor && savedSrc.startsWith('data:') && SKIN_TINT_PARTS.includes(layerName)) {
+          savedSrc = 'specials/' + layerName + '.png';
+        }
         state.equippedItems[layerName] = {
-          src: layer.src,
+          src: savedSrc,
           opacity: layer.style.opacity || '',
           transform: layer.style.transform || ''
         };
       } else if (layerName === 'head') {
         // Special handling for head layer (may be changed by invis skin)
+        let savedHeadSrc = layer.src;
+        if (activeSkinColor && savedHeadSrc.startsWith('data:')) {
+          savedHeadSrc = 'specials/head.png';
+        }
         state.equippedItems[layerName] = {
-          src: layer.src,
+          src: savedHeadSrc,
           transform: layer.style.transform || ''
         };
 
       } else if (layerName === 'arm') {
+        let savedArmSrc = layer.src;
+        if (activeSkinColor && savedArmSrc.startsWith('data:')) {
+          savedArmSrc = 'specials/arm.png';
+        }
         state.equippedItems[layerName] = {
-          src: layer.src,
+          src: savedArmSrc,
           opacity: layer.style.opacity || '',
           transform: layer.style.transform || ''
         };
@@ -257,10 +681,19 @@ function loadState() {
     // Equip Platform 1 by default
     const platform1Btn = document.querySelector('[data-layer="platforms"][data-src*="platform1"]');
     if (platform1Btn) {
-      equipItem(platform1Btn);
+      setPlatform(platform1Btn.dataset.src, true);
     }
     // Set default background (already handled by setBackground default if not in state, but explicit here is good)
     setBackground('backgrounds/bg3.png', true);
+
+    // Set default skin color to Tan
+    const tanSkinBtn = document.querySelector('#specialsMenu li[data-skin-color="#d49e7a"]');
+    if (tanSkinBtn) {
+      equipSkinColor(tanSkinBtn, '#d49e7a');
+    }
+
+    // Ensure correct z-indices are initialized
+    overrideLayerOrder();
     return;
   }
 
@@ -270,13 +703,28 @@ function loadState() {
     // Restore scaling preference
     if (state.manualZoom !== undefined) manualZoom = state.manualZoom;
     if (state.sceneScale !== undefined) {
-      sceneScale = parseFloat(state.sceneScale) || 1.0;
+      sceneScale = parseFloat(state.sceneScale) || 0.5;
       // Clamp loaded value just in case
-      sceneScale = Math.min(1.4, Math.max(0.6, sceneScale));
+      sceneScale = Math.min(1.4, Math.max(0.3, sceneScale));
     }
 
     // Apply scale immediately after restoring it
     applySceneScale();
+    
+    // Restore gender
+    if (state.currentGender) {
+        currentGender = state.currentGender;
+        // Mark as equipped in UI
+        const targetId = currentGender === 'male' ? 'maleOption' : 'femaleOption';
+        const targetLi = document.getElementById(targetId);
+        if (targetLi) {
+            document.querySelectorAll('#genderMenu li').forEach(li => li.classList.remove('equipped'));
+            targetLi.classList.add('equipped');
+        }
+    }
+    
+    // Update menu icons to match loaded gender
+    updateMenuIconsForGender();
 
     // Clear inventory before restoring (will be rebuilt by equipItem/equipHat calls)
     inventory = [];
@@ -334,6 +782,28 @@ function loadState() {
             document.querySelectorAll("#specialsMenu li").forEach(li => li.classList.remove("equipped"));
             const invisMenuItem = document.querySelector("#specialsMenu li[onclick*='equipInvisCharacter']");
             if (invisMenuItem) invisMenuItem.classList.add("equipped");
+          } else if (itemData.src.includes('gsc/head.png')) {
+            // Golden Skeleton Character
+            document.querySelectorAll("#specialsMenu li").forEach(li => li.classList.remove("equipped"));
+            const gscMenuItem = document.querySelector("#specialsMenu li[onclick*='equipGoldenSkeleton']");
+            if (gscMenuItem) gscMenuItem.classList.add("equipped");
+            headElement.style.opacity = "1";
+            
+            const legElement = document.getElementById('leg');
+            const pupilElement = document.getElementById('pupil');
+            if (legElement) { legElement.style.display = 'none'; legElement.style.opacity = '0'; }
+            if (pupilElement) { pupilElement.style.display = 'none'; pupilElement.style.opacity = '0'; }
+          } else if (itemData.src.includes('sc/head.png')) {
+            // Skeleton Character
+            document.querySelectorAll("#specialsMenu li").forEach(li => li.classList.remove("equipped"));
+            const scMenuItem = document.querySelector("#specialsMenu li[onclick*='equipSkeleton']");
+            if (scMenuItem) scMenuItem.classList.add("equipped");
+            headElement.style.opacity = "1";
+            
+            const legElement = document.getElementById('leg');
+            const pupilElement = document.getElementById('pupil');
+            if (legElement) { legElement.style.display = 'none'; legElement.style.opacity = '0'; }
+            if (pupilElement) { pupilElement.style.display = 'none'; pupilElement.style.opacity = '0'; }
           } else if (itemData.src.includes('specials/head.png')) {
             // Normal character
             document.querySelectorAll("#specialsMenu li").forEach(li => li.classList.remove("equipped"));
@@ -422,6 +892,16 @@ function loadState() {
             layer.src = itemData.src;
           }
 
+          // Myth Cape Rainbow Logic Overlay
+          if (layerName === 'capes') {
+            if (itemData.src && itemData.src.includes('cape24')) {
+              layer.classList.add('rainbow-overlay-active');
+              ensureGlobalRainbowRunning();
+            } else {
+              layer.classList.remove('rainbow-overlay-active');
+            }
+          }
+
           layer.style.transform = `
             translateX(-50%)
             translate(${itemData.x}px, ${itemData.y}px)
@@ -450,8 +930,46 @@ function loadState() {
     // Sync all body parts based on restored items
     syncBodyParts();
 
+    // Restore skin color
+    if (state.skinColor) {
+      activeSkinColor = state.skinColor;
+      if (activeSkinColor === 'rainbow') {
+        startSkinRainbow();
+      }
+      // Mark the correct skin color menu item as equipped
+      const skinBtn = document.querySelector(`#specialsMenu li[data-skin-color="${activeSkinColor}"]`);
+      if (skinBtn) {
+        document.querySelectorAll('#specialsMenu li').forEach(li => li.classList.remove('equipped'));
+        skinBtn.classList.add('equipped');
+      }
+      // Re-sync body parts now that activeSkinColor is set.
+      // This ensures: 1) clothing switches to no-skin variants (invisSrc)
+      //               2) diaper overlays become visible
+      //               3) applySkinTint is called internally (async, with diaper management)
+      syncBodyParts();
+    }
+
+    // Restore Dark Jester Character if it was active
+    if (state.darkJesterActive) {
+      const djcBtn = document.querySelector('#specialsMenu li[onclick*="equipDarkJester"]');
+      if (djcBtn) {
+        equipDarkJester(djcBtn);
+      }
+    }
+
+    // Restore Normal Jester Character if it was active
+    if (state.normalJesterActive) {
+      const njcBtn = document.querySelector('#specialsMenu li[onclick*="equipNormalJester"]');
+      if (njcBtn) {
+        equipNormalJester(njcBtn);
+      }
+    }
+
     // Save state once at the end to ensure everything is saved together
     saveState();
+    
+    // Ensure correct JS layer sorting on reload
+    overrideLayerOrder();
   } catch (e) {
     console.error('Error loading state:', e);
   }
@@ -567,6 +1085,23 @@ function applyArmRotation() {
 
   // Apply to Arm
   if (armLayer) {
+    if (isDarkJesterActive() || isNormalJesterActive()) {
+      const prefix = isDarkJesterActive() ? 'djc' : 'njc';
+      
+      if (armRot !== 0) {
+        // Apply rotation and use the manually defined rotated X/Y coordinates
+        armLayer.style.setProperty(`--${prefix}-active-x`, `var(--${prefix}-left-arm-rotated-x)`);
+        armLayer.style.setProperty(`--${prefix}-active-y`, `var(--${prefix}-left-arm-rotated-y)`);
+        armLayer.style.setProperty(`--${prefix}-arm-rot`, `${armRot}deg`);
+      } else {
+        // No rotation: reset to default unrotated coordinates
+        armLayer.style.setProperty(`--${prefix}-active-x`, `var(--${prefix}-left-arm-x)`);
+        armLayer.style.setProperty(`--${prefix}-active-y`, `var(--${prefix}-left-arm-y)`);
+        armLayer.style.setProperty(`--${prefix}-arm-rot`, `0deg`);
+      }
+      return; // Skip normal base character arm positioning and sleeve logic
+    }
+
     // Check if any hand item is currently equipped (visible)
     const handsLayer = document.getElementById('hands');
     const isHandEquipped = handsLayer && handsLayer.style.display === 'block' && handsLayer.src;
@@ -584,11 +1119,11 @@ function applyArmRotation() {
   sleeveLayers.forEach(sleeveInfo => {
     const sleeve = sleeveInfo.el;
     if (sleeve && sleeve.style.display !== 'none' && sleeve.src) {
-      // Exception: Shark Hoodie top-layer (above3) should NOT rotate with the arm
-      const isSharkTop = (sleeve.id === 'shirtstop' && equippedShirt && (equippedShirt.dataset.src?.includes('shirt3') || equippedShirt.dataset.frames?.includes('shirt3')));
+      // Exception: Top layer details (like hoodie ears) should NOT rotate with the arm
+      const isTopLayer = (sleeve.id === 'shirtstop');
 
-      if (!isSharkTop && sleeve.style.display === 'none') {
-        return; // Skip if hidden and not the shark exception
+      if (sleeve.style.display === 'none') {
+        return; // Skip if hidden
       }
 
       // Reconstruct base transform from equipped shirt
@@ -617,8 +1152,8 @@ function applyArmRotation() {
       let useVars = !hasShirtData; // Use CSS vars if we didn't find specific shirt data
 
       // Apply Overrides from Hand or Shirt-specific Rotation Overrides
-      // Exception: Shark Hoodie detail stays static relative to the body
-      if (useArmOverrides && !isSharkTop) {
+      // Exception: Top layer detail stays static relative to the body
+      if (useArmOverrides && !isTopLayer) {
         // Priority 1: Check for rotation-specific overrides on the shirt itself
         const rotScale = equippedShirt?.dataset.rotatedSleeveScale;
         const rotX = equippedShirt?.dataset.rotatedSleeveX;
@@ -630,7 +1165,11 @@ function applyArmRotation() {
           if (rotY) finalY = parseFloat(rotY);
         } else {
           // Priority 2: Standard Additive Displacement Logic
-          if (overrideSleeveScale) finalScale = parseFloat(overrideSleeveScale);
+          if (overrideSleeveScale) {
+            const defaultBaseScale = 0.273;
+            const scaleRatio = parseFloat(overrideSleeveScale) / defaultBaseScale;
+            finalScale = parseFloat(scale) * scaleRatio;
+          }
 
           // Calculate displacement from standard sleeve baseline (-74.5, 138)
           const defaultBaseX = -74.5;
@@ -661,8 +1200,8 @@ function applyArmRotation() {
 
         transform = `translateX(-50%) translate(${sX}, ${sY}) scale(${sScale})`;
 
-        // Apply rotation to all sleeves EXCEPT the static Shark Hoodie detail
-        if (useArmOverrides && !isSharkTop) {
+        // Apply rotation to all sleeves EXCEPT the static Top layer detail
+        if (useArmOverrides && !isTopLayer) {
           transform += ` rotate(${armRot}deg)`;
         }
       }
@@ -704,10 +1243,20 @@ function startAnimation(layer, options) {
   let frame = 1;
   const { framesPath, frameCount, fps } = options;
 
-  activeAnimations[layer.id] = setInterval(() => {
-    layer.src = `${framesPath}${frame}.png`;
+  const updateFrame = () => {
+    layer.dataset.currentFrame = frame;
+    layer.dataset.framesPath = framesPath;
+    
+    // Only update src if it's not handled by the rainbow overlay canvas logic
+    if (!layer.classList.contains('rainbow-overlay-active')) {
+      layer.src = `${framesPath}${frame}.png`;
+    }
+    
     frame = frame % frameCount + 1;
-  }, 1000 / fps);
+  };
+
+  updateFrame(); // Initial frame draw
+  activeAnimations[layer.id] = setInterval(updateFrame, 1000 / fps);
 }
 
 function stopAnimation(layer) {
@@ -1093,6 +1642,19 @@ function searchItems() {
 
 // Swap to the normal/base character (full character swap, not an inventory item)
 window.equipNormalCharacter = function (element) {
+  // Clear any active skin color tint
+  clearSkinTint();
+
+  // Clean up DJC layers if switching from Dark Jester
+  hideDjcLayers();
+  hideNjcLayers();
+
+  // Restore arm to normal positioning/src (may have been overridden by DJC)
+  const armRestore = document.getElementById('arm');
+  if (armRestore) {
+    armRestore.style.transform = '';
+  }
+
   const baseElement = document.getElementById('base');
   const headElement = document.getElementById('head');
 
@@ -1163,53 +1725,58 @@ window.equipNormalCharacter = function (element) {
   // Show base + head using the specials assets
   baseElement.style.display = "block";
   baseElement.src = "specials/base.png";
+  
+  const pupilElement = document.getElementById('pupil');
+  if (pupilElement) {
+      pupilElement.src = (currentGender === 'female') ? "specials/female/pupil.png" : "specials/pupil.png";
+  }
 
   const legElement = document.getElementById('leg');
   if (legElement) legElement.src = "leg.png";
 
-  // Re-equip shirts with body variant (normal) if they have one
+  // Re-equip shirts with no-skin variant (invisSrc) if they have one
   if (shirtsLayer && shirtsLayer.style.display === 'block' && shirtsLayer.src) {
     const equippedShirt = document.querySelector('#shirtsMenu li.equipped');
     if (equippedShirt && equippedShirt.dataset.invisSrc) {
-      shirtsLayer.src = equippedShirt.dataset.src;
-      const normalScale = equippedShirt.dataset.scale ?? 1;
-      const normalX = equippedShirt.dataset.x ?? 0;
-      const normalY = equippedShirt.dataset.y ?? 0;
+      shirtsLayer.src = equippedShirt.dataset.invisSrc;
+      const normalScale = equippedShirt.dataset.invisScale ?? equippedShirt.dataset.scale ?? 1;
+      const normalX = equippedShirt.dataset.invisX ?? equippedShirt.dataset.x ?? 0;
+      const normalY = equippedShirt.dataset.invisY ?? equippedShirt.dataset.y ?? 0;
       shirtsLayer.style.transform = `translateX(-50%) translate(${normalX}px, ${normalY}px) scale(${normalScale})`;
     }
   }
 
-  // Restore shoes
+  // Restore shoes with no-skin variant
   const shoesLayer = document.getElementById('shoes');
   if (shoesLayer && shoesLayer.style.display === 'block') {
     const equippedShoe = document.querySelector('#shoesMenu li.equipped');
     if (equippedShoe && equippedShoe.dataset.invisSrc) {
-      shoesLayer.src = equippedShoe.dataset.src || equippedShoe.dataset.rightSrc || '';
-      const normalScaleS = equippedShoe.dataset.scale ?? 1;
-      const normalXS = equippedShoe.dataset.x ?? 0;
-      const normalYS = equippedShoe.dataset.y ?? 0;
+      shoesLayer.src = equippedShoe.dataset.invisSrc;
+      const normalScaleS = equippedShoe.dataset.invisScale ?? equippedShoe.dataset.scale ?? 1;
+      const normalXS = equippedShoe.dataset.invisX ?? equippedShoe.dataset.x ?? 0;
+      const normalYS = equippedShoe.dataset.invisY ?? equippedShoe.dataset.y ?? 0;
       shoesLayer.style.transform = `translateX(-50%) translate(${normalXS}px, ${normalYS}px) scale(${normalScaleS})`;
       const rightShoeLayer = document.getElementById('rightshoe');
       if (rightShoeLayer) {
         rightShoeLayer.style.display = 'block';
-        rightShoeLayer.src = equippedShoe.dataset.rightSrc ?? equippedShoe.dataset.src ?? '';
-        const rightScale = equippedShoe.dataset.rightScale ?? equippedShoe.dataset.scale ?? 1;
-        const rightX = equippedShoe.dataset.rightX ?? equippedShoe.dataset.x ?? 0;
-        const rightY = equippedShoe.dataset.rightY ?? equippedShoe.dataset.y ?? 0;
+        rightShoeLayer.src = equippedShoe.dataset.invisRightSrc ?? equippedShoe.dataset.invisSrc ?? equippedShoe.dataset.rightSrc ?? equippedShoe.dataset.src ?? '';
+        const rightScale = equippedShoe.dataset.invisRightScale ?? equippedShoe.dataset.invisScale ?? equippedShoe.dataset.rightScale ?? equippedShoe.dataset.scale ?? 1;
+        const rightX = equippedShoe.dataset.invisRightX ?? equippedShoe.dataset.invisX ?? equippedShoe.dataset.rightX ?? equippedShoe.dataset.x ?? 0;
+        const rightY = equippedShoe.dataset.invisRightY ?? equippedShoe.dataset.invisY ?? equippedShoe.dataset.rightY ?? equippedShoe.dataset.y ?? 0;
         rightShoeLayer.style.transform = `translateX(-50%) translate(${rightX}px, ${rightY}px) scale(${rightScale})`;
       }
     }
   }
 
-  // Restore pants
+  // Restore pants with no-skin variant
   const pantsLayer = document.getElementById('pants');
   if (pantsLayer && pantsLayer.style.display === 'block') {
     const equippedPants = document.querySelector('#pantsMenu li.equipped');
     if (equippedPants && equippedPants.dataset.invisSrc) {
-      pantsLayer.src = equippedPants.dataset.src || '';
-      const normalScaleP = equippedPants.dataset.scale ?? 1;
-      const normalXP = equippedPants.dataset.x ?? 0;
-      const normalYP = equippedPants.dataset.y ?? 0;
+      pantsLayer.src = equippedPants.dataset.invisSrc;
+      const normalScaleP = equippedPants.dataset.invisScale ?? equippedPants.dataset.scale ?? 1;
+      const normalXP = equippedPants.dataset.invisX ?? equippedPants.dataset.x ?? 0;
+      const normalYP = equippedPants.dataset.invisY ?? equippedPants.dataset.y ?? 0;
       pantsLayer.style.transform = `translateX(-50%) translate(${normalXP}px, ${normalYP}px) scale(${normalScaleP})`;
     }
   }
@@ -1225,13 +1792,346 @@ window.equipNormalCharacter = function (element) {
   saveState();
 }
 
+// Helper function to check if Golden Skeleton Character is active
+function isGoldenSkeletonActive() {
+  const gscMenuItem = document.querySelector("#specialsMenu li[onclick*='equipGoldenSkeleton']");
+  if (gscMenuItem && gscMenuItem.classList.contains("equipped")) return true;
+  
+  const headElement = document.getElementById('head');
+  return headElement && headElement.src && headElement.src.includes('/gsc/head.png');
+}
+
+// Swap to the Golden Skeleton Character
+window.equipGoldenSkeleton = function (element) {
+  // Clear any active skin color tint
+  clearSkinTint();
+
+  // Clean up DJC layers if switching from Dark Jester
+  hideDjcLayers();
+  hideNjcLayers();
+
+  // Skeletons don't wear human faces/eyes - unequip them if active
+  ['facesMenu', 'eyesMenu'].forEach(menuId => {
+    const equippedItem = document.querySelector(`#${menuId} li.equipped`);
+    if (equippedItem) equippedItem.click();
+  });
+
+  // Restore arm to normal positioning
+  const armRestore = document.getElementById('arm');
+  if (armRestore) {
+    armRestore.style.transform = '';
+  }
+
+  const baseElement = document.getElementById('base');
+  const headElement = document.getElementById('head');
+
+  if (!baseElement || !headElement) return;
+
+  // Unequip shirt 52 if it's equipped
+  const shirtsLayer = document.getElementById('shirts');
+  const isShirt52Equipped = shirtsLayer && shirtsLayer.style.display === 'block' &&
+    shirtsLayer.src && shirtsLayer.src.includes('shirt52');
+
+  if (isShirt52Equipped) {
+    shirtsLayer.style.display = 'none';
+    stopAnimation(shirtsLayer);
+    shirtsLayer.src = '';
+
+    // Clear shirt-related layers
+    const shirtsaboveLayer = document.getElementById('shirtsabove');
+    const shirtstopLayer = document.getElementById('shirtstop');
+    const shirtsbehindLayer = document.getElementById('shirtsbehind');
+    if (shirtsaboveLayer) { shirtsaboveLayer.style.display = 'none'; shirtsaboveLayer.src = ''; }
+    if (shirtstopLayer) { shirtstopLayer.style.display = 'none'; shirtstopLayer.src = ''; }
+    if (shirtsbehindLayer) { shirtsbehindLayer.style.display = 'none'; shirtsbehindLayer.src = ''; }
+
+    // Restore all body parts that shirt52 hides
+    const feetLayer = document.getElementById('feet');
+    const legLayer = document.getElementById('leg');
+    const pupilLayer = document.getElementById('pupil');
+    const bodyLayer = document.getElementById('body');
+    if (feetLayer) feetLayer.style.display = 'block';
+    if (legLayer) legLayer.style.display = 'block';
+    if (pupilLayer) pupilLayer.style.display = 'block';
+    if (bodyLayer) bodyLayer.style.display = 'block';
+
+    // Remove equipped class from outfit/shirt menu items
+    document.querySelectorAll('[data-layer="outfits"], [data-layer="shirts"]').forEach(item => {
+      item.classList.remove('equipped');
+    });
+  }
+
+  // Reset any custom transform/opacity from invis mode so it lines up like the default base/head
+  baseElement.style.transform = "";
+  baseElement.style.opacity = "";
+  baseElement.style.clipPath = ""; 
+  headElement.style.transform = "";
+  headElement.style.opacity = "";
+
+  const armElement = document.getElementById('arm');
+  if (armElement) {
+    armElement.style.display = 'block';
+    armElement.src = "specials/gsc/hand.png";
+    armElement.style.opacity = "";
+  }
+
+  // Restore body parts visibility and opacity initially
+  const bodyParts = ['body', 'leg', 'feet', 'pupil'];
+  bodyParts.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.style.display = "block";
+      el.style.opacity = "";
+    }
+  });
+
+  // Sync state classes (like ghost-active)
+  isGhostOutfitActive();
+
+  // Show base + head using the GSC assets
+  baseElement.style.display = "block";
+  baseElement.src = "specials/gsc/base.png";
+  headElement.src = "specials/gsc/head.png";
+
+  // Hide leg and pupil for Golden Skeleton
+  const legElement = document.getElementById('leg');
+  if (legElement) { legElement.style.display = "none"; legElement.style.opacity = "0"; }
+  
+  const pupilElement = document.getElementById('pupil');
+  if (pupilElement) { pupilElement.style.display = "none"; pupilElement.style.opacity = "0"; }
+
+  // Re-equip shirts with no-skin variant (invisSrc) if they have one
+  if (shirtsLayer && shirtsLayer.style.display === 'block' && shirtsLayer.src) {
+    const equippedShirt = document.querySelector('#shirtsMenu li.equipped');
+    if (equippedShirt && equippedShirt.dataset.invisSrc) {
+      shirtsLayer.src = equippedShirt.dataset.invisSrc;
+      const normalScale = equippedShirt.dataset.invisScale ?? equippedShirt.dataset.scale ?? 1;
+      const normalX = equippedShirt.dataset.invisX ?? equippedShirt.dataset.x ?? 0;
+      const normalY = equippedShirt.dataset.invisY ?? equippedShirt.dataset.y ?? 0;
+      shirtsLayer.style.transform = `translateX(-50%) translate(${normalX}px, ${normalY}px) scale(${normalScale})`;
+    }
+  }
+
+  // Restore shoes with no-skin variant
+  const shoesLayer = document.getElementById('shoes');
+  if (shoesLayer && shoesLayer.style.display === 'block') {
+    const equippedShoe = document.querySelector('#shoesMenu li.equipped');
+    if (equippedShoe && equippedShoe.dataset.invisSrc) {
+      shoesLayer.src = equippedShoe.dataset.invisSrc;
+      const normalScaleS = equippedShoe.dataset.invisScale ?? equippedShoe.dataset.scale ?? 1;
+      const normalXS = equippedShoe.dataset.invisX ?? equippedShoe.dataset.x ?? 0;
+      const normalYS = equippedShoe.dataset.invisY ?? equippedShoe.dataset.y ?? 0;
+      shoesLayer.style.transform = `translateX(-50%) translate(${normalXS}px, ${normalYS}px) scale(${normalScaleS})`;
+      const rightShoeLayer = document.getElementById('rightshoe');
+      if (rightShoeLayer) {
+        rightShoeLayer.style.display = 'block';
+        rightShoeLayer.src = equippedShoe.dataset.invisRightSrc ?? equippedShoe.dataset.invisSrc ?? equippedShoe.dataset.rightSrc ?? equippedShoe.dataset.src ?? '';
+        const rightScale = equippedShoe.dataset.invisRightScale ?? equippedShoe.dataset.invisScale ?? equippedShoe.dataset.rightScale ?? equippedShoe.dataset.scale ?? 1;
+        const rightX = equippedShoe.dataset.invisRightX ?? equippedShoe.dataset.invisX ?? equippedShoe.dataset.rightX ?? equippedShoe.dataset.x ?? 0;
+        const rightY = equippedShoe.dataset.invisRightY ?? equippedShoe.dataset.invisY ?? equippedShoe.dataset.rightY ?? equippedShoe.dataset.y ?? 0;
+        rightShoeLayer.style.transform = `translateX(-50%) translate(${rightX}px, ${rightY}px) scale(${rightScale})`;
+      }
+    }
+  }
+
+  // Restore pants with no-skin variant
+  const pantsLayer = document.getElementById('pants');
+  if (pantsLayer && pantsLayer.style.display === 'block') {
+    const equippedPants = document.querySelector('#pantsMenu li.equipped');
+    if (equippedPants && equippedPants.dataset.invisSrc) {
+      pantsLayer.src = equippedPants.dataset.invisSrc;
+      const normalScaleP = equippedPants.dataset.invisScale ?? equippedPants.dataset.scale ?? 1;
+      const normalXP = equippedPants.dataset.invisX ?? equippedPants.dataset.x ?? 0;
+      const normalYP = equippedPants.dataset.invisY ?? equippedPants.dataset.y ?? 0;
+      pantsLayer.style.transform = `translateX(-50%) translate(${normalXP}px, ${normalYP}px) scale(${normalScaleP})`;
+    }
+  }
+
+  document.querySelectorAll("#specialsMenu li").forEach(li => li.classList.remove("equipped"));
+  element.classList.add("equipped");
+  enforceLayerOrder();
+  overrideLayerOrder();
+
+  // Sync all body parts using central helper (handles normal/invis/rocker/skate/gsc)
+  syncBodyParts();
+
+  saveState();
+}
+
+// Helper function to check if Skeleton Character is active
+function isSkeletonActive() {
+  const scMenuItem = document.querySelector("#specialsMenu li[onclick*='equipSkeleton']");
+  if (scMenuItem && scMenuItem.classList.contains("equipped")) return true;
+  
+  const headElement = document.getElementById('head');
+  return headElement && headElement.src && headElement.src.includes('/sc/head.png');
+}
+
+// Swap to the Skeleton Character
+window.equipSkeleton = function (element) {
+  // Clear any active skin color tint
+  clearSkinTint();
+
+  // Clean up DJC layers if switching from Dark Jester
+  hideDjcLayers();
+  hideNjcLayers();
+
+  // Skeletons don't wear human faces/eyes - unequip them if active
+  ['facesMenu', 'eyesMenu'].forEach(menuId => {
+    const equippedItem = document.querySelector(`#${menuId} li.equipped`);
+    if (equippedItem) equippedItem.click();
+  });
+
+  // Restore arm to normal positioning
+  const armRestore = document.getElementById('arm');
+  if (armRestore) {
+    armRestore.style.transform = '';
+  }
+
+  const baseElement = document.getElementById('base');
+  const headElement = document.getElementById('head');
+
+  if (!baseElement || !headElement) return;
+
+  // Unequip shirt 52 if it's equipped
+  const shirtsLayer = document.getElementById('shirts');
+  const isShirt52Equipped = shirtsLayer && shirtsLayer.style.display === 'block' &&
+    shirtsLayer.src && shirtsLayer.src.includes('shirt52');
+
+  if (isShirt52Equipped) {
+    shirtsLayer.style.display = 'none';
+    stopAnimation(shirtsLayer);
+    shirtsLayer.src = '';
+
+    // Clear shirt-related layers
+    const shirtsaboveLayer = document.getElementById('shirtsabove');
+    const shirtstopLayer = document.getElementById('shirtstop');
+    const shirtsbehindLayer = document.getElementById('shirtsbehind');
+    if (shirtsaboveLayer) { shirtsaboveLayer.style.display = 'none'; shirtsaboveLayer.src = ''; }
+    if (shirtstopLayer) { shirtstopLayer.style.display = 'none'; shirtstopLayer.src = ''; }
+    if (shirtsbehindLayer) { shirtsbehindLayer.style.display = 'none'; shirtsbehindLayer.src = ''; }
+
+    // Restore all body parts that shirt52 hides
+    const feetLayer = document.getElementById('feet');
+    const legLayer = document.getElementById('leg');
+    const pupilLayer = document.getElementById('pupil');
+    const bodyLayer = document.getElementById('body');
+    if (feetLayer) feetLayer.style.display = 'block';
+    if (legLayer) legLayer.style.display = 'block';
+    if (pupilLayer) pupilLayer.style.display = 'block';
+    if (bodyLayer) bodyLayer.style.display = 'block';
+
+    // Remove equipped class from outfit/shirt menu items
+    document.querySelectorAll('[data-layer="outfits"], [data-layer="shirts"]').forEach(item => {
+      item.classList.remove('equipped');
+    });
+  }
+
+  // Reset any custom transform/opacity from invis mode so it lines up like the default base/head
+  baseElement.style.transform = "";
+  baseElement.style.opacity = "";
+  baseElement.style.clipPath = ""; 
+  headElement.style.transform = "";
+  headElement.style.opacity = "";
+
+  const armElement = document.getElementById('arm');
+  if (armElement) {
+    armElement.style.display = 'block';
+    armElement.src = "specials/sc/hand.png";
+    armElement.style.opacity = "";
+  }
+
+  // Restore body parts visibility and opacity initially
+  const bodyParts = ['body', 'leg', 'feet', 'pupil'];
+  bodyParts.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.style.display = "block";
+      el.style.opacity = "";
+    }
+  });
+
+  // Sync state classes (like ghost-active)
+  isGhostOutfitActive();
+
+  // Show base + head using the SC assets
+  baseElement.style.display = "block";
+  baseElement.src = "specials/sc/base.png";
+  headElement.src = "specials/sc/head.png";
+
+  // Hide leg and pupil for Skeleton
+  const legElement = document.getElementById('leg');
+  if (legElement) { legElement.style.display = "none"; legElement.style.opacity = "0"; }
+  
+  const pupilElement = document.getElementById('pupil');
+  if (pupilElement) { pupilElement.style.display = "none"; pupilElement.style.opacity = "0"; }
+
+  // Re-equip shirts with no-skin variant (invisSrc) if they have one
+  if (shirtsLayer && shirtsLayer.style.display === 'block' && shirtsLayer.src) {
+    const equippedShirt = document.querySelector('#shirtsMenu li.equipped');
+    if (equippedShirt && equippedShirt.dataset.invisSrc) {
+      shirtsLayer.src = equippedShirt.dataset.invisSrc;
+      const normalScale = equippedShirt.dataset.invisScale ?? equippedShirt.dataset.scale ?? 1;
+      const normalX = equippedShirt.dataset.invisX ?? equippedShirt.dataset.x ?? 0;
+      const normalY = equippedShirt.dataset.invisY ?? equippedShirt.dataset.y ?? 0;
+      shirtsLayer.style.transform = `translateX(-50%) translate(${normalX}px, ${normalY}px) scale(${normalScale})`;
+    }
+  }
+
+  // Restore shoes with no-skin variant
+  const shoesLayer = document.getElementById('shoes');
+  if (shoesLayer && shoesLayer.style.display === 'block') {
+    const equippedShoe = document.querySelector('#shoesMenu li.equipped');
+    if (equippedShoe && equippedShoe.dataset.invisSrc) {
+      shoesLayer.src = equippedShoe.dataset.invisSrc;
+      const normalScaleS = equippedShoe.dataset.invisScale ?? equippedShoe.dataset.scale ?? 1;
+      const normalXS = equippedShoe.dataset.invisX ?? equippedShoe.dataset.x ?? 0;
+      const normalYS = equippedShoe.dataset.invisY ?? equippedShoe.dataset.y ?? 0;
+      shoesLayer.style.transform = `translateX(-50%) translate(${normalXS}px, ${normalYS}px) scale(${normalScaleS})`;
+      const rightShoeLayer = document.getElementById('rightshoe');
+      if (rightShoeLayer) {
+        rightShoeLayer.style.display = 'block';
+        rightShoeLayer.src = equippedShoe.dataset.invisRightSrc ?? equippedShoe.dataset.invisSrc ?? equippedShoe.dataset.rightSrc ?? equippedShoe.dataset.src ?? '';
+        const rightScale = equippedShoe.dataset.invisRightScale ?? equippedShoe.dataset.invisScale ?? equippedShoe.dataset.rightScale ?? equippedShoe.dataset.scale ?? 1;
+        const rightX = equippedShoe.dataset.invisRightX ?? equippedShoe.dataset.invisX ?? equippedShoe.dataset.rightX ?? equippedShoe.dataset.x ?? 0;
+        const rightY = equippedShoe.dataset.invisRightY ?? equippedShoe.dataset.invisY ?? equippedShoe.dataset.rightY ?? equippedShoe.dataset.y ?? 0;
+        rightShoeLayer.style.transform = `translateX(-50%) translate(${rightX}px, ${rightY}px) scale(${rightScale})`;
+      }
+    }
+  }
+
+  // Restore pants with no-skin variant
+  const pantsLayer = document.getElementById('pants');
+  if (pantsLayer && pantsLayer.style.display === 'block') {
+    const equippedPants = document.querySelector('#pantsMenu li.equipped');
+    if (equippedPants && equippedPants.dataset.invisSrc) {
+      pantsLayer.src = equippedPants.dataset.invisSrc;
+      const normalScaleP = equippedPants.dataset.invisScale ?? equippedPants.dataset.scale ?? 1;
+      const normalXP = equippedPants.dataset.invisX ?? equippedPants.dataset.x ?? 0;
+      const normalYP = equippedPants.dataset.invisY ?? equippedPants.dataset.y ?? 0;
+      pantsLayer.style.transform = `translateX(-50%) translate(${normalXP}px, ${normalYP}px) scale(${normalScaleP})`;
+    }
+  }
+
+  document.querySelectorAll("#specialsMenu li").forEach(li => li.classList.remove("equipped"));
+  element.classList.add("equipped");
+  enforceLayerOrder();
+  overrideLayerOrder();
+
+  // Sync all body parts using central helper
+  syncBodyParts();
+
+  saveState();
+}
+
+
 // Helper function to check if invis skin is equipped
 function isInvisSkinActive() {
   const invisMenuItem = document.querySelector("#specialsMenu li[onclick*='equipInvisCharacter']");
   if (invisMenuItem) return invisMenuItem.classList.contains("equipped");
 
   const headElement = document.getElementById('head');
-  return headElement && headElement.src && headElement.src.includes('invisibleskin');
+  return headElement && headElement.src && (headElement.src.includes('invisibleskin') || headElement.src.includes('pupil.png'));
 }
 
 // Helper function to check if ghost outfit (shirt52) is active
@@ -1267,9 +2167,14 @@ function isGhostOutfitActive() {
 
 // Central helper to synchronize all base body parts based on state
 function syncBodyParts() {
+  // If Dark Jester or Normal Jester is active, skip normal body part syncing
+  if (isDarkJesterActive() || isNormalJesterActive()) return;
+
   const isRocker = isRockerMakeupActive();
   const isInvis = isInvisSkinActive();
   const isGhost = isGhostOutfitActive();
+  const isGsc = isGoldenSkeletonActive();
+  const isSc = isSkeletonActive();
 
   // Reset eyes layer opacity by default (overridden by syncHeadSprite if needed)
   const eyesLayer = document.getElementById('eyes');
@@ -1280,11 +2185,12 @@ function syncBodyParts() {
   const isSkate = carsLayer && carsLayer.style.display === 'block' && carsLayer.src && (carsLayer.src.includes('skate.png') || carsLayer.src.includes('dcirc.png') || carsLayer.src.includes('circ.png'));
 
   const parts = {
-    'base': isRocker ? 'rockerbody/base.png' : (isSkate ? 'baseskate.png' : (isInvis ? 'base.png' : 'specials/base.png')),
-    'body': isRocker ? 'rockerbody/body.png' : (isInvis ? 'body.png' : 'specials/body.png'),
-    'arm': isRocker ? 'rockerbody/arm.png' : (isInvis ? 'arm.png' : 'specials/arm.png'),
-    'leg': isRocker ? 'rockerbody/leg.png' : (isSkate ? 'legskate.png' : (isInvis ? 'leg.png' : 'specials/leg.png')),
-    'feet': isRocker ? 'rockerbody/feet.png' : (isInvis ? 'feet.png' : 'specials/feet.png')
+    'base': isGsc ? 'specials/gsc/base.png' : (isSc ? 'specials/sc/base.png' : (isRocker ? 'rockerbody/base.png' : (isInvis ? 'base.png' : 'specials/base.png'))),
+    'body': isGsc ? 'specials/gsc/body.png' : (isSc ? 'specials/sc/body.png' : (isRocker ? 'rockerbody/body.png' : (isInvis ? (currentGender === 'female' ? 'specials/female/body.png' : 'body.png') : (currentGender === 'female' ? 'specials/female/body.png' : 'specials/body.png')))),
+    'arm': isGsc ? 'specials/gsc/hand.png' : (isSc ? 'specials/sc/hand.png' : (isRocker ? 'rockerbody/arm.png' : (isInvis ? 'arm.png' : 'specials/arm.png'))),
+    'leg': (isGsc || isSc) ? '' : (isRocker ? 'rockerbody/leg.png' : (isInvis ? 'leg.png' : 'specials/leg.png')),
+    'feet': isGsc ? 'specials/gsc/feet.png' : (isSc ? 'specials/sc/feet.png' : (isRocker ? 'rockerbody/feet.png' : (isInvis ? 'feet.png' : 'specials/feet.png'))),
+    'pupil': isGsc ? 'specials/gsc/pupil.png' : (isSc ? 'specials/sc/pupil.png' : (isRocker ? 'rockerbody/pupil.png' : (isInvis ? (currentGender === 'female' ? 'specials/female/pupil.png' : 'pupil.png') : (currentGender === 'female' ? 'specials/female/pupil.png' : 'specials/pupil.png'))))
   };
 
   Object.entries(parts).forEach(([id, src]) => {
@@ -1296,51 +2202,76 @@ function syncBodyParts() {
         return;
       }
       el.src = src;
-      // If ghost is NOT active, ensure the part is visible (unless specific item hides it)
+      // If ghost is NOT active, ensure the part is visible
       if (!isGhost) {
-        // Fix: Check if corresponding layer has an item equipped before showing base part
+        // Body parts are never hidden by clothing — same behaviour as color skin variants.
+        // Cars (non-skate) hide feet. Skate items hide base.
         let shouldHide = false;
-        // Exception: Rocker makeup base body never hides
-        if (!isRocker) {
-          if (id === 'feet') {
-            const shoesLayer = document.getElementById('shoes');
-            const carsLayer = document.getElementById('cars');
-            const isSkate = carsLayer && carsLayer.style.display === 'block' && carsLayer.src && (carsLayer.src.includes('skate.png') || carsLayer.src.includes('dcirc.png') || carsLayer.src.includes('circ.png'));
-            const carIsEquipped = carsLayer && carsLayer.style.display === 'block' && !isSkate;
-
-            if ((shoesLayer && (shoesLayer.style.display === 'block' || shoesLayer.classList.contains('active'))) || carIsEquipped) {
-              shouldHide = true;
-            }
-          } else if (id === 'leg') {
-            const pantsLayer = document.getElementById('pants');
-            if (pantsLayer && (pantsLayer.style.display === 'block' || pantsLayer.classList.contains('active'))) {
-              shouldHide = true;
-            }
-          } else if (id === 'body') {
-            const shirtsLayer = document.getElementById('shirts');
-            const outfitsLayer = document.getElementById('outfits');
-            if ((shirtsLayer && (shirtsLayer.style.display === 'block' || shirtsLayer.classList.contains('active'))) ||
-              (outfitsLayer && (outfitsLayer.style.display === 'block' || outfitsLayer.classList.contains('active')))) {
-              shouldHide = true;
-            }
-          }
+        if (id === 'feet') {
+          const carsLayer = document.getElementById('cars');
+          const isSkateItem = carsLayer && carsLayer.style.display === 'block' && carsLayer.src && (carsLayer.src.includes('skate.png') || carsLayer.src.includes('dcirc.png') || carsLayer.src.includes('circ.png'));
+          const carIsEquipped = carsLayer && carsLayer.style.display === 'block' && !isSkateItem;
+          if (carIsEquipped) shouldHide = true;
+        }
+        if (id === 'base' && isSkate) {
+          shouldHide = true;
+        }
+        if (id === 'arm') {
+          const shirtsLayer = document.getElementById('shirts');
+          const isArmHidingShirt = shirtsLayer && shirtsLayer.style.display === 'block' && shirtsLayer.src && (
+            shirtsLayer.src.includes('shirt48') ||
+            shirtsLayer.src.includes('shirt49') ||
+            shirtsLayer.src.includes('shirt58') ||
+            shirtsLayer.src.includes('shirt69') ||
+            shirtsLayer.src.includes('shirt72')
+          );
+          if (isArmHidingShirt) shouldHide = true;
         }
 
         if (shouldHide) {
-          el.style.display = 'none';
-          el.style.visibility = 'hidden';
+          if (id === 'base') {
+            // Base must remain in layout to anchor character position
+            el.style.display = 'block';
+            el.style.visibility = 'visible';
+            el.style.opacity = '0';
+          } else {
+            el.style.display = 'none';
+            el.style.visibility = 'hidden';
+          }
         } else {
           el.style.display = 'block';
           el.style.visibility = 'visible';
         }
+
+        // Manage diaper overlays
+        if (id === 'body') {
+          const dBody = document.getElementById('diaperbody');
+          if (dBody) {
+            dBody.style.display = (el.style.display === 'none' || !activeSkinColor || isGhost || isInvis || isRocker) ? 'none' : 'block';
+            dBody.style.opacity = '1';
+          }
+        }
+        if (id === 'leg') {
+          const dLeg = document.getElementById('diaperleg');
+          if (dLeg) {
+            dLeg.style.display = (el.style.display === 'none' || !activeSkinColor || isGhost || isInvis || isRocker) ? 'none' : 'block';
+            dLeg.style.opacity = '1';
+          }
+        }
       }
 
-      el.style.opacity = isInvis ? '0' : '1';
+      // Set opacity based on invis state, but preserve skate-hidden base
+      if (id === 'base' && isSkate) {
+        el.style.opacity = '0';
+      } else {
+        el.style.opacity = isInvis ? '0' : '1';
+      }
     }
   });
 
-  // === VARIANT SYNC (Invis / Rocker) ===
-  // If either Invis or Rocker is active, we use the no-skin version (invisSrc) if available.
+  // === VARIANT SYNC (always use no-skin clothing) ===
+  // Always use the no-skin version (invisSrc) if available, since the base character
+  // uses white-skinned specials/ sprites and the default clothing src has brown skin baked in.
   ['shirts', 'pants', 'shoes'].forEach(layerId => {
     const layer = document.getElementById(layerId);
     if (layer && layer.style.display === 'block' && layer.src) {
@@ -1352,11 +2283,9 @@ function syncBodyParts() {
         const baseSrc = equippedItem.dataset.src;
         let targetSrc = baseSrc;
 
-        // If either Invis or Rocker is active, prefer the no-skin version (invisSrc)
-        if (isInvis || isRocker) {
-          if (equippedItem.dataset.invisSrc) {
-            targetSrc = equippedItem.dataset.invisSrc;
-          }
+        // Always prefer the no-skin version (invisSrc) when available
+        if (equippedItem.dataset.invisSrc) {
+          targetSrc = equippedItem.dataset.invisSrc;
         }
 
         if (layer.src && !layer.src.includes(targetSrc)) {
@@ -1368,7 +2297,7 @@ function syncBodyParts() {
             const rightShoeLayer = document.getElementById('rightshoe');
             if (rightShoeLayer && rightShoeLayer.style.display === 'block') {
               const baseRightSrc = equippedItem.dataset.rightSrc || baseSrc;
-              const targetRightSrc = (isInvis || isRocker) ? (equippedItem.dataset.invisRightSrc || equippedItem.dataset.invisSrc || baseRightSrc) : baseRightSrc;
+              const targetRightSrc = equippedItem.dataset.invisRightSrc || equippedItem.dataset.invisSrc || baseRightSrc;
               rightShoeLayer.src = targetRightSrc;
             }
           }
@@ -1383,14 +2312,16 @@ function syncBodyParts() {
     const equippedEye = document.querySelector('#eyesMenu li.equipped');
     const eyeSrc = equippedEye ? (equippedEye.dataset.src || equippedEye.dataset.frames) : '';
 
-    if (!isGhost) {
+    if (!isGhost && !isGoldenSkeletonActive() && !isSkeletonActive()) {
       pupilLayer.style.display = 'block';
     }
 
     if (isRocker) {
       pupilLayer.style.opacity = '1';
-    } else if (isInvis) {
-      pupilLayer.style.opacity = (equippedEye && isEyeException(eyeSrc)) ? '1' : '0';
+    } else if (isInvis || isGoldenSkeletonActive() || isSkeletonActive()) {
+      // Invis skin or GSC/SC: hide the pupil layer
+      pupilLayer.style.display = 'none';
+      pupilLayer.style.opacity = '0';
     } else {
       // Normal character: check if eye item hides pupil
       pupilLayer.style.opacity = (equippedEye && !isEyeException(eyeSrc)) ? '0' : '1';
@@ -1398,6 +2329,16 @@ function syncBodyParts() {
   }
 
   syncHeadSprite();
+
+  // Re-apply skin color tint if active (must happen after sprites are set back to specials/)
+  if (activeSkinColor && !isInvisSkinActive() && !isRockerMakeupActive()) {
+    if (activeSkinColor === 'rainbow') {
+      // Rainbow is driven by requestAnimationFrame, just make sure it's running
+      if (!skinRainbowAnimFrame) startSkinRainbow();
+    } else {
+      applySkinTint(activeSkinColor);
+    }
+  }
 
   // Apply arm rotation after syncing all body parts
   // This ensures that any item-specific arm rotation (e.g., water gun, clown hammer)
@@ -1426,7 +2367,7 @@ function syncHeadSprite() {
 
   // Priority 1: Invis Skin (Takes precedence over mask)
   if (isInvisSkinActive() && !isRocker) {
-    headLayer.src = "specials/invisibleskin.png";
+    headLayer.src = "specials/pupil.png";
     const equippedEye = document.querySelector('#eyesMenu li.equipped');
     const eyeSrc = equippedEye ? (equippedEye.dataset.src || equippedEye.dataset.frames) : '';
     headLayer.style.display = "block";
@@ -1434,10 +2375,24 @@ function syncHeadSprite() {
     return;
   }
 
+  // Priority 1.5: Golden Skeleton / Skeleton Character
+  if (isGoldenSkeletonActive()) {
+    headLayer.src = "specials/gsc/head.png";
+    headLayer.style.display = "block";
+    headLayer.style.opacity = '1';
+    return;
+  }
+  if (isSkeletonActive()) {
+    headLayer.src = "specials/sc/head.png";
+    headLayer.style.display = "block";
+    headLayer.style.opacity = '1';
+    return;
+  }
+
   // Priority 2: Mechanical Bunny Helmet (facemech.png)
   if (faces29Equipped) {
     if (isInvisSkinActive()) {
-      headLayer.src = "specials/invisibleskin.png";
+      headLayer.src = "specials/pupil.png";
       // Ensure opacity logic matches standard invis skin (show if eye exception like Rocker is active)
       const equippedEye = document.querySelector('#eyesMenu li.equipped');
       const eyeSrc = equippedEye ? (equippedEye.dataset.src || equippedEye.dataset.frames) : '';
@@ -1453,13 +2408,13 @@ function syncHeadSprite() {
         // Also hide Rocker Makeup pixels (white pixels) for this combination
         const eyesLayer = document.getElementById('eyes');
         if (eyesLayer) eyesLayer.style.opacity = '0';
+        headLayer.style.opacity = "1";
+        headLayer.style.display = "block";
       } else {
-        headLayer.src = "facemech.png";
-        // Eyes opacity is reset to '1' by syncBodyParts default, so we don't need to force it here
+        // Hide head.png entirely — the faces layer shows the helmet visual
+        headLayer.style.display = "none";
       }
-      headLayer.style.opacity = "1";
     }
-    headLayer.style.display = "block";
     return;
   }
 
@@ -1469,7 +2424,11 @@ function syncHeadSprite() {
     headLayer.style.display = "block";
     headLayer.style.opacity = "1";
   } else {
-    headLayer.src = "specials/head.png";
+    if (isInvisSkinActive()) {
+        headLayer.src = (currentGender === 'female') ? "specials/female/pupil.png" : "specials/pupil.png";
+    } else {
+        headLayer.src = "specials/head.png";
+    }
     headLayer.style.display = "block"; // Always show the head
     headLayer.style.opacity = "1";
   }
@@ -1477,6 +2436,19 @@ function syncHeadSprite() {
 
 // Swap to the invis character variant (also a full character swap, no inventory)
 window.equipInvisCharacter = function (element) {
+  // Clear any active skin color tint
+  clearSkinTint();
+
+  // Clean up DJC layers if switching from Dark Jester
+  hideDjcLayers();
+  hideNjcLayers();
+
+  // Restore arm to normal positioning (may have been overridden by DJC)
+  const armRestore = document.getElementById('arm');
+  if (armRestore) {
+    armRestore.style.transform = '';
+  }
+
   const baseElement = document.getElementById('base');
   const headElement = document.getElementById('head');
 
@@ -1490,12 +2462,10 @@ window.equipInvisCharacter = function (element) {
   baseElement.style.opacity = "0"; // hide the nude base safely without affecting layout
   baseElement.style.clipPath = "none"; // Remove clip-path to fix positioning with cars/floaties
 
-  // Custom Skate Check: Re-apply if switching to invis while car is equipped
+  // Custom Skate Check: Hide base if skate/circus item is equipped
   const carsLayer = document.getElementById('cars');
-  if (carsLayer && carsLayer.style.display === 'block' && carsLayer.src.includes('skate.png')) {
-    baseElement.src = 'baseskate.png';
-    const legElement = document.getElementById('leg');
-    if (legElement) legElement.src = 'legskate.png';
+  if (carsLayer && carsLayer.style.display === 'block' && carsLayer.src && (carsLayer.src.includes('skate.png') || carsLayer.src.includes('dcirc.png') || carsLayer.src.includes('circ.png'))) {
+    baseElement.style.opacity = '0';
     carsLayer.style.zIndex = 1;
   }
 
@@ -1638,6 +2608,286 @@ window.equipInvisCharacter = function (element) {
   saveState();
 }
 
+// ==================== DARK JESTER CHARACTER ====================
+
+// Helper function to check if Dark Jester Character is equipped
+function isDarkJesterActive() {
+  const djcMenuItem = document.querySelector("#specialsMenu li[onclick*='equipDarkJester']");
+  return djcMenuItem && djcMenuItem.classList.contains("equipped");
+}
+
+// Helper to hide all DJC-specific layers
+function hideDjcLayers() {
+  const djcIds = ['djc-body', 'djc-head', 'djc-left-leg', 'djc-right-leg', 'djc-right-arm'];
+  djcIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.style.display = 'none'; el.src = ''; }
+  });
+  
+  // Clean up left arm class
+  const armElement = document.getElementById('arm');
+  if (armElement) {
+    armElement.classList.remove('djc-left-arm');
+  }
+  
+  document.body.classList.remove('djc-active');
+}
+
+// Equip the Dark Jester Character
+window.equipDarkJester = function (element) {
+  // Clear any active skin color tint
+  clearSkinTint();
+  
+  // Hide Normal Jester layers to prevent overlaying
+  hideNjcLayers();
+
+  // === Unequip all non-compatible items ===
+  // Only hands, pets, pets-back, wings, capes are allowed
+  const layersToUnequip = ['hat', 'hair', 'headgears', 'headgearsabove', 'eyes', 'faces',
+    'shirts', 'shirtsabove', 'shirtsbehind', 'shirtstop',
+    'pants', 'shoes', 'rightshoe', 'outfitshoes', 'outfitrightshoe',
+    'cars', 'floaties', 'scarfs', 'backpacks', 'necklaces', 'skin'];
+
+  layersToUnequip.forEach(layerId => {
+    const layer = document.getElementById(layerId);
+    if (layer && layer.style.display !== 'none') {
+      layer.style.display = 'none';
+      if (typeof stopAnimation === 'function') stopAnimation(layer);
+      layer.src = '';
+    }
+  });
+
+  // Remove equipped class from non-compatible menu items
+  document.querySelectorAll('.equipped').forEach(el => {
+    const layer = el.dataset.layer;
+    const hat = el.dataset.hat;
+    // Keep: hands, pets, pets-back, wings, capes, platforms
+    if (layer === 'hands' || layer === 'pets' || layer === 'pets-back' ||
+        layer === 'wings' || layer === 'capes' || layer === 'platforms') return;
+    // Keep specials menu items (handled separately)
+    if (el.closest('#specialsMenu')) return;
+    // Unequip hats and everything else
+    if (hat || layer) {
+      el.classList.remove('equipped');
+    }
+  });
+
+  // Clear ghost state
+  document.body.classList.remove('ghost-active');
+
+  // === Hide normal body parts ===
+  const baseElement = document.getElementById('base');
+  if (baseElement) {
+    baseElement.style.display = 'block'; // Keep for layout anchoring
+    baseElement.style.opacity = '0';
+    baseElement.style.clipPath = 'none';
+  }
+
+  const normalParts = ['body', 'leg', 'feet', 'pupil'];
+  normalParts.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.style.display = 'none'; }
+  });
+
+  const headElement = document.getElementById('head');
+  if (headElement) { headElement.style.display = 'none'; }
+
+  // === Set the existing arm layer to DJC left hand ===
+  const armElement = document.getElementById('arm');
+  if (armElement) {
+    armElement.style.display = 'block';
+    armElement.src = 'specials/djc/spr_character_jester_hand_1/spr_character_jester_hand1_0.png';
+    armElement.style.opacity = '1';
+    // Apply DJC arm positioning via CSS class
+    armElement.classList.add('djc-left-arm');
+  }
+
+  // === Show DJC-specific layers ===
+  const djcBody = document.getElementById('djc-body');
+  if (djcBody) {
+    djcBody.src = 'specials/djc/spr_character_jester_body/spr_character_jester_body_1.png';
+    djcBody.style.display = 'block';
+  }
+
+  const djcHead = document.getElementById('djc-head');
+  if (djcHead) {
+    djcHead.src = 'specials/djc/spr_character_jester_head2.png';
+    djcHead.style.display = 'block';
+  }
+
+  const djcLeftLeg = document.getElementById('djc-left-leg');
+  if (djcLeftLeg) {
+    djcLeftLeg.src = 'specials/djc/spr_character_jester_leg2.png';
+    djcLeftLeg.style.display = 'block';
+  }
+
+  const djcRightLeg = document.getElementById('djc-right-leg');
+  if (djcRightLeg) {
+    djcRightLeg.src = 'specials/djc/spr_character_jester_leg2.png';
+    djcRightLeg.style.display = 'block';
+  }
+
+  const djcRightArm = document.getElementById('djc-right-arm');
+  if (djcRightArm) {
+    djcRightArm.src = 'specials/djc/spr_character_jester_hand_1/spr_character_jester_hand1_1.png';
+    djcRightArm.style.display = 'block';
+  }
+
+  // Add DJC active class to body for CSS rules
+  document.body.classList.add('djc-active');
+
+  // Mark this specials entry as selected
+  document.querySelectorAll("#specialsMenu li").forEach(li => li.classList.remove("equipped"));
+  element.classList.add("equipped");
+
+  enforceLayerOrder();
+  overrideLayerOrder();
+  applyArmRotation();
+
+  saveState();
+}
+// =============================================================
+
+// ==================== NORMAL JESTER CHARACTER ====================
+
+// Helper function to check if Normal Jester Character is equipped
+function isNormalJesterActive() {
+  const njcMenuItem = document.querySelector("#specialsMenu li[onclick*='equipNormalJester']");
+  return njcMenuItem && njcMenuItem.classList.contains("equipped");
+}
+
+// Helper to hide all NJC-specific layers
+function hideNjcLayers() {
+  const njcIds = ['njc-body', 'njc-head', 'njc-left-leg', 'njc-right-leg', 'njc-right-arm'];
+  njcIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.style.display = 'none'; el.src = ''; }
+  });
+  
+  // Clean up left arm class
+  const armElement = document.getElementById('arm');
+  if (armElement) {
+    armElement.classList.remove('njc-left-arm');
+  }
+  
+  document.body.classList.remove('njc-active');
+}
+
+// Equip the Normal Jester Character
+window.equipNormalJester = function (element) {
+  // Clear any active skin color tint
+  clearSkinTint();
+  
+  // Hide Dark Jester layers to prevent overlaying
+  hideDjcLayers();
+
+  // === Unequip all non-compatible items ===
+  // Only hands, pets, pets-back, wings, capes are allowed
+  const layersToUnequip = ['hat', 'hair', 'headgears', 'headgearsabove', 'eyes', 'faces',
+    'shirts', 'shirtsabove', 'shirtsbehind', 'shirtstop',
+    'pants', 'shoes', 'rightshoe', 'outfitshoes', 'outfitrightshoe',
+    'cars', 'floaties', 'scarfs', 'backpacks', 'necklaces', 'skin'];
+
+  layersToUnequip.forEach(layerId => {
+    const layer = document.getElementById(layerId);
+    if (layer && layer.style.display !== 'none') {
+      layer.style.display = 'none';
+      if (typeof stopAnimation === 'function') stopAnimation(layer);
+      layer.src = '';
+    }
+  });
+
+  // Remove equipped class from non-compatible menu items
+  document.querySelectorAll('.equipped').forEach(el => {
+    const layer = el.dataset.layer;
+    const hat = el.dataset.hat;
+    // Keep: hands, pets, pets-back, wings, capes, platforms
+    if (layer === 'hands' || layer === 'pets' || layer === 'pets-back' ||
+        layer === 'wings' || layer === 'capes' || layer === 'platforms') return;
+    // Keep specials menu items (handled separately)
+    if (el.closest('#specialsMenu')) return;
+    // Unequip hats and everything else
+    if (hat || layer) {
+      el.classList.remove('equipped');
+    }
+  });
+
+  // Clear ghost state
+  document.body.classList.remove('ghost-active');
+
+  // === Hide normal body parts ===
+  const baseElement = document.getElementById('base');
+  if (baseElement) {
+    baseElement.style.display = 'block'; // Keep for layout anchoring
+    baseElement.style.opacity = '0';
+    baseElement.style.clipPath = 'none';
+  }
+
+  const normalParts = ['body', 'leg', 'feet', 'pupil'];
+  normalParts.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.style.display = 'none'; }
+  });
+
+  const headElement = document.getElementById('head');
+  if (headElement) { headElement.style.display = 'none'; }
+
+  // === Set the existing arm layer to NJC left hand ===
+  const armElement = document.getElementById('arm');
+  if (armElement) {
+    armElement.style.display = 'block';
+    armElement.src = 'specials/normaljester/spr_character_n_jester_hand1/spr_character_n_jester_hand1_0.png';
+    armElement.style.opacity = '1';
+    // Apply NJC arm positioning via CSS class
+    armElement.classList.add('njc-left-arm');
+  }
+
+  // === Show NJC-specific layers ===
+  const njcBody = document.getElementById('njc-body');
+  if (njcBody) {
+    njcBody.src = 'specials/normaljester/spr_character_n_jester_body/spr_character_n_jester_body_1.png';
+    njcBody.style.display = 'block';
+  }
+
+  const njcHead = document.getElementById('njc-head');
+  if (njcHead) {
+    njcHead.src = 'specials/normaljester/spr_character_n_jester_head2.png';
+    njcHead.style.display = 'block';
+  }
+
+  const njcLeftLeg = document.getElementById('njc-left-leg');
+  if (njcLeftLeg) {
+    njcLeftLeg.src = 'specials/normaljester/spr_character_n_jester_leg2.png';
+    njcLeftLeg.style.display = 'block';
+  }
+
+  const njcRightLeg = document.getElementById('njc-right-leg');
+  if (njcRightLeg) {
+    njcRightLeg.src = 'specials/normaljester/spr_character_n_jester_leg2.png';
+    njcRightLeg.style.display = 'block';
+  }
+
+  const njcRightArm = document.getElementById('njc-right-arm');
+  if (njcRightArm) {
+    njcRightArm.src = 'specials/normaljester/spr_character_n_jester_hand1/spr_character_n_jester_hand1_1.png';
+    njcRightArm.style.display = 'block';
+  }
+
+  // Add NJC active class to body for CSS rules
+  document.body.classList.add('njc-active');
+
+  // Mark this specials entry as selected
+  document.querySelectorAll("#specialsMenu li").forEach(li => li.classList.remove("equipped"));
+  element.classList.add("equipped");
+
+  enforceLayerOrder();
+  overrideLayerOrder();
+  applyArmRotation();
+
+  saveState();
+}
+// =============================================================
+
 // Helper function to check if an eye item should NOT hide base eyes (pupil)
 function isEyeException(src) {
   if (!src) return false;
@@ -1661,6 +2911,28 @@ function equipItem(element) {
   // Outfits use the shirts layer
   const actualLayerName = layerName === 'outfits' ? 'shirts' : layerName;
   const layer = document.getElementById(actualLayerName);
+
+  // === DARK / NORMAL JESTER AUTO-UNEQUIP ===
+  // If DJC/NJC is active and equipping a non-allowed category, switch back to normal character
+  if (isDarkJesterActive() || isNormalJesterActive()) {
+    const djcAllowed = ['hands', 'pets', 'pets-back', 'wings', 'capes', 'platforms'];
+    if (!djcAllowed.includes(layerName)) {
+      const normalBtn = document.querySelector('#specialsMenu li[onclick*="equipNormalCharacter"]');
+      if (normalBtn) equipNormalCharacter(normalBtn);
+    }
+  }
+
+  // === SKELETON AUTO-UNEQUIP / PREVENT ===
+  // Skeletons should not wear human faces or eyes (looks glitched)
+  if (isGoldenSkeletonActive() || isSkeletonActive()) {
+    const skeletonDisallowed = ['faces', 'eyes'];
+    if (skeletonDisallowed.includes(layerName)) {
+      if (!element.classList.contains('equipped')) {
+        console.log('Blocked equipping face/eye on skeleton');
+        return; // Prevent equipping
+      }
+    }
+  }
 
   // === PLATFORM TOGGLE LOGIC ===
   // Platforms can be toggled off by clicking the active one.
@@ -1764,8 +3036,21 @@ function equipItem(element) {
     if (actualLayerName === 'capes') {
       const cabove = document.getElementById('capesabove');
       if (cabove) { cabove.style.display = 'none'; cabove.src = ''; }
+      if (layer) layer.classList.remove('rainbow-overlay-active');
     }
     // ===============================
+
+    // === SPACE SUIT UNEQUIP (Unified Path) ===
+    if (layerName === 'pants' && element.dataset.src && element.dataset.src.includes('pants28')) {
+      const spaceBoots = document.getElementById('space-boots-data');
+      if (spaceBoots) spaceBoots.classList.remove('equipped');
+      const shoesLayer = document.getElementById('shoes');
+      const rightShoeLayer = document.getElementById('rightshoe');
+      if (shoesLayer) { shoesLayer.style.display = 'none'; stopAnimation(shoesLayer); shoesLayer.src = ''; }
+      if (rightShoeLayer) { rightShoeLayer.style.display = 'none'; rightShoeLayer.src = ''; }
+      document.querySelectorAll('#shoesMenu li.equipped').forEach(item => item.classList.remove('equipped'));
+    }
+    // =========================================
 
     // sync state based on what's still equipped
     syncBodyParts();
@@ -2031,6 +3316,7 @@ function equipItem(element) {
       capesaboveLayer.style.display = 'none';
       stopAnimation(capesaboveLayer);
       capesaboveLayer.src = '';
+      if (capesLayer) capesLayer.classList.remove('rainbow-overlay-active');
       // Remove equipped class from cape menu items
       document.querySelectorAll('[data-layer="capes"]').forEach(item => {
         item.classList.remove('equipped');
@@ -2133,10 +3419,26 @@ function equipItem(element) {
       // === SPACE SUIT UNEQUIP LOGIC ===
       if (layerName === 'pants' && element.dataset.src && element.dataset.src.includes('pants28')) {
         const spaceBoots = document.getElementById('space-boots-data');
-        if (spaceBoots && spaceBoots.classList.contains('equipped')) {
-          console.log('Space Suit Pants unequipped - toggling off Space Boots...');
-          equipItem(spaceBoots);
+        if (spaceBoots) {
+          spaceBoots.classList.remove('equipped');
         }
+        // Explicitly clear shoes and rightshoe layers
+        const shoesLayer = document.getElementById('shoes');
+        const rightShoeLayer = document.getElementById('rightshoe');
+        if (shoesLayer) {
+          shoesLayer.style.display = 'none';
+          stopAnimation(shoesLayer);
+          shoesLayer.src = '';
+        }
+        if (rightShoeLayer) {
+          rightShoeLayer.style.display = 'none';
+          rightShoeLayer.src = '';
+        }
+        // Also remove equipped from any shoes menu items
+        document.querySelectorAll('#shoesMenu li.equipped').forEach(item => {
+          item.classList.remove('equipped');
+        });
+        console.log('Space Suit Pants unequipped - cleared Space Boots & shoes layers');
       }
       // ================================
 
@@ -2168,12 +3470,14 @@ function equipItem(element) {
         }
       }
 
-      // Handle dual cape system
       if (layerName === 'capes') {
         const capesaboveLayer = document.getElementById('capesabove');
-        capesaboveLayer.style.display = "none";
-        stopAnimation(capesaboveLayer);
-        capesaboveLayer.src = "";
+        if (capesaboveLayer) {
+          capesaboveLayer.style.display = "none";
+          stopAnimation(capesaboveLayer);
+          capesaboveLayer.src = "";
+        }
+        layer.classList.remove('rainbow-overlay-active');
       }
 
       // Handle dual shirt system
@@ -2265,6 +3569,15 @@ function equipItem(element) {
       layer.classList.add('floating');
     } else {
       layer.classList.remove('floating');
+    }
+  }
+
+  // Forcefully stop float animation for Pet Sun
+  if (layerName === 'pets') {
+    if (element.dataset.frames && element.dataset.frames.includes('spr_wa_pet_sun')) {
+      layer.style.animation = 'none';
+    } else {
+      layer.style.animation = '';
     }
   }
   const isAnimated = element.dataset.animated === "true";
@@ -2543,8 +3856,8 @@ function equipItem(element) {
     let actualX = element.dataset.x ?? 0;
     let actualY = element.dataset.y ?? 0;
 
-    // Switch to no-skin variant (invisSrc) when invis skin OR rocker makeup is active
-    if ((layerName === 'shirts' || layerName === 'shoes' || layerName === 'pants') && (isInvisSkinActive() || isRockerMakeupActive()) && element.dataset.invisSrc) {
+    // Always use no-skin variant (invisSrc) for clothing since base character uses white skin
+    if ((layerName === 'shirts' || layerName === 'shoes' || layerName === 'pants') && element.dataset.invisSrc) {
       actualSrc = element.dataset.invisSrc;
       actualScale = element.dataset.invisScale ?? actualScale;
       actualX = element.dataset.invisX ?? actualX;
@@ -2840,6 +4153,16 @@ function equipItem(element) {
   try { renderInventory(); } catch (e) { /* ignore if renderInventory not ready */ }
   syncBodyParts();
 
+  // Myth Cape Rainbow Logic Overlay
+  if (layerName === 'capes') {
+    if (src && src.includes('cape24')) {
+      layer.classList.add('rainbow-overlay-active');
+      ensureGlobalRainbowRunning();
+    } else {
+      layer.classList.remove('rainbow-overlay-active');
+    }
+  }
+
   // Re-apply equipped filter if active to keep the list updated
   if (isFilterEquippedActive && typeof applyEquippedFilter === 'function') {
     applyEquippedFilter();
@@ -2847,6 +4170,12 @@ function equipItem(element) {
 }
 
 function equipHat(imagePath, element) {
+  // === DARK / NORMAL JESTER AUTO-UNEQUIP ===
+  if (isDarkJesterActive() || isNormalJesterActive()) {
+    const normalBtn = document.querySelector('#specialsMenu li[onclick*="equipNormalCharacter"]');
+    if (normalBtn) equipNormalCharacter(normalBtn);
+  }
+
   const hat = document.getElementById("hat");
   const isAnimated = element.dataset.animated === "true";
 
@@ -2929,9 +4258,8 @@ function equipHat(imagePath, element) {
     if (pupilLayer) {
       pupilLayer.style.display = 'block';
       if (isInvis) {
-        const equippedEye = document.querySelector('#eyesMenu li.equipped');
-        const eyeSrc = equippedEye ? (equippedEye.dataset.src || equippedEye.dataset.frames) : '';
-        pupilLayer.style.opacity = (equippedEye && isEyeException(eyeSrc)) ? '1' : '0';
+        pupilLayer.style.display = 'none';
+        pupilLayer.style.opacity = '0';
       } else {
         pupilLayer.style.opacity = '1';
       }
@@ -3065,6 +4393,17 @@ window.setPlatform = function (platformSrc, skipSave = false) {
   const y = menuElement ? (menuElement.dataset.y || 469) : 469;
   layer.style.transform = `translateX(-50%) translate(${x}px, ${y}px) scale(${scale})`;
 
+  // Sync shadow (center platform shadow)
+  const shadow = document.getElementById('platform-shadow');
+  if (shadow) {
+    shadow.src = platformSrc;
+    shadow.style.display = 'block';
+    // Offset the shadow well below the platform to match extender shadow distance
+    const sx = parseFloat(x) + 1;
+    const sy = parseFloat(y) + 45;
+    shadow.style.transform = `translateX(-50%) translate(${sx}px, ${sy}px) scale(${scale})`;
+  }
+
   // Sync extenders
   const left = document.getElementById('platform-left');
   const right = document.getElementById('platform-right');
@@ -3075,6 +4414,18 @@ window.setPlatform = function (platformSrc, skipSave = false) {
   if (right) {
     right.style.backgroundImage = `url(${platformSrc})`;
     right.style.display = 'block';
+  }
+
+  // Sync shadow extenders
+  const shadowLeft = document.getElementById('platform-shadow-left');
+  const shadowRight = document.getElementById('platform-shadow-right');
+  if (shadowLeft) {
+    shadowLeft.style.backgroundImage = `url(${platformSrc})`;
+    shadowLeft.style.display = 'block';
+  }
+  if (shadowRight) {
+    shadowRight.style.backgroundImage = `url(${platformSrc})`;
+    shadowRight.style.display = 'block';
   }
 
   // Update UI indicators
@@ -3100,6 +4451,16 @@ function isIOS() {
 // ---------------------------------------------------------
 window.unequipAll = function (force = false) {
   if (!force && !confirm('Are you sure you want to remove the set?')) return;
+
+  // Clean up DJC layers
+  hideDjcLayers();
+  hideNjcLayers();
+
+  // Restore arm to normal positioning (may have been overridden by DJC)
+  const armRestore = document.getElementById('arm');
+  if (armRestore) {
+    armRestore.style.transform = '';
+  }
 
   // Use a transparent placeholder to force Safari to purge the old image from GPU memory
   const placeholder = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
@@ -3305,10 +4666,20 @@ function enforceLayerOrder() {
     "capes",
     "shirtsbehind",
     "base",
+    "djc-left-leg",
+    "njc-left-leg",
+    "djc-right-leg",
+    "njc-right-leg",
+    "djc-right-arm",
+    "njc-right-arm",
     "body",
+    "djc-body",
+    "njc-body",
     "leg",
     "feet",
     "head",
+    "djc-head",
+    "njc-head",
     "shirts",
     "shoes",
     "rightshoe",
@@ -3343,14 +4714,18 @@ function overrideLayerOrder() {
     'platforms': { z: 1, order: -1 },
     'base': { z: 10, order: 0 },
     'body': { z: 11, order: 1 },
+    'diaperbody': { z: 12, order: 1.5 },
     'leg': { z: 11, order: 2 },
+    'diaperleg': { z: 12, order: 2.5 },
     'feet': { z: 11, order: 3 },
-    'head': { z: 21, order: 4 },
+    'outfitshoes': { z: 11, order: 3.1 },
+    'outfitrightshoe': { z: 11, order: 3.2 },
+    'shoes': { z: 11, order: 3.3 },
+    'rightshoe': { z: 11, order: 3.4 },
+    'head': { z: 19, order: 4 },
     'shirts': { z: 22, order: 5 },
     'eyes': { z: 23, order: 6 },
-    'pupil': { z: 23, order: 7 },
-    'shoes': { z: 24, order: 8 },
-    'rightshoe': { z: 24, order: 9 },
+    'pupil': { z: 20, order: 4.5 },
     'pants': { z: 25, order: 10 },
     'hair': { z: 26, order: 11 },
     'capesabove': { z: 28, order: 12 },
@@ -3363,7 +4738,7 @@ function overrideLayerOrder() {
     'hands': { z: 49, order: 17 },
     'arm': { z: 50, order: 18 },
     'shirtsabove': { z: 51, order: 19 },
-    'shirtstop': { z: 52, order: 20 },
+    'shirtstop': { z: 48, order: 16.5 },
     'pets': { z: 60, order: 21 },
     'shirtsbehind': { z: 2, order: 23 },
     'pets-back': { z: 1, order: 24 },
@@ -3429,7 +4804,7 @@ window.downloadSet = async function () {
   try {
     // Get all visible character layers in z-index order
     const layers = [
-      'platforms', 'pets-back', 'base', 'body', 'leg', 'feet', 'arm', 'pants', 'shirtsbehind', 'shirtstop',
+      'platforms', 'pets-back', 'base', 'body', 'diaperbody', 'leg', 'diaperleg', 'feet', 'arm', 'pants', 'shirtsbehind', 'shirtstop',
       'head', 'pupil', 'shoes', 'rightshoe', 'outfitshoes', 'outfitrightshoe', 'shirts', 'eyes', 'hair', 'faces', 'hands',
       'shirtsabove', 'capesabove', 'headgears', 'headgearsabove', 'hat', 'capes', 'wings', 'cars', 'floaties',
       'scarfs', 'pets'
@@ -4529,15 +5904,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Default: slightly smaller character on mobile so it feels less cramped
   if (!manualZoom) {
-    if (window.innerWidth <= 600) {
-      sceneScale = 0.85;
+    if (window.innerWidth <= 768) {
+      sceneScale = 0.3;
     } else {
-      sceneScale = 1;
+      sceneScale = 0.5;
     }
   }
 
   applySceneScale();
   loadState();
+  generateSkinMenuIcons();
 
   // Initialize with no slots if first time
   const allSlots = JSON.parse(localStorage.getItem('saveSlotsList') || '[]');
@@ -4559,6 +5935,8 @@ function syncPlatformExtensions() {
   const platformImg = document.getElementById('platforms');
   const leftExtender = document.getElementById('platform-left');
   const rightExtender = document.getElementById('platform-right');
+  const shadowLeft = document.getElementById('platform-shadow-left');
+  const shadowRight = document.getElementById('platform-shadow-right');
 
   if (!platformImg || !leftExtender || !rightExtender) return;
 
@@ -4577,15 +5955,29 @@ function syncPlatformExtensions() {
     leftExtender.style.display = 'block';
     rightExtender.style.display = 'block';
 
+    // Sync shadow extenders
+    if (shadowLeft) {
+      shadowLeft.style.backgroundImage = `url("${src}")`;
+      shadowLeft.style.display = 'block';
+    }
+    if (shadowRight) {
+      shadowRight.style.backgroundImage = `url("${src}")`;
+      shadowRight.style.display = 'block';
+    }
+
     // Sync height to match the main platform image
     // We use offsetHeight to match the rendered size
     if (platformImg.offsetHeight > 0) {
       leftExtender.style.height = `${platformImg.offsetHeight}px`;
       rightExtender.style.height = `${platformImg.offsetHeight}px`;
+      if (shadowLeft) shadowLeft.style.height = `${platformImg.offsetHeight}px`;
+      if (shadowRight) shadowRight.style.height = `${platformImg.offsetHeight}px`;
     }
   } else {
     leftExtender.style.display = 'none';
     rightExtender.style.display = 'none';
+    if (shadowLeft) shadowLeft.style.display = 'none';
+    if (shadowRight) shadowRight.style.display = 'none';
   }
 }
 
@@ -4594,6 +5986,8 @@ function syncPlatformExtensions() {
  */
 function sortSubmenuItems() {
   document.querySelectorAll('.submenu').forEach(submenu => {
+    // Skip menus with manually defined order
+    if (submenu.id === 'specialsMenu' || submenu.id === 'genderMenu') return;
     const items = Array.from(submenu.querySelectorAll('li'));
     if (items.length <= 1) return;
 
@@ -4728,6 +6122,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Unified UI Application
   applyRoadmapStyleToSubmenus();
+
+  // Always populate the Updates/Valentines hamburger menu
+  if (typeof populateUpdatesMenu === 'function') {
+    populateUpdatesMenu();
+  }
 });
 // Original Loading Logic Restored
 const loadingStartTime = Date.now();
@@ -4746,9 +6145,6 @@ window.addEventListener('load', () => {
         loaderInitial.style.display = 'none';
         loadingSelection.style.display = 'flex';
 
-        // Show roadmap button now that selection is visible
-        const roadmapBtn = document.querySelector('.selection-roadmap-btn');
-        if (roadmapBtn) roadmapBtn.style.display = 'block';
 
         // Show "See What's New" button with matching fade
         const whatsNewBtn = document.querySelector('.whats-new-trigger-btn');
@@ -4774,11 +6170,6 @@ window.addEventListener('load', () => {
           if (typeof initWhatsNewModal === 'function') {
             initWhatsNewModal();
           }
-        }
-        
-        // Always populate the Updates/Valentines hamburger menu
-        if (typeof populateUpdatesMenu === 'function') {
-          populateUpdatesMenu();
         }
       }
     }, remaining);
@@ -4814,7 +6205,6 @@ window.selectPlanner = function (type) {
   const hamburger = document.querySelector(".hamburger");
   const spInventory = document.getElementById("sp-inventory-bar");
   const zoomControls = document.querySelector(".zoom-controls");
-  const roadmapBtn = document.querySelector(".selection-roadmap-btn");
   const spTeleport = document.getElementById("sp-wrench-menu");
 
   // Hide all first
@@ -4834,7 +6224,6 @@ window.selectPlanner = function (type) {
   }
   if (spInventory) spInventory.style.display = (type === "set") ? "flex" : "none";
   if (zoomControls) zoomControls.style.display = (type === "set") ? "flex" : "none";
-  const rmBtn = document.getElementById("main-roadmap-btn"); if (rmBtn) rmBtn.style.display = "none";
   if (spTeleport) spTeleport.style.display = (type === "set") ? "flex" : "none";
 
   // Close any open wrench menus
@@ -4958,7 +6347,6 @@ window.backToSelection = function () {
   const hamburger = document.querySelector(".hamburger");
   const spInventory = document.getElementById("sp-inventory-bar");
   const zoomControls = document.querySelector(".zoom-controls");
-  const roadmapBtn = document.querySelector(".selection-roadmap-btn");
   const spTeleport = document.getElementById("sp-wrench-menu");
 
   if (wpContainer) wpContainer.style.display = "none";
@@ -4976,7 +6364,6 @@ window.backToSelection = function () {
 
   if (spInventory) spInventory.style.display = "none";
   if (zoomControls) zoomControls.style.display = "none";
-  if (roadmapBtn) roadmapBtn.style.display = "block";
   
   // Ghost removal
   const bgWrap = document.querySelector(".background-wrapper"); if (bgWrap) bgWrap.style.display = "none";
@@ -4992,10 +6379,6 @@ window.backToSelection = function () {
     loadingScreen.classList.remove("fade-out");
     if (loaderInitial) loaderInitial.style.display = "none";
     if (loadingSelection) loadingSelection.style.display = "flex";
-    const rmBtn = document.getElementById("main-roadmap-btn"); if (rmBtn) rmBtn.style.display = "flex";
-    // Show roadmap button on main menu
-    const selRoadmapBtn = document.querySelector('.selection-roadmap-btn');
-    if (selRoadmapBtn) selRoadmapBtn.style.display = 'block';
 
     // Show credit and report bugs buttons
     const creditEl = document.getElementById('main-menu-credit');
@@ -5028,7 +6411,7 @@ window.formatLocksHTML = function(wlAmount) {
   if (AL > 0) html += `${html ? ' ' : ''}${AL} <img src="worldplanner/new/spr_fg_amethyst_lock/spr_fg_amethyst_lock_0.png" class="fish-lock-icon" alt="AL">`;
   if (TL > 0) html += `${html ? ' ' : ''}${TL} <img src="worldplanner/new/spr_fg_titanium_lock/spr_fg_titanium_lock_0.png" class="fish-lock-icon" alt="TL">`;
   if (WL > 0 || html === '') {
-    const wlStr = WL % 1 === 0 ? WL.toString() : WL.toFixed(2).replace(/\.?0+$/, '');
+    const wlStr = Math.floor(WL).toString();
     html += `${html ? ' ' : ''}${wlStr} <img src="worldplanner/new/spr_fg_lock/spr_fg_lock_0.png" class="fish-lock-icon" alt="WL">`;
   }
   
@@ -5267,12 +6650,22 @@ let wpHistory = [];
 let wpHistoryIndex = -1;
 const MAX_HISTORY = 50;
 let wpAnimatedCells = []; // Tracks {x, y} of all cells with animated blocks
+let wpAnimatedCellSet = new Set(); // PERF: O(1) lookup for "x,y,layer" keys (replaces Array.some)
 let _wpLastViewKey = ''; // Tracks wpOffsetX, wpOffsetY, wpZoom for smooth panning redraws
+
+// PERF: Rebuild the Set from the array
+function _wpRebuildAnimatedSet() {
+  wpAnimatedCellSet.clear();
+  for (const c of wpAnimatedCells) {
+    wpAnimatedCellSet.add(`${c.x},${c.y},${c.layer}`);
+  }
+}
 
 function updateWPAnimatedCellList(tx, ty, isRemoving = false) {
   if (tx === undefined) {
     // Full scan (only used for initial load)
     wpAnimatedCells = [];
+    wpAnimatedCellSet.clear();
     for (let y = 0; y < WORLD_HEIGHT; y++) {
       if (!wpGrid[y]) continue;
       for (let x = 0; x < WORLD_WIDTH; x++) {
@@ -5283,6 +6676,7 @@ function updateWPAnimatedCellList(tx, ty, isRemoving = false) {
           const blk = wpBlockMap[bid];
           if ((bid === 'spr_fg_rainbow_block' || bid === 'rainbow_block') || (blk && blk.framesPath && bid !== 'spr_fg_flamingo' && (typeof bdFG !== 'object' || bdFG.state === undefined || bid === 'spr_fg_xmas_dj_box' || bid === 'spr_fg_gem_machine'))) {
             wpAnimatedCells.push({ x, y, layer: 'fg' });
+            wpAnimatedCellSet.add(`${x},${y},fg`);
           }
         }
         // Check Background
@@ -5292,6 +6686,7 @@ function updateWPAnimatedCellList(tx, ty, isRemoving = false) {
           const blk = wpBlockMap[bid];
           if (blk && blk.framesPath && bid !== 'spr_fg_flamingo' && (typeof bdBG !== 'object' || bdBG.state === undefined || bid === 'spr_fg_xmas_dj_box' || bid === 'spr_fg_gem_machine')) {
             wpAnimatedCells.push({ x, y, layer: 'bg' });
+            wpAnimatedCellSet.add(`${x},${y},bg`);
           }
         }
       }
@@ -5302,9 +6697,13 @@ function updateWPAnimatedCellList(tx, ty, isRemoving = false) {
   // Incremental update
   if (isRemoving) {
     wpAnimatedCells = wpAnimatedCells.filter(c => !(c.x === tx && c.y === ty));
+    wpAnimatedCellSet.delete(`${tx},${ty},fg`);
+    wpAnimatedCellSet.delete(`${tx},${ty},bg`);
   } else {
     // Clear old entries for this cell first (could be in either layer)
     wpAnimatedCells = wpAnimatedCells.filter(c => !(c.x === tx && c.y === ty));
+    wpAnimatedCellSet.delete(`${tx},${ty},fg`);
+    wpAnimatedCellSet.delete(`${tx},${ty},bg`);
 
     const bdFG = wpGrid[ty][tx];
     const bdBG = wpBackgroundGrid[ty][tx];
@@ -5315,6 +6714,7 @@ function updateWPAnimatedCellList(tx, ty, isRemoving = false) {
       const blkFG = wpBlockMap[bidFG];
       if ((bidFG === 'spr_fg_rainbow_block' || bidFG === 'rainbow_block') || (blkFG && blkFG.framesPath && bidFG !== 'spr_fg_flamingo' && (typeof bdFG !== 'object' || bdFG.state === undefined || bidFG === 'spr_fg_xmas_dj_box' || bidFG === 'spr_fg_gem_machine'))) {
         wpAnimatedCells.push({ x: tx, y: ty, layer: 'fg' });
+        wpAnimatedCellSet.add(`${tx},${ty},fg`);
       }
     }
 
@@ -5324,6 +6724,7 @@ function updateWPAnimatedCellList(tx, ty, isRemoving = false) {
       const blkBG = wpBlockMap[bidBG];
       if (blkBG && blkBG.framesPath && bidBG !== 'spr_fg_flamingo' && (typeof bdBG !== 'object' || bdBG.state === undefined || bidBG === 'spr_fg_xmas_dj_box' || bidBG === 'spr_fg_gem_machine')) {
         wpAnimatedCells.push({ x: tx, y: ty, layer: 'bg' });
+        wpAnimatedCellSet.add(`${tx},${ty},bg`);
       }
     }
   }
@@ -5396,6 +6797,93 @@ function updateWPBlockCount() {
     listContainer.appendChild(item);
   });
 }
+
+// ==================== BLOCK SPOTLIGHT ====================
+window.wpSpotlightActiveIds = new Set();
+
+window.openSpotlightModal = function() {
+  const listContainer = document.getElementById('wpSpotlightList');
+  if (!listContainer) return;
+
+  const counts = {};
+  for (let y = 0; y < WORLD_HEIGHT; y++) {
+    if (!wpGrid[y]) continue;
+    for (let x = 0; x < WORLD_WIDTH; x++) {
+      const blockData = wpGrid[y][x];
+      if (blockData) {
+        let blockId = (typeof blockData === 'object' && blockData !== null) ? blockData.id : blockData;
+        if (blockId) {
+          if (!((blockId === 'bedrock' || blockId === 'spr_fg_bedrock') && y >= WORLD_HEIGHT - 5)) {
+            counts[blockId] = (counts[blockId] || 0) + 1;
+          }
+        }
+      }
+      const bgData = wpBackgroundGrid[y][x];
+      if (bgData) {
+        let blockId = (typeof bgData === 'object' && bgData !== null) ? bgData.id : bgData;
+        if (blockId) {
+          counts[blockId] = (counts[blockId] || 0) + 1;
+        }
+      }
+    }
+  }
+
+  listContainer.innerHTML = '';
+  const sortedBlockIds = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+
+  if (sortedBlockIds.length === 0) {
+    listContainer.innerHTML = '<div style="text-align:center; opacity:0.5; padding: 20px;">No blocks placed yet.</div>';
+  } else {
+    sortedBlockIds.forEach(blockId => {
+      const block = wpBlockMap[blockId];
+      if (!block) return;
+
+      const item = document.createElement('div');
+      item.className = 'wp-count-item wp-spotlight-item' + (window.wpSpotlightActiveIds.has(blockId) ? ' active' : '');
+      item.style.cursor = 'pointer';
+      item.dataset.blockId = blockId;
+      item.onclick = function() { toggleSpotlight(blockId, this); };
+
+      item.innerHTML = `
+        <img src="${block.src}" alt="${block.name}">
+        <div class="wp-count-details">
+          <span class="wp-count-name">${block.name}</span>
+          <span class="wp-count-val">${counts[blockId]}</span>
+        </div>
+      `;
+      listContainer.appendChild(item);
+    });
+  }
+
+  const modal = document.getElementById('wp-spotlight-modal');
+  if (modal) modal.classList.remove('hidden');
+};
+
+window.closeSpotlightModal = function() {
+  const modal = document.getElementById('wp-spotlight-modal');
+  if (modal) modal.classList.add('hidden');
+};
+
+window.toggleSpotlight = function(blockId, element) {
+  if (window.wpSpotlightActiveIds.has(blockId)) {
+    window.wpSpotlightActiveIds.delete(blockId);
+    if (element) element.classList.remove('active');
+  } else {
+    window.wpSpotlightActiveIds.add(blockId);
+    if (element) element.classList.add('active');
+  }
+  wpDirty = true;
+  wpMarkStaticDirty();
+};
+
+window.clearSpotlight = function() {
+  window.wpSpotlightActiveIds.clear();
+  document.querySelectorAll('.wp-spotlight-item').forEach(item => {
+    item.classList.remove('active');
+  });
+  wpDirty = true;
+  wpMarkStaticDirty();
+};
 
 function saveActiveWorld() {
   // USER REQUEST: Keep the bedrock foundation in the save file after all
@@ -5477,16 +6965,54 @@ function loadActiveWorld() {
   updateWPAnimatedCellList();
   updateWPBlockCount();
 
-  // Start the constant render loop
+  // Start the render loop (demand-driven)
   if (wpAnimationId) cancelAnimationFrame(wpAnimationId);
   if (typeof mpDrawRemoteCursors === 'function') mpDrawRemoteCursors(wpCtx, wpZoom, wpOffsetX, wpOffsetY);
-  wpAnimationId = requestAnimationFrame(drawWPWorld);
+  wpScheduleFrame();
+  wpStartAnimTicker();
 }
 
 let wpAnimationId = null;
 let wpDirty = true; // Dirty flag: only redraw when something changes
 let wpLastAnimTick = 0; // Throttle animation redraws
 const WP_ANIM_INTERVAL = 100; // Animation tick every 100ms (10fps)
+
+// PERF: Demand-driven render loop — only schedule frames when work is needed
+let wpFrameScheduled = false;
+let wpAnimTickInterval = null;
+
+function wpScheduleFrame() {
+  if (!wpFrameScheduled) {
+    wpFrameScheduled = true;
+    wpAnimationId = requestAnimationFrame(drawWPWorld);
+  }
+}
+
+// PERF: Interval timer that pokes the render loop for animated blocks, wrench, and multiplayer
+// This replaces the always-on 60fps rAF chain with a 10fps tick when animations are active
+function wpStartAnimTicker() {
+  if (wpAnimTickInterval) return;
+  wpAnimTickInterval = setInterval(() => {
+    const container = document.getElementById('world-planner-container');
+    if (!container || container.style.display === 'none' || document.visibilityState === 'hidden') return;
+
+    const hasAnim = wpAnimatedCells && wpAnimatedCells.length > 0;
+    let needsMP = false;
+    try { needsMP = mpActive; } catch(e) {}
+
+    if (hasAnim || wpCurrentTool === 'wrench' || needsMP) {
+      wpDirty = true;
+      wpScheduleFrame();
+    }
+  }, WP_ANIM_INTERVAL);
+}
+
+function wpStopAnimTicker() {
+  if (wpAnimTickInterval) {
+    clearInterval(wpAnimTickInterval);
+    wpAnimTickInterval = null;
+  }
+}
 
 // Off-screen static cache: render all static blocks once, blit visible portion each frame
 // Split into two layers to ensure blocks always cover shadows
@@ -5507,8 +7033,8 @@ let wpNeedsPostProcess = false;
 let wpPanPending = false; // rAF coalescing for pan redraws
 let wpIsPanningActive = false; // Skip expensive animated processing during active pan
 
-function wpMarkDirty() { wpDirty = true; }
-function wpMarkStaticDirty() { wpStaticDirty = true; wpDirty = true; }
+function wpMarkDirty() { wpDirty = true; wpScheduleFrame(); }
+function wpMarkStaticDirty() { wpStaticDirty = true; wpDirty = true; wpScheduleFrame(); }
 
 function wpUpdateStaticCacheRegion(x1, y1, x2, y2) {
   const xMin = Math.max(0, Math.min(x1, x2));
@@ -5567,6 +7093,36 @@ function wpUpdateStaticCacheArea(x, y, radius = 5) {
   wpUpdateStaticCacheRegion(x - radius, y - radius, x + radius, y + radius);
 }
 
+// Helper: Draw a block image with optional inversion and rotation transforms
+// bd = block data (string id or object with .inverted / .rotation)
+// ctx = canvas context, img = loaded Image, px/py/nw/nh = draw coordinates & size
+function wpDrawBlockImage(ctx, img, px, py, nw, nh, bd) {
+  const inverted = (typeof bd === 'object' && bd !== null) ? !!bd.inverted : false;
+  const rotation = (typeof bd === 'object' && bd !== null) ? (bd.rotation || 0) : 0;
+
+  if (!inverted && rotation === 0) {
+    // Fast path: no transforms needed
+    ctx.drawImage(img, px, py, nw, nh);
+    return;
+  }
+
+  ctx.save();
+  // Move origin to center of the block image
+  const cx = px + nw / 2;
+  const cy = py + nh / 2;
+  ctx.translate(cx, cy);
+
+  if (rotation !== 0) {
+    ctx.rotate((rotation * Math.PI) / 180);
+  }
+  if (inverted) {
+    ctx.scale(-1, 1);
+  }
+
+  ctx.drawImage(img, -nw / 2, -nh / 2, nw, nh);
+  ctx.restore();
+}
+
 // Incremental update for a single cell (high performance painting)
 function updateWPStaticCacheAt(x, y, pass, shouldClear = true) {
   if (x < 0 || x >= WORLD_WIDTH || y < 0 || y >= WORLD_HEIGHT) return;
@@ -5587,7 +7143,7 @@ function updateWPStaticCacheAt(x, y, pass, shouldClear = true) {
       const blk = wpBlockMap[bid];
       if (blk) {
         let imgPath = blk.src;
-        const isAnimated = typeof wpAnimatedCells !== 'undefined' && wpAnimatedCells.some(c => c.x === x && c.y === y && c.layer === 'bg');
+        const isAnimated = wpAnimatedCellSet.has(`${x},${y},bg`);
         if (blk.framesPath && (isAnimated || (typeof bdbg === 'object' && bdbg.state !== undefined))) {
           let state = (typeof bdbg === 'object' && bdbg.state !== undefined) ? bdbg.state : 0;
           imgPath = `${blk.framesPath}${state}.png`;
@@ -5600,7 +7156,7 @@ function updateWPStaticCacheAt(x, y, pass, shouldClear = true) {
           const px = x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2;
           const py = (y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0);
 
-          wpStaticBGCtx.drawImage(img, px, py, nw, nh);
+          wpDrawBlockImage(wpStaticBGCtx, img, px, py, nw, nh, bdbg);
         }
       }
     }
@@ -5613,7 +7169,7 @@ function updateWPStaticCacheAt(x, y, pass, shouldClear = true) {
     if (bd) {
       const bid = (typeof bd === 'object') ? bd.id : bd;
       const blk = wpBlockMap[bid];
-      const isAnimated = typeof wpAnimatedCells !== 'undefined' && wpAnimatedCells.some(c => c.x === x && c.y === y && (pass === 'blocks' || pass === 'shadows' ? c.layer === 'fg' : c.layer === 'bg'));
+      const isAnimated = wpAnimatedCellSet.has(`${x},${y},${(pass === 'blocks' || pass === 'shadows') ? 'fg' : 'bg'}`);
       if (blk && (!blk.framesPath || !isAnimated || (typeof bd === 'object' && bd.state !== undefined && bid !== 'spr_fg_xmas_dj_box' && bid !== 'spr_fg_gem_machine') || blk.isDirt)) {
         if (bid && !bid.includes('rainbow')) {
           let imgPath = blk.src;
@@ -5627,7 +7183,7 @@ function updateWPStaticCacheAt(x, y, pass, shouldClear = true) {
             const px = x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2;
             const py = (y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0);
 
-              wpStaticBlockCtx.drawImage(img, px, py, nw, nh);
+            wpDrawBlockImage(wpStaticBlockCtx, img, px, py, nw, nh, bd);
           }
         }
       }
@@ -5644,7 +7200,7 @@ function updateWPStaticCacheAt(x, y, pass, shouldClear = true) {
       const bid = (typeof bd === 'object') ? bd.id : bd;
       const blk = wpBlockMap[bid];
       if (blk && !blk.noShadow && blk.verticalAlign !== 'center' && blk.type !== 'background') {
-        const isAnimated = typeof wpAnimatedCells !== 'undefined' && wpAnimatedCells.some(c => c.x === x && c.y === y && c.layer === 'fg');
+        const isAnimated = wpAnimatedCellSet.has(`${x},${y},fg`);
         if (!blk.framesPath || !isAnimated || (typeof bd === 'object' && bd.state !== undefined && bid !== 'spr_fg_xmas_dj_box' && bid !== 'spr_fg_gem_machine')) {
           let imgPath = blk.src;
           if (blk.isDirt) imgPath = getDirtSrc(blk, (bd.dirtState || 0));
@@ -5662,7 +7218,9 @@ function updateWPStaticCacheAt(x, y, pass, shouldClear = true) {
             if (shadowImg) {
               wpStaticShadowCtx.save();
               wpStaticShadowCtx.globalAlpha = 0.4;
-              wpStaticShadowCtx.drawImage(shadowImg, x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2 + shadowOffset, (y + 1) * BLOCK_SIZE - nh + shadowOffset + (blk.yOffset || 0), nw, nh);
+              const px = x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2 + shadowOffset;
+              const py = (y + 1) * BLOCK_SIZE - nh + shadowOffset + (blk.yOffset || 0);
+              wpDrawBlockImage(wpStaticShadowCtx, shadowImg, px, py, nw, nh, bd);
               wpStaticShadowCtx.restore();
             } else {
               // Image or shadow not ready yet, flag for a later retry
@@ -5980,8 +7538,9 @@ function initWorldPlanner() {
     if (typeof window.initWPHistoryState === 'function') window.initWPHistoryState();
   }, 100);
 
-  // Start render loop
-  drawWPWorld();
+  // Start render loop (demand-driven)
+  wpScheduleFrame();
+  wpStartAnimTicker();
 
   // Initial block count
   updateWPBlockCount();
@@ -7302,10 +8861,36 @@ function setupWPEvents() {
   window.wpLastMouseX = 0;
   window.wpLastMouseY = 0;
 
+  window.wpUpdateCoordsDisplay = function(clientX, clientY, rect) {
+    const coordsDiv = document.getElementById('wp-coords-display');
+    if (!coordsDiv) return;
+    
+    // Only show if world planner is active
+    const wpContainer = document.getElementById('world-planner-container');
+    if (!wpContainer || wpContainer.style.display === 'none') {
+      coordsDiv.style.display = 'none';
+      return;
+    }
+
+    if (!rect) rect = wpCanvas.getBoundingClientRect();
+    const worldX = (clientX - rect.left) / wpZoom - wpOffsetX;
+    const worldY = (clientY - rect.top) / wpZoom - wpOffsetY;
+    const gridX = Math.floor(worldX / BLOCK_SIZE);
+    const gridY = Math.floor(worldY / BLOCK_SIZE);
+    
+    if (gridX >= 0 && gridX < WORLD_WIDTH && gridY >= 0 && gridY < WORLD_HEIGHT) {
+      coordsDiv.style.display = 'block';
+      coordsDiv.textContent = `${gridX}, ${gridY}`;
+    } else {
+      coordsDiv.style.display = 'none';
+    }
+  };
+
   wpCanvas.onmousemove = (e) => {
     const rect = wpCanvas.getBoundingClientRect();
     window.wpLastMouseX = (e.clientX - rect.left) / wpZoom - wpOffsetX;
     window.wpLastMouseY = (e.clientY - rect.top) / wpZoom - wpOffsetY;
+    wpUpdateCoordsDisplay(e.clientX, e.clientY, rect);
 
     if (typeof mpSendCursorPosition === 'function') {
       mpSendCursorPosition(window.wpLastMouseX, window.wpLastMouseY);
@@ -7366,6 +8951,7 @@ function setupWPEvents() {
       // Single finger: Potential Long Press for Pick Block
       wpTouchStartX = e.touches[0].clientX;
       wpTouchStartY = e.touches[0].clientY;
+      wpUpdateCoordsDisplay(e.touches[0].clientX, e.touches[0].clientY);
 
       wpTouchTimer = setTimeout(() => {
         // Long Press Triggered!
@@ -7507,6 +9093,10 @@ function setupWPEvents() {
         clearTimeout(wpTouchTimer);
         wpTouchTimer = null;
       }
+    }
+
+    if (e.touches.length === 1) {
+      wpUpdateCoordsDisplay(e.touches[0].clientX, e.touches[0].clientY);
     }
 
     if (e.touches.length >= 2) {
@@ -7744,6 +9334,7 @@ function handleWPInteractionAt(x, y, isBatched = false) {
   const effectivePainting = isPainting && wpCurrentTool === 'pencil';
   const effectiveWrench = isPainting && wpCurrentTool === 'wrench';
   const effectiveCopy = isPainting && wpCurrentTool === 'copy';
+  const effectiveInvert = isPainting && wpCurrentTool === 'invert';
 
   if (effectivePainting) {
     const newBlock = wpBlockMap[wpSelectedBlockId];
@@ -7945,6 +9536,43 @@ function handleWPInteractionAt(x, y, isBatched = false) {
 
       // Refresh inventory to show active highlight
       renderWPInventory();
+    }
+    isPainting = false;
+  } else if (effectiveInvert) {
+    let targetData = wpGrid[y][x];
+    let gridType = 'fg';
+
+    if (!targetData) {
+      targetData = wpBackgroundGrid[y][x];
+      gridType = 'bg';
+    }
+
+    if (targetData) {
+      const blockId = (typeof targetData === 'object' && targetData !== null) ? targetData.id : targetData;
+      let invertedState = (typeof targetData === 'object' && targetData !== null) ? !targetData.inverted : true;
+
+      let newData;
+      if (typeof targetData === 'object' && targetData !== null) {
+          newData = { ...targetData, inverted: invertedState };
+      } else {
+          newData = { id: blockId, inverted: invertedState };
+      }
+
+      if (gridType === 'fg') wpGrid[y][x] = newData;
+      else wpBackgroundGrid[y][x] = newData;
+
+      if (typeof mpBroadcastBlockPlace === 'function') {
+        mpBroadcastBlockPlace(x, y, blockId, gridType, newData);
+      }
+
+      saveActiveWorld();
+      updateWPAnimatedCellList(x, y);
+
+      wpNeedsPostProcess = true;
+      if (!isBatched) {
+        wpUpdateStaticCacheArea(x, y, 1);
+        wpMarkDirty();
+      }
     }
     isPainting = false;
   }
@@ -8168,6 +9796,7 @@ function getWPShadow(src) {
 }
 
 function drawWPWorld(timestamp) {
+  wpFrameScheduled = false; // PERF: Allow new frames to be scheduled
   if (!wpCtx) return;
   // Reduce overhead: Only force sharp pixels on dirty frames or once per second
   if (wpDirty || !wpLastSmoothingReset || (timestamp - wpLastSmoothingReset > 1000)) {
@@ -8188,12 +9817,11 @@ function drawWPWorld(timestamp) {
   const hasAnimatedBlocks = wpAnimatedCells && wpAnimatedCells.length > 0;
 
   // Skip frame if nothing changed and no animation tick due
-  // USER REQUEST: Always redraw if Wrench tool is active to keep wiggle animation smooth
   let isMultiplayerActive = false;
   try { isMultiplayerActive = mpActive; } catch(e) {}
 
+  // PERF: Don't self-schedule here — the animation ticker interval will wake us when needed
   if (!wpDirty && !(hasAnimatedBlocks && animTick) && wpCurrentTool !== 'wrench' && !isMultiplayerActive) {
-    wpAnimationId = requestAnimationFrame(drawWPWorld);
     return;
   }
 
@@ -8234,6 +9862,10 @@ function drawWPWorld(timestamp) {
   const dy = (vStartY * BLOCK_SIZE + wpOffsetY) * wpZoom;
   const dw = sw * wpZoom;
   const dh = sh * wpZoom;
+
+  // Spotlight: fade all blocks to very low opacity
+  const _spotActive = window.wpSpotlightActiveIds && window.wpSpotlightActiveIds.size > 0;
+  if (_spotActive) wpCtx.globalAlpha = 0.2;
 
   // 1. Static Backgrounds
   if (wpStaticBGCanvas) {
@@ -8361,7 +9993,7 @@ function drawWPWorld(timestamp) {
         const px = (cell.x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2 + wpOffsetX) * wpZoom + shadowOffset;
         const py = ((cell.y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0) + wpOffsetY) * wpZoom + shadowOffset;
 
-        wpCtx.drawImage(shadowImg, px, py, nw * wpZoom, nh * wpZoom);
+        wpDrawBlockImage(wpCtx, shadowImg, px, py, nw * wpZoom, nh * wpZoom, bd);
       }
     }
     wpCtx.restore();
@@ -8371,6 +10003,9 @@ function drawWPWorld(timestamp) {
   if (wpStaticBlockCanvas) {
     wpCtx.drawImage(wpStaticBlockCanvas, sx, sy, sw, sh, dx, dy, dw, dh);
   }
+
+  // Reset alpha after static cache blits
+  if (_spotActive) wpCtx.globalAlpha = 1.0;
 
   // 4. Animated Blocks (Background then Foreground)
   const drawAnimBlock = (cell) => {
@@ -8500,7 +10135,7 @@ function drawWPWorld(timestamp) {
 
       // Draw the block at full opacity (always)
       // Math.round-based width/height scaling prevents drawing overlaps and gaps
-      wpCtx.drawImage(img, px, py, drawW, drawH);
+      wpDrawBlockImage(wpCtx, img, px, py, drawW, drawH, bd);
 
       // For rainbow blocks, use multiply blend like PNG export (darker, richer colors)
       if (isRainbow) {
@@ -8514,19 +10149,32 @@ function drawWPWorld(timestamp) {
 
         // Use multiply blend mode (matches PNG export method)
         wpCtx.save();
+        
+        // Move origin for rotation/inversion on rainbow overlay precisely matching block bounds
+        const cx = px + w / 2;
+        const cy = py + h / 2;
+        wpCtx.translate(cx, cy);
+        
+        const inverted = (typeof bd === 'object' && bd !== null) ? !!bd.inverted : false;
+        const rotation = (typeof bd === 'object' && bd !== null) ? (bd.rotation || 0) : 0;
+        if (rotation !== 0) wpCtx.rotate((rotation * Math.PI) / 180);
+        if (inverted) wpCtx.scale(-1, 1);
+
         wpCtx.globalCompositeOperation = 'multiply';
         wpCtx.fillStyle = `hsl(${hue}, 100%, 50%)`;
-        wpCtx.fillRect(px, py, w, h);
+        wpCtx.fillRect(-w / 2, -h / 2, w, h);
         wpCtx.restore();
       }
     }
   };
 
   // 4. Animated Blocks (Unified Y-sorted pass)
+  if (_spotActive) wpCtx.globalAlpha = 0.2;
   for (const cell of wpAnimatedCells) {
     if (cell.x < vStartX || cell.x > vEndX || cell.y < vStartY || cell.y > vEndY) continue;
     drawAnimBlock(cell);
   }
+  if (_spotActive) wpCtx.globalAlpha = 1.0;
 
   // ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ RAINBOW EFFECT ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬
   // PERF: Skip rainbow effect during active pan
@@ -8564,7 +10212,61 @@ function drawWPWorld(timestamp) {
     wpCtx.restore();
   }
 
-  // ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ GRID (LOD: Skip if zoomed out too far) ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬Â Ã¢â€šÂ¬
+  // ── SPOTLIGHT: Redraw matching blocks at full opacity ──
+  if (_spotActive) {
+    const spotIds = window.wpSpotlightActiveIds;
+    wpCtx.save();
+    wpCtx.globalAlpha = 1.0;
+
+    for (let y = vStartY; y <= vEndY; y++) {
+      for (let x = vStartX; x <= vEndX; x++) {
+        // Check foreground
+        const fgData = wpGrid[y] ? wpGrid[y][x] : null;
+        if (fgData) {
+          const fgId = (typeof fgData === 'object' && fgData !== null) ? fgData.id : fgData;
+          const isBedrock = (fgId === 'bedrock' || fgId === 'spr_fg_bedrock') && y >= WORLD_HEIGHT - 5;
+          if (spotIds.has(fgId) || isBedrock) {
+            const blk = wpBlockMap[fgId];
+            if (blk) {
+              let imgPath = blk.src;
+              if (blk.isDirt) imgPath = getDirtSrc(blk, (fgData.dirtState || 0));
+              else if (typeof fgData === 'object' && fgData.state !== undefined && blk.framesPath) imgPath = `${blk.framesPath}${fgData.state}.png`;
+              const img = getWPImage(imgPath);
+              if (img.complete && img.naturalWidth > 0) {
+                const nw = img.naturalWidth;
+                const nh = img.naturalHeight;
+                const px = (x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2 + (blk.xOffset || 0) + wpOffsetX) * wpZoom;
+                const py = ((y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0) + wpOffsetY) * wpZoom;
+                wpDrawBlockImage(wpCtx, img, Math.round(px), Math.round(py), Math.round(nw * wpZoom), Math.round(nh * wpZoom), fgData);
+              }
+            }
+          }
+        }
+        // Check background
+        const bgData = wpBackgroundGrid[y] ? wpBackgroundGrid[y][x] : null;
+        if (bgData) {
+          const bgId = (typeof bgData === 'object' && bgData !== null) ? bgData.id : bgData;
+          if (spotIds.has(bgId)) {
+            const blk = wpBlockMap[bgId];
+            if (blk) {
+              let imgPath = blk.src;
+              if (typeof bgData === 'object' && bgData.state !== undefined && blk.framesPath) imgPath = `${blk.framesPath}${bgData.state}.png`;
+              const img = getWPImage(imgPath);
+              if (img.complete && img.naturalWidth > 0) {
+                const nw = img.naturalWidth;
+                const nh = img.naturalHeight;
+                const px = (x * BLOCK_SIZE + (BLOCK_SIZE - nw) / 2 + (blk.xOffset || 0) + wpOffsetX) * wpZoom;
+                const py = ((y + 1) * BLOCK_SIZE - nh + (blk.yOffset || 0) + wpOffsetY) * wpZoom;
+                wpDrawBlockImage(wpCtx, img, Math.round(px), Math.round(py), Math.round(nw * wpZoom), Math.round(nh * wpZoom), bgData);
+              }
+            }
+          }
+        }
+      }
+    }
+    wpCtx.restore();
+  }
+
   if (wpShowGrid && wpZoom > 0.3) {
     wpCtx.save();
     wpCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
@@ -8648,16 +10350,16 @@ function drawWPWorld(timestamp) {
   }
 
   if (typeof mpDrawRemoteCursors === 'function') mpDrawRemoteCursors(wpCtx, wpZoom, wpOffsetX, wpOffsetY);
-  wpAnimationId = requestAnimationFrame(drawWPWorld);
+  // PERF: Don't self-schedule — the animation ticker or wpMarkDirty() will wake us when needed
 }
 
 // Page Visibility API Protection
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && !wpAnimationId) {
+  if (document.visibilityState === 'visible') {
     const container = document.getElementById('world-planner-container');
     if (container && container.style.display !== 'none') {
       if (typeof mpDrawRemoteCursors === 'function') mpDrawRemoteCursors(wpCtx, wpZoom, wpOffsetX, wpOffsetY);
-  wpAnimationId = requestAnimationFrame(drawWPWorld);
+      wpMarkDirty(); // PERF: Use demand-driven scheduling instead of direct rAF
     }
   }
 });
@@ -9622,7 +11324,6 @@ function initWhatsNewModal() {
   };
   
   // Populate the Updates hamburger menu in Set Planner
-  populateUpdatesMenu();
 }
 
 function populateUpdatesMenu() {
@@ -9926,6 +11627,11 @@ function showWPSelectionMenu() {
     document.getElementById('wp-btn-clear').style.display = wpPasteMode ? 'none' : 'inline-flex';
     document.getElementById('wp-sel-div-2').style.display = wpPasteMode ? 'none' : 'block';
     document.getElementById('wp-btn-paste').style.display = wpPasteMode ? 'inline-flex' : 'none';
+    // Invert and Rotate always available
+    const invertBtn = document.getElementById('wp-btn-invert');
+    const rotateBtn = document.getElementById('wp-btn-rotate');
+    if (invertBtn) invertBtn.style.display = 'inline-flex';
+    if (rotateBtn) rotateBtn.style.display = 'inline-flex';
   }
 }
 
@@ -10003,7 +11709,7 @@ function drawWPSelection(ctx, zoom, offX, offY) {
            let py;
            if (blk.verticalAlign === 'center') py = ((box.y + item.y + dy) * BLOCK_SIZE + offY + (BLOCK_SIZE - img.naturalHeight) / 2) * zoom;
            else py = ((box.y + item.y + 1 + dy) * BLOCK_SIZE - img.naturalHeight + (blk.yOffset || 0) + offY) * zoom;
-           ctx.drawImage(img, px, py, img.naturalWidth * zoom, img.naturalHeight * zoom);
+           wpDrawBlockImage(ctx, img, px, py, img.naturalWidth * zoom, img.naturalHeight * zoom, bd);
         }
       }
     }
@@ -10080,6 +11786,91 @@ window.wpFlipSelection = function(dir) {
   }
 
   // Recalculate inner tiling (dirtState)
+  if (wpCopiedData) {
+    for (const item of wpCopiedData) {
+      if (item.fg) {
+        const id = typeof item.fg === 'object' ? item.fg.id : item.fg;
+        if (isDirtBlock(id)) {
+          const isDirtAbove = wpCopiedData.some(o => o.x === item.x && o.y === item.y - 1 && o.fg && isDirtBlock(typeof o.fg === 'object' ? o.fg.id : o.fg));
+          if (typeof item.fg === 'object') item.fg.dirtState = isDirtAbove ? 1 : 0;
+        }
+      }
+    }
+  }
+
+  if (wasNotCopied && !wpPasteMode) {
+    wpDropSelectionBuffer();
+    wpCopiedData = null;
+    const deltas = saveWPHistory();
+    if (deltas && typeof mpBroadcastBulkAction === 'function') mpBroadcastBulkAction(deltas, false);
+    showWPSelectionMenu();
+  }
+  wpNeedsPostProcess = true;
+  wpMarkDirty();
+};
+
+// INVERT: Toggle the 'inverted' flag on every block in the selection (mirrors sprite horizontally)
+window.wpInvertSelection = function() {
+  if (!wpSelectionBox) return;
+  const wasNotCopied = !wpCopiedData;
+  if (wasNotCopied) wpCopySelectionToDragBuffer(true);
+
+  for (const item of wpCopiedData) {
+    // Invert foreground block
+    if (item.fg) {
+      if (typeof item.fg === 'string') item.fg = { id: item.fg };
+      item.fg.inverted = !item.fg.inverted;
+    }
+    // Invert background block
+    if (item.bg) {
+      if (typeof item.bg === 'string') item.bg = { id: item.bg };
+      item.bg.inverted = !item.bg.inverted;
+    }
+  }
+
+  if (wasNotCopied && !wpPasteMode) {
+    wpDropSelectionBuffer();
+    wpCopiedData = null;
+    const deltas = saveWPHistory();
+    if (deltas && typeof mpBroadcastBulkAction === 'function') mpBroadcastBulkAction(deltas, false);
+    showWPSelectionMenu();
+  }
+  wpNeedsPostProcess = true;
+  wpMarkDirty();
+};
+
+// ROTATE: Rotate the entire selection 90 degrees clockwise and increment per-block rotation
+window.wpRotateSelection = function() {
+  if (!wpSelectionBox) return;
+  const wasNotCopied = !wpCopiedData;
+  if (wasNotCopied) wpCopySelectionToDragBuffer(true);
+
+  const bw = wpSelectionBox.w;
+  const bh = wpSelectionBox.h;
+
+  for (const item of wpCopiedData) {
+    // Rotate position: (x, y) -> (bh - 1 - y, x) for 90° CW
+    const oldX = item.x;
+    const oldY = item.y;
+    item.x = (bh - 1) - oldY;
+    item.y = oldX;
+
+    // Increment per-block rotation
+    if (item.fg) {
+      if (typeof item.fg === 'string') item.fg = { id: item.fg };
+      item.fg.rotation = ((item.fg.rotation || 0) + 90) % 360;
+    }
+    if (item.bg) {
+      if (typeof item.bg === 'string') item.bg = { id: item.bg };
+      item.bg.rotation = ((item.bg.rotation || 0) + 90) % 360;
+    }
+  }
+
+  // Swap selection box dimensions after 90° rotation
+  wpSelectionBox.w = bh;
+  wpSelectionBox.h = bw;
+
+  // Recalculate dirt tiling
   if (wpCopiedData) {
     for (const item of wpCopiedData) {
       if (item.fg) {
@@ -10421,7 +12212,8 @@ let wpHotkeys = {
     reposition: null,
     save: null,
     blocks: null,
-    background: null
+    background: null,
+    invert: null
   },
   inventory: {
     "slot-0": null,
@@ -10481,7 +12273,7 @@ const wpToolLabels = {
 };
 const wpToolIcons = {
   pencil: "pencil", eraser: "eraser", move: "move", wrench: "wrench",
-  copy: "copy", select: "box-select", fill: "paint-bucket",
+  copy: "copy", select: "box-select", fill: "paint-bucket", invert: "arrow-left-right",
   undo: "undo", redo: "redo", reset: "rotate-ccw", clear: "trash-2",
   grid: "grid", count: "layers", reposition: "maximize", save: "save",
   blocks: "box", background: "cloud"
@@ -10654,7 +12446,7 @@ window.saveWPHotkeys = function() {
 window.resetWPHotkeys = function() {
   if (confirm("Are you sure you want to reset all hotkeys to unassigned?")) {
     wpHotkeys = {
-      tools: { pencil: null, eraser: null, move: null, wrench: null, copy: null, select: null, fill: null, undo: null, redo: null, reset: null, clear: null, grid: null, count: null, reposition: null, save: null, blocks: null, background: null },
+      tools: { pencil: null, eraser: null, move: null, wrench: null, copy: null, select: null, fill: null, invert: null, undo: null, redo: null, reset: null, clear: null, grid: null, count: null, reposition: null, save: null, blocks: null, background: null },
       inventory: { "slot-0": null, "slot-1": null, "slot-2": null, "slot-3": null, "slot-4": null, "slot-5": null, "slot-6": null, "slot-7": null, "slot-8": null, "slot-9": null }
     };
     localStorage.setItem("wp_custom_hotkeys", JSON.stringify(wpHotkeys));

@@ -399,6 +399,57 @@ body {
   }
 }
 
+/* SET PLANNER FLOATING ITEMS (more faded than main menu) */
+.sp-scatter-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.sp-scatter {
+  opacity: 0.06 !important;
+  filter: blur(2px) grayscale(0.6) drop-shadow(0 0 10px rgba(168, 218, 220, 0.15)) !important;
+}
+
+@keyframes sp-item-float {
+  0% {
+    transform: translate(0, 0) rotate(var(--r));
+    opacity: 0.06;
+  }
+  100% {
+    transform: translate(30px, -30px) rotate(calc(var(--r) + 15deg));
+    opacity: 0.10;
+  }
+}
+
+.sp-scatter {
+  animation: sp-item-float var(--d) ease-in-out infinite alternate !important;
+}
+
+/* ===== MOBILE PERFORMANCE OPTIMIZATIONS ===== */
+@media (max-width: 768px), (hover: none) {
+  /* Disable expensive decorative blur effects */
+  .nebula-glow {
+    filter: blur(30px);
+    animation: none;
+    opacity: 0.5;
+  }
+
+  /* Disable scattered item animations entirely */
+  .item-scatter {
+    animation: none !important;
+    display: none;
+  }
+
+  /* Reduce platform glow blur */
+  .platform-glow {
+    filter: blur(25px);
+    opacity: 0.4;
+  }
+}
+
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -525,6 +576,10 @@ body {
   pointer-events: none;
 }
 
+.diaperbody, .diaperleg {
+  z-index: 24;
+}
+
 /* Individual positioning and scaling for body parts - EDIT THESE VALUES */
 .body {
   transform: translateX(-50%) translate(0px, 73px) scale(1);
@@ -541,7 +596,7 @@ body {
 .pupil {
   transform: translateX(-50%) translate(-18.05px, 75px) scale(1.043);
   z-index: 20;
-  /* Lowered from 23 to sit behind eyes (23) */
+  /* Above head (19) */
 }
 
 /* LAYERS (GENERAL) */
@@ -566,6 +621,12 @@ body {
   z-index: 1;
   display: none;
   top: -74px;
+}
+
+/* Platform shadow: a real darkened duplicate image, offset below */
+.platform-shadow {
+  filter: brightness(0) opacity(0.35);
+  z-index: 0 !important;
 }
 
 /* CHARACTER VISUALS MUST NEVER BLOCK UI */
@@ -650,6 +711,7 @@ body {
 .pets-back.floating {
   /* Floating animation - Duration (1.5s is faster), Speed (ease-in-out) */
   animation: reaper-float 1.5s ease-in-out infinite;
+  will-change: translate;
 }
 
 /* Pet floating animations */
@@ -716,6 +778,11 @@ body {
 #pets[src*="spr_wa_pet_pick"],
 .backpacks {
   animation: reaper-float 2.0s ease-in-out infinite;
+  will-change: translate;
+}
+
+#pets[src*="spr_wa_pet_sun"] {
+  animation: none !important;
 }
 
 .capes {
@@ -730,12 +797,13 @@ body {
 
   0%,
   100% {
-    top: -73px;
+    /* GPU-composited: uses translate property (independent from transform) */
+    translate: 0 0;
   }
 
   50% {
-    /* Larger distance: -103px (30px offset from -73px) */
-    top: -160px;
+    /* Float upward by 87px (same visual range as old top: -73 to -160) */
+    translate: 0 -87px;
   }
 }
 
@@ -764,7 +832,7 @@ body {
 
 .head {
   z-index: 19;
-  /* Lowered from 21 to sit behind pupil (20) and eyes (23) */
+  /* Pupil (20) sits above head */
 }
 
 .capesabove {
@@ -815,7 +883,7 @@ body {
 }
 
 .shoes {
-  z-index: 26;
+  z-index: 11;
 }
 
 .rightshoe {
@@ -826,12 +894,12 @@ body {
 
   transform:
     translateX(-50%) translate(var(--rightshoe-x), var(--rightshoe-y)) scale(var(--rightshoe-scale));
-  z-index: 26;
+  z-index: 11;
 }
 
 /* Outfit-provided shoes (rendered behind user-selected shoes) */
 .outfitshoes {
-  z-index: 26;
+  z-index: 11;
 }
 
 .outfitrightshoe {
@@ -842,7 +910,7 @@ body {
 
   transform:
     translateX(-50%) translate(var(--outfitrightshoe-x), var(--outfitrightshoe-y)) scale(var(--outfitrightshoe-scale));
-  z-index: 26;
+  z-index: 11;
 }
 
 .hands {
@@ -895,6 +963,157 @@ body.ghost-active #skin {
   display: none !important;
 }
 
+/* ====================== DARK JESTER CHARACTER ====================== */
+/* EDIT THESE CSS VARIABLES to adjust DJC sprite positions and scales  */
+
+.djc-body {
+  /* ADJUST THESE VALUES TO POSITION THE DJC BODY */
+  --djc-body-x: -12px;
+  --djc-body-y: 180px;
+  --djc-body-scale: 1.2;
+
+  transform: translateX(-50%) translate(var(--djc-body-x), var(--djc-body-y)) scale(var(--djc-body-scale));
+  z-index: 11;
+}
+
+.djc-head {
+  /* ADJUST THESE VALUES TO POSITION THE DJC HEAD */
+  --djc-head-x: -12px;
+  --djc-head-y: 36px;
+  --djc-head-scale: 1.74;
+
+  transform: translateX(-50%) translate(var(--djc-head-x), var(--djc-head-y)) scale(var(--djc-head-scale));
+  z-index: 19;
+}
+
+.djc-left-leg {
+  /* ADJUST THESE VALUES TO POSITION THE DJC LEFT LEG */
+  --djc-left-leg-x: -41px;
+  --djc-left-leg-y: 290px;
+  --djc-left-leg-scale: 0.5;
+
+  transform: translateX(-50%) translate(var(--djc-left-leg-x), var(--djc-left-leg-y)) scale(var(--djc-left-leg-scale));
+  z-index: 11;
+}
+
+.djc-right-leg {
+  /* ADJUST THESE VALUES TO POSITION THE DJC RIGHT LEG */
+  --djc-right-leg-x: 77px;
+  --djc-right-leg-y: 290px;
+  --djc-right-leg-scale: 0.5;
+
+  transform: translateX(-50%) translate(var(--djc-right-leg-x), var(--djc-right-leg-y)) scale(var(--djc-right-leg-scale));
+  z-index: 11;
+}
+
+.djc-right-arm {
+  /* ADJUST THESE VALUES TO POSITION THE DJC RIGHT ARM */
+  --djc-right-arm-x: 51px;
+  --djc-right-arm-y: 149px;
+  --djc-right-arm-scale: 0.53;
+
+  transform: translateX(-50%) translate(var(--djc-right-arm-x), var(--djc-right-arm-y)) scale(var(--djc-right-arm-scale));
+  z-index: 9;
+}
+
+.djc-left-arm {
+  /* ADJUST THESE VALUES TO POSITION THE DJC LEFT ARM (DEFAULT) */
+  --djc-left-arm-x: -85px;
+  --djc-left-arm-y: 159px;
+
+  /* ADJUST THESE VALUES TO POSITION THE DJC LEFT ARM (WHEN HOLDING ROTATED ITEMS LIKE BLASTER) */
+  --djc-left-arm-rotated-x: -35px;
+  --djc-left-arm-rotated-y: 127px;
+
+  --djc-left-arm-scale: 0.53;
+
+  transform: translateX(-50%) translate(var(--djc-active-x, var(--djc-left-arm-x)), var(--djc-active-y, var(--djc-left-arm-y))) scale(var(--djc-left-arm-scale)) rotate(var(--djc-arm-rot, 0deg)) !important;
+}
+
+/* When DJC is active, hide normal body parts via class on body */
+body.djc-active #base { opacity: 0 !important; }
+body.djc-active #body,
+body.djc-active #head,
+body.djc-active #leg,
+body.djc-active #feet,
+body.djc-active #pupil { display: none !important; }
+/* ================================================================== */
+
+/* ====================== NORMAL JESTER CHARACTER ====================== */
+/* EDIT THESE CSS VARIABLES to adjust NJC sprite positions and scales  */
+
+.njc-body {
+  /* ADJUST THESE VALUES TO POSITION THE NJC BODY */
+  --njc-body-x: -12px;
+  --njc-body-y: 180px;
+  --njc-body-scale: 1.2;
+
+  transform: translateX(-50%) translate(var(--njc-body-x), var(--njc-body-y)) scale(var(--njc-body-scale));
+  z-index: 11;
+}
+
+.njc-head {
+  /* ADJUST THESE VALUES TO POSITION THE NJC HEAD */
+  --njc-head-x: -12px;
+  --njc-head-y: 46px;
+  --njc-head-scale: 1.74;
+
+  transform: translateX(-50%) translate(var(--njc-head-x), var(--njc-head-y)) scale(var(--njc-head-scale));
+  z-index: 19;
+}
+
+.njc-left-leg {
+  /* ADJUST THESE VALUES TO POSITION THE NJC LEFT LEG */
+  --njc-left-leg-x: -41px;
+  --njc-left-leg-y: 290px;
+  --njc-left-leg-scale: 0.5;
+
+  transform: translateX(-50%) translate(var(--njc-left-leg-x), var(--njc-left-leg-y)) scale(var(--njc-left-leg-scale));
+  z-index: 11;
+}
+
+.njc-right-leg {
+  /* ADJUST THESE VALUES TO POSITION THE NJC RIGHT LEG */
+  --njc-right-leg-x: 77px;
+  --njc-right-leg-y: 290px;
+  --njc-right-leg-scale: 0.5;
+
+  transform: translateX(-50%) translate(var(--njc-right-leg-x), var(--njc-right-leg-y)) scale(var(--njc-right-leg-scale));
+  z-index: 11;
+}
+
+.njc-right-arm {
+  /* ADJUST THESE VALUES TO POSITION THE NJC RIGHT ARM */
+  --njc-right-arm-x: 51px;
+  --njc-right-arm-y: 149px;
+  --njc-right-arm-scale: 0.53;
+
+  transform: translateX(-50%) translate(var(--njc-right-arm-x), var(--njc-right-arm-y)) scale(var(--njc-right-arm-scale));
+  z-index: 9;
+}
+
+.njc-left-arm {
+  /* ADJUST THESE VALUES TO POSITION THE NJC LEFT ARM (DEFAULT) */
+  --njc-left-arm-x: -85px;
+  --njc-left-arm-y: 159px;
+
+  /* ADJUST THESE VALUES TO POSITION THE NJC LEFT ARM (WHEN HOLDING ROTATED ITEMS LIKE BLASTER) */
+  --njc-left-arm-rotated-x: -35px;
+  --njc-left-arm-rotated-y: 127px;
+
+  --njc-left-arm-scale: 0.53;
+
+  transform: translateX(-50%) translate(var(--njc-active-x, var(--njc-left-arm-x)), var(--njc-active-y, var(--njc-left-arm-y))) scale(var(--njc-left-arm-scale)) rotate(var(--njc-arm-rot, 0deg)) !important;
+}
+
+/* When NJC is active, hide normal body parts via class on body */
+body.njc-active #base { opacity: 0 !important; }
+body.njc-active #body,
+body.njc-active #head,
+body.njc-active #leg,
+body.njc-active #feet,
+body.njc-active #pupil { display: none !important; }
+/* ================================================================== */
 
 
 
@@ -1348,13 +1567,115 @@ body.ghost-active #skin {
   gap: 10px;
 }
 
-/* MENU ITEM ICON FIX */
-.submenu .item-icon {
+/* GENDER MENU */
+.gender-composite-icon {
+  position: relative;
+  width: 42px;
+  height: 42px;
+}
+
+.gender-icon-head {
   width: 42px;
   height: 42px;
   object-fit: contain;
+  image-rendering: pixelated;
+  filter: sepia(1) saturate(2) hue-rotate(-15deg) brightness(1.2); /* Light skin tint */
+}
+
+.gender-icon-pupil {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+/* SKIN COLOR ICONS */
+.skin-composite-icon {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+}
+
+.skin-icon-head {
+  display: block;
+  width: 42px;
+  height: 42px;
+  image-rendering: pixelated;
+  object-fit: contain;
+}
+
+.skin-icon-pupil {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* MENU ITEM ICON FIX */
+.submenu .item-icon {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
   flex-shrink: 0;
   image-rendering: pixelated;
+}
+
+/* Display icons for specials/gender - 3x larger */
+.display-icon {
+  max-width: 135px !important;
+  max-height: 135px !important;
+}
+
+/* SKIN COLOR SWATCHES */
+.skin-color-swatch {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
+  image-rendering: pixelated;
+  vertical-align: middle;
+  margin-right: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transition: transform 0.15s ease, border-color 0.2s ease;
+}
+
+.skin-color-swatch:hover {
+  transform: scale(1.1);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.equipped .skin-color-swatch {
+  border-color: #ffd700;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Rainbow swatch animation */
+.skin-rainbow-swatch {
+  background: linear-gradient(135deg, #ff0000, #ff8000, #ffff00, #00ff00, #0080ff, #8000ff, #ff00ff, #ff0000);
+  background-size: 300% 300%;
+  animation: skin-rainbow-shimmer 3s linear infinite;
+}
+
+@keyframes skin-rainbow-shimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Rainbow logic overlay flag class (No CSS filter needed, handled by canvas in JS) */
+.rainbow-overlay-active {
+  /* Used as a selector by JS */
 }
 
 /* SEARCH */
@@ -3154,9 +3475,7 @@ body.ghost-active #skin {
   align-items: center;
   justify-content: center;
   width: 100px;
-  /* Increased from 80px */
   height: 70px;
-  /* Increased from 60px */
   flex-shrink: 0;
   border-right: 2px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.02);
@@ -3329,6 +3648,13 @@ body.ghost-active #skin {
   /* Half of platform width (300px/2) */
   background-position: left top;
   /* Tile from the center outwards */
+}
+
+/* Shadow extenders: must come AFTER .platform-extender to override top/z-index */
+.platform-extender.platform-shadow-ext {
+  filter: brightness(0) opacity(0.35);
+  z-index: 0 !important;
+  top: 350px;
 }
 
 /* Utility to permanently hide items regardless of JS toggle */
@@ -3729,6 +4055,52 @@ body.ghost-active #skin {
   font-weight: 800;
   color: #f1faee;
   line-height: 1;
+}
+
+/* SPOTLIGHT MODAL */
+.wp-spotlight-item {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.wp-spotlight-item:hover {
+  background: rgba(168, 218, 220, 0.12) !important;
+  border-color: rgba(168, 218, 220, 0.3) !important;
+  transform: scale(1.02);
+}
+
+.wp-spotlight-item.active {
+  background: rgba(69, 160, 255, 0.2) !important;
+  border-color: rgba(69, 160, 255, 0.5) !important;
+  box-shadow: 0 0 12px rgba(69, 160, 255, 0.3);
+}
+
+.wp-spotlight-info {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  padding: 8px 16px;
+  font-style: italic;
+}
+
+.wp-spotlight-clear-btn {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 12px 16px 16px;
+  padding: 10px;
+  background: rgba(255, 80, 80, 0.15);
+  border: 1px solid rgba(255, 80, 80, 0.3);
+  border-radius: 8px;
+  color: #ff6b6b;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.wp-spotlight-clear-btn:hover {
+  background: rgba(255, 80, 80, 0.25);
+  border-color: rgba(255, 80, 80, 0.5);
 }
 
 /* INVENTORY DRAWER */
@@ -6108,6 +6480,27 @@ body.ghost-active #skin {
   align-items: center;
   gap: 0;
   pointer-events: auto;
+}
+
+.wp-coords-display {
+  position: fixed;
+  top: 75px;
+  right: 20px;
+  background: rgba(29, 53, 87, 0.85);
+  border: 1px solid rgba(168, 218, 220, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #F1FAEE;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  z-index: 9999;
+  letter-spacing: 0.5px;
 }
 
 .wrench-trigger {
