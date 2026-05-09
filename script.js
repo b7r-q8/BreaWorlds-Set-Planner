@@ -43,6 +43,8 @@ function startBlinkAnimation() {
   getBlinkImage('specials/female/pupil.png');
   
   blinkIntervalId = setInterval(() => {
+    if (window.activePlannerType && window.activePlannerType !== 'set') return;
+
     const isInvis = isInvisSkinActive();
     const pupilLayer = document.getElementById('pupil');
     const headLayer = document.getElementById('head');
@@ -119,6 +121,10 @@ const mythCapeCache = {};
 let _rainbowLoopRunning = false;
 
 function globalRainbowLoop() {
+  if (window.activePlannerType && window.activePlannerType !== 'set') {
+    if (_rainbowLoopRunning) requestAnimationFrame(globalRainbowLoop);
+    return;
+  }
   // Use performance.now() to make the rainbow cycle speed framerate-independent.
   // 30 degrees per second is roughly equivalent to the old 0.5 deg/frame at 60fps.
   globalRainbowHue = (performance.now() * 0.03) % 360;
@@ -345,6 +351,10 @@ function startSkinRainbow() {
   ensureGlobalRainbowRunning(); // PERF: Start rainbow loop on demand
 
   function animateRainbow() {
+    if (window.activePlannerType && window.activePlannerType !== 'set') {
+      skinRainbowAnimFrame = requestAnimationFrame(animateRainbow);
+      return;
+    }
     if (activeSkinColor !== 'rainbow') return;
     globalRainbowHue = (performance.now() * 0.03) % 360; // Ensure hue is fresh
     const color = `hsl(${globalRainbowHue}, 100%, 60%)`;
@@ -1260,6 +1270,8 @@ function startAnimation(layer, options) {
   const { framesPath, frameCount, fps } = options;
 
   const updateFrame = () => {
+    if (window.activePlannerType && window.activePlannerType !== 'set') return;
+
     layer.dataset.currentFrame = frame;
     layer.dataset.framesPath = framesPath;
     
@@ -6211,7 +6223,10 @@ window.WORLD_WIDTH = WORLD_WIDTH;
 window.WORLD_HEIGHT = WORLD_HEIGHT;
 window.BLOCK_SIZE = BLOCK_SIZE;
 
+window.activePlannerType = 'set'; // Track current planner to optimize inactive loops
+
 window.selectPlanner = function (type) {
+  window.activePlannerType = type;
   const wpContainer = document.getElementById("world-planner-container");
   const setContainer = document.getElementById("set-planner-container");
   const fishContainer = document.getElementById("fish-calculator-container");
@@ -6352,6 +6367,7 @@ window.selectPlanner = function (type) {
 };
 
 window.backToSelection = function () {
+  window.activePlannerType = 'menu';
   const wpContainer = document.getElementById("world-planner-container");
   const setContainer = document.getElementById("set-planner-container");
   const fishContainer = document.getElementById("fish-calculator-container");
