@@ -5611,7 +5611,7 @@ async function generateSavePreview() {
     layers.forEach(img => {
       if (img.style.display !== 'none' && img.src && img.complete) {
         // Skip platform layer in previews
-        if (img.id === 'platforms' || img.id === 'player-badge' || img.id === 'player-level' || img.id === 'player-name') return;
+        if (img.id === 'platforms' || img.id === 'platform-shadow' || img.id === 'player-badge' || img.id === 'player-level' || img.id === 'player-name') return;
 
         const style = window.getComputedStyle(img);
         const zIndex = parseInt(style.zIndex || '0');
