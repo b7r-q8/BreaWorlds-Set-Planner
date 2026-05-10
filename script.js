@@ -2202,7 +2202,7 @@ function syncBodyParts() {
     'arm': isGsc ? 'specials/gsc/hand.png' : (isSc ? 'specials/sc/hand.png' : (isRocker ? 'rockerbody/arm.png' : (isInvis ? 'arm.png' : 'specials/arm.png'))),
     'leg': (isGsc || isSc) ? '' : (isRocker ? 'rockerbody/leg.png' : (isInvis ? 'leg.png' : 'specials/leg.png')),
     'feet': isGsc ? 'specials/gsc/feet.png' : (isSc ? 'specials/sc/feet.png' : (isRocker ? 'rockerbody/feet.png' : (isInvis ? 'feet.png' : 'specials/feet.png'))),
-    'pupil': isGsc ? 'specials/gsc/pupil.png' : (isSc ? 'specials/sc/pupil.png' : (isRocker ? 'rockerbody/pupil.png' : (isInvis ? (currentGender === 'female' ? 'specials/female/pupil.png' : 'pupil.png') : (currentGender === 'female' ? 'specials/female/pupil.png' : 'specials/pupil.png'))))
+    'pupil': isGsc ? 'specials/gsc/pupil.png' : (isSc ? 'specials/sc/pupil.png' : (isRocker ? 'rockerbody/pupil.png' : (isInvis ? (currentGender === 'female' ? 'specials/female/pupil.png' : 'specials/pupil.png') : (currentGender === 'female' ? 'specials/female/pupil.png' : 'specials/pupil.png'))))
   };
 
   Object.entries(parts).forEach(([id, src]) => {
@@ -2379,7 +2379,7 @@ function syncHeadSprite() {
 
   // Priority 1: Invis Skin (Takes precedence over mask)
   if (isInvisSkinActive() && !isRocker) {
-    headLayer.src = "specials/pupil.png";
+    headLayer.src = (currentGender === 'female') ? "specials/female/pupil.png" : "specials/pupil.png";
     const equippedEye = document.querySelector('#eyesMenu li.equipped');
     const eyeSrc = equippedEye ? (equippedEye.dataset.src || equippedEye.dataset.frames) : '';
     headLayer.style.display = "block";
@@ -2404,7 +2404,7 @@ function syncHeadSprite() {
   // Priority 2: Mechanical Bunny Helmet (facemech.png)
   if (faces29Equipped) {
     if (isInvisSkinActive()) {
-      headLayer.src = "specials/pupil.png";
+      headLayer.src = (currentGender === 'female') ? "specials/female/pupil.png" : "specials/pupil.png";
       // Ensure opacity logic matches standard invis skin (show if eye exception like Rocker is active)
       const equippedEye = document.querySelector('#eyesMenu li.equipped');
       const eyeSrc = equippedEye ? (equippedEye.dataset.src || equippedEye.dataset.frames) : '';
