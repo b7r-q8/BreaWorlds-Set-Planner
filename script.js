@@ -53,15 +53,7 @@ function startBlinkAnimation() {
     const targetLayer = isInvis ? headLayer : pupilLayer;
     if (!targetLayer || targetLayer.style.display === 'none') return;
     
-    if (isInvis) {
-      // Invisible skin: hide eyes for a frame then show again
-      const prevOpacity = targetLayer.style.opacity || '1';
-      targetLayer.style.opacity = '0';
-      blinkTimeoutId = setTimeout(() => {
-        targetLayer.style.opacity = prevOpacity;
-      }, 150);
-      return;
-    }
+
     
     // Normal/tinted skin: swap target layer to eye2.png (tinted if needed)
     const genderPath = currentGender === 'female' ? 'female/' : '';
@@ -127,7 +119,7 @@ function globalRainbowLoop() {
   }
   // Use performance.now() to make the rainbow cycle speed framerate-independent.
   // 30 degrees per second is roughly equivalent to the old 0.5 deg/frame at 60fps.
-  globalRainbowHue = (performance.now() * 0.03) % 360;
+  globalRainbowHue = (performance.now() * 0.015) % 360;
   document.documentElement.style.setProperty('--global-rainbow-hue', globalRainbowHue + 'deg');
   
   // Custom canvas-based tinting for Myth Cape to exactly match Rainbow Skin
@@ -356,7 +348,7 @@ function startSkinRainbow() {
       return;
     }
     if (activeSkinColor !== 'rainbow') return;
-    globalRainbowHue = (performance.now() * 0.03) % 360; // Ensure hue is fresh
+    globalRainbowHue = (performance.now() * 0.015) % 360; // Ensure hue is fresh
     const color = `hsl(${globalRainbowHue}, 100%, 60%)`;
     applySkinTint(color);
     skinRainbowAnimFrame = requestAnimationFrame(animateRainbow);
@@ -1838,11 +1830,7 @@ window.equipGoldenSkeleton = function (element) {
   hideDjcLayers();
   hideNjcLayers();
 
-  // Skeletons don't wear human faces/eyes - unequip them if active
-  ['facesMenu', 'eyesMenu'].forEach(menuId => {
-    const equippedItem = document.querySelector(`#${menuId} li.equipped`);
-    if (equippedItem) equippedItem.click();
-  });
+
 
   // Restore arm to normal positioning
   const armRestore = document.getElementById('arm');
@@ -2004,11 +1992,7 @@ window.equipSkeleton = function (element) {
   hideDjcLayers();
   hideNjcLayers();
 
-  // Skeletons don't wear human faces/eyes - unequip them if active
-  ['facesMenu', 'eyesMenu'].forEach(menuId => {
-    const equippedItem = document.querySelector(`#${menuId} li.equipped`);
-    if (equippedItem) equippedItem.click();
-  });
+
 
   // Restore arm to normal positioning
   const armRestore = document.getElementById('arm');
@@ -2950,17 +2934,7 @@ function equipItem(element) {
     }
   }
 
-  // === SKELETON AUTO-UNEQUIP / PREVENT ===
-  // Skeletons should not wear human faces or eyes (looks glitched)
-  if (isGoldenSkeletonActive() || isSkeletonActive()) {
-    const skeletonDisallowed = ['faces', 'eyes'];
-    if (skeletonDisallowed.includes(layerName)) {
-      if (!element.classList.contains('equipped')) {
-        console.log('Blocked equipping face/eye on skeleton');
-        return; // Prevent equipping
-      }
-    }
-  }
+
 
   // === PLATFORM TOGGLE LOGIC ===
   // Platforms can be toggled off by clicking the active one.
