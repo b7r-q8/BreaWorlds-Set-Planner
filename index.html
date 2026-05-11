@@ -14,14 +14,14 @@
 
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-  <title>BreaWorlds Tools | Set Planner & World Designer</title>
+  <title>BreaWorlds Tools</title>
 
   <meta name="description"
-    content="Create and customize your BreaWorlds character outfits and design stunning worlds. The ultimate set planner and world designer for BreaWorlds. Browse hundreds of items, plan your dream sets, and build pixel-perfect worlds with BW Tools.">
+    content="The ultimate Set Planner and World Designer for BreaWorlds. Create character outfits, design worlds, and browse items with BreaWorlds Tools (BW Tools).">
 
-  <meta name="keywords" content="BreaWorlds, BreaWorlds Tools, BW Tools, BW Planner, BW Set Planner, Set Planner, World Planner, World Designer, Character Customizer, Outfit Builder, BreaWorlds Items, BreaWorlds Set, BreaWorlds World Builder, Brea Worlds, BW Set, BW World">
+  <meta name="keywords" content="BreaWorlds Tools, BW Tools, BreaWorlds Set Planner, BreaWorlds World Planner">
 
-  <link rel="stylesheet" href="style.css?v=2.54">
+  <link rel="stylesheet" href="style.css?v=2.55">
   <link rel="stylesheet" href="tutorial.css">
 
   <!-- Website Metadata & Social Sharing (Open Graph) -->
@@ -33,9 +33,9 @@
   <link rel="shortcut icon" href="roadmap/setplanner1_circle.png">
 
   <!-- Open Graph -->
-  <meta property="og:title" content="BreaWorlds Tools | Set Planner & World Designer">
+  <meta property="og:title" content="BreaWorlds Tools">
   <meta property="og:description"
-    content="Create and customize your BreaWorlds character outfits and design stunning worlds. Browse hundreds of items, plan your dream sets, and build pixel-perfect worlds with BW Tools.">
+    content="The ultimate Set Planner and World Designer for BreaWorlds.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://bwsetplanner.com">
   <meta property="og:site_name" content="BreaWorlds Tools">
@@ -48,8 +48,8 @@
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="BreaWorlds Tools | Set Planner & World Designer">
-  <meta name="twitter:description" content="Create and customize your BreaWorlds character outfits and design stunning worlds. The ultimate BW Set Planner and World Designer.">
+  <meta name="twitter:title" content="BreaWorlds Tools">
+  <meta name="twitter:description" content="The ultimate BreaWorlds Set Planner and World Designer.">
   <meta name="twitter:image" content="https://bwsetplanner.com/featured/firstimage.png">
 
   <!-- Structured Data for Search Engines -->
@@ -57,8 +57,8 @@
   {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    "name": "BreaWorlds Tools",
-    "alternateName": ["BW Tools", "BW Planner", "BW Set Planner", "BreaWorlds Set Planner"],
+    "name": "BW Tools",
+    "alternateName": ["BW Tools", "BW Planner", "BW Set Planner", "BreaWorlds Tools", "BreaWorlds Set Planner"],
     "url": "https://bwsetplanner.com",
     "description": "Create and customize your BreaWorlds character outfits and design stunning worlds. The ultimate set planner and world designer for BreaWorlds.",
     "applicationCategory": "GameApplication",
@@ -100,13 +100,25 @@
 
   <meta name="theme-color" content="#0a0a1a">
 
-  <script data-goatcounter="https://zmil.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
-
+  <style>
+    /* Hidden SEO Header for search engines */
+    .seo-header {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+  </style>
 </head>
 
-
-
-<body>
+<body oncontextmenu="return false;">
+  <!-- SEO Content for Google/Search Engines -->
+  <h1 class="seo-header">BreaWorlds Tools</h1>
+  <p class="seo-header">Set Planner and World Designer for BreaWorlds (BW Tools).</p>
   <!-- WHAT'S NEW MODAL -->
   <div id="whats-new-overlay" class="wn-overlay" style="display: none;">
     <div id="whats-new-modal" class="wn-modal">
@@ -1944,11 +1956,18 @@
               <span class="roadmap-item-text">Invisible Skin</span>
             </li>
 
-            <li onclick="equipNormalCharacter(this)">
+            <li id="draculaSkinBtn" onclick="equipDraculaSkin(this)">
               <div class="roadmap-item-icon-container">
                 <img src="specials/display/draculaskin.png" class="roadmap-image-icon display-icon">
               </div>
               <span class="roadmap-item-text">Dracula Skin</span>
+            </li>
+
+            <li id="robotSkinBtn" onclick="equipRobotSkin(this)">
+              <div class="roadmap-item-icon-container">
+                <img src="specials/robotskin/robotskindisplay.png" class="roadmap-image-icon display-icon">
+              </div>
+              <span class="roadmap-item-text">Robot Skin</span>
             </li>
 
             <!-- RAINBOW SKIN -->

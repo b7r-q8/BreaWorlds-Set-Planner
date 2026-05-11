@@ -57,8 +57,9 @@ function startBlinkAnimation() {
     
     // Normal/tinted skin: swap target layer to eye2.png (tinted if needed)
     const genderPath = currentGender === 'female' ? 'female/' : '';
-    const eye2Src = 'specials/' + genderPath + 'eye2.png';
-    const pupilSrc = 'specials/' + genderPath + 'pupil.png';
+    const isRobot = isRobotSkinActive();
+    const eye2Src = isRobot ? 'specials/robotskin/eye2.png' : ('specials/' + genderPath + 'eye2.png');
+    const pupilSrc = isRobot ? 'specials/pupil.png' : ('specials/' + genderPath + 'pupil.png');
     
     const eye2Cache = getBlinkImage(eye2Src);
     const pupilCache = getBlinkImage(pupilSrc);
@@ -573,6 +574,8 @@ function saveState() {
     currentGender: currentGender,
     darkJesterActive: isDarkJesterActive(),
     normalJesterActive: isNormalJesterActive(),
+    robotActive: isRobotSkinActive(),
+    draculaActive: isDraculaSkinActive(),
     equippedItems: {},
     background: document.body.style.backgroundImage || '',
     platformSrc: document.getElementById("platforms")?.dataset.originalSrc || document.getElementById("platforms")?.src || '',
@@ -806,11 +809,21 @@ function loadState() {
             const pupilElement = document.getElementById('pupil');
             if (legElement) { legElement.style.display = 'none'; legElement.style.opacity = '0'; }
             if (pupilElement) { pupilElement.style.display = 'none'; pupilElement.style.opacity = '0'; }
-          } else if (itemData.src.includes('specials/head.png')) {
-            // Normal character
+          } else if (itemData.src.includes('robotskin/head.png')) {
+            // Robot Character
             document.querySelectorAll("#specialsMenu li").forEach(li => li.classList.remove("equipped"));
-            const normalMenuItem = document.querySelector("#specialsMenu li[onclick*='equipNormalCharacter']");
-            if (normalMenuItem) normalMenuItem.classList.add("equipped");
+            const robotBtn = document.getElementById('robotSkinBtn');
+            if (robotBtn) robotBtn.classList.add("equipped");
+          } else if (itemData.src.includes('specials/head.png')) {
+            // Normal character or Dracula
+            document.querySelectorAll("#specialsMenu li").forEach(li => li.classList.remove("equipped"));
+            if (state.draculaActive) {
+                const draculaBtn = document.getElementById('draculaSkinBtn');
+                if (draculaBtn) draculaBtn.classList.add("equipped");
+            } else {
+                const normalMenuItem = document.querySelector("#specialsMenu li[onclick*='equipNormalCharacter']");
+                if (normalMenuItem) normalMenuItem.classList.add("equipped");
+            }
             headElement.style.opacity = "";
           }
 
@@ -951,7 +964,7 @@ function loadState() {
       let isSpecialCharacter = false;
       const headData = state.equippedItems && state.equippedItems['head'];
       if (headData && headData.src) {
-        if (headData.src.includes('invisibleskin') || headData.src.includes('gsc/head.png') || headData.src.includes('sc/head.png') || headData.src.includes('jester_head2.png')) {
+        if (headData.src.includes('invisibleskin') || headData.src.includes('gsc/head.png') || headData.src.includes('sc/head.png') || headData.src.includes('jester_head2.png') || headData.src.includes('robotskin/head.png') || state.draculaActive) {
           isSpecialCharacter = true;
         }
       }
@@ -1660,6 +1673,90 @@ function searchItems() {
   // Auto-scroll disabled per user request for steady typing view
 }
 
+// Robot Skin
+window.equipRobotSkin = function (element) {
+  // Clear any active skin color tint
+  clearSkinTint();
+
+  // Clean up DJC layers if switching from Dark Jester
+  hideDjcLayers();
+  hideNjcLayers();
+
+  // Restore arm to normal positioning
+  const armRestore = document.getElementById('arm');
+  if (armRestore) {
+    armRestore.style.transform = '';
+  }
+
+  const baseElement = document.getElementById('base');
+  const headElement = document.getElementById('head');
+
+  if (!baseElement || !headElement) return;
+
+  // Unequip shirt 52 if it's equipped
+  const shirtsLayer = document.getElementById('shirts');
+  if (shirtsLayer && shirtsLayer.style.display === 'block' && shirtsLayer.src && shirtsLayer.src.includes('shirt52')) {
+    unequipAll(true);
+  }
+
+  // Reset any custom transform/opacity from invis mode
+  baseElement.style.transform = "";
+  baseElement.style.opacity = "";
+  baseElement.style.clipPath = ""; 
+  headElement.style.transform = "";
+  headElement.style.opacity = "";
+
+  const armElement = document.getElementById('arm');
+  if (armElement) {
+    armElement.style.display = 'block';
+    armElement.src = "specials/robotskin/arm.png";
+    armElement.style.opacity = "";
+  }
+
+  // Restore body parts visibility and opacity initially
+  const bodyParts = ['body', 'leg', 'feet', 'pupil'];
+  bodyParts.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.style.display = "block";
+      el.style.opacity = "";
+    }
+  });
+
+  // Sync state classes
+  isGhostOutfitActive();
+
+  // Show base + head using the Robot assets
+  baseElement.style.display = "block";
+  baseElement.src = "specials/robotskin/base.png";
+  headElement.src = "specials/robotskin/head.png";
+
+  const pupilElement = document.getElementById('pupil');
+  if (pupilElement) {
+      pupilElement.src = "specials/pupil.png"; // User specified using the one in specials folder
+  }
+
+  // Set body, leg, feet
+  const bodyLayer = document.getElementById('body');
+  if (bodyLayer) bodyLayer.src = "specials/robotskin/body.png";
+  const legLayer = document.getElementById('leg');
+  if (legLayer) legLayer.src = "specials/robotskin/leg.png";
+  const feetLayer = document.getElementById('feet');
+  if (feetLayer) feetLayer.src = "specials/robotskin/feet.png";
+
+  // Mark equipped in menu
+  document.querySelectorAll('#specialsMenu li').forEach(el => el.classList.remove('equipped'));
+  if (element) element.classList.add('equipped');
+
+  syncBodyParts();
+  saveState();
+}
+
+// Dracula Skin (Same as Normal but tracked separately for persistence)
+window.equipDraculaSkin = function (element) {
+  equipNormalCharacter(element);
+}
+
 // Swap to the normal/base character (full character swap, not an inventory item)
 window.equipNormalCharacter = function (element) {
   // Clear any active skin color tint
@@ -2137,6 +2234,22 @@ window.equipSkeleton = function (element) {
 }
 
 
+// Helper function to check if robot skin is equipped
+function isRobotSkinActive() {
+  const robotBtn = document.getElementById('robotSkinBtn');
+  if (robotBtn) return robotBtn.classList.contains("equipped");
+
+  const headElement = document.getElementById('head');
+  return headElement && headElement.src && headElement.src.includes('robotskin');
+}
+
+// Helper function to check if dracula skin is equipped
+function isDraculaSkinActive() {
+  const draculaBtn = document.getElementById('draculaSkinBtn');
+  if (draculaBtn) return draculaBtn.classList.contains("equipped");
+  return false;
+}
+
 // Helper function to check if invis skin is equipped
 function isInvisSkinActive() {
   const invisMenuItem = document.querySelector("#specialsMenu li[onclick*='equipInvisCharacter']");
@@ -2196,13 +2309,16 @@ function syncBodyParts() {
   const carsLayer = document.getElementById('cars');
   const isSkate = carsLayer && carsLayer.style.display === 'block' && carsLayer.src && (carsLayer.src.includes('skate.png') || carsLayer.src.includes('dcirc.png') || carsLayer.src.includes('circ.png'));
 
+  const isRobot = isRobotSkinActive();
+
   const parts = {
-    'base': isGsc ? 'specials/gsc/base.png' : (isSc ? 'specials/sc/base.png' : (isRocker ? 'rockerbody/base.png' : (isInvis ? 'base.png' : 'specials/base.png'))),
-    'body': isGsc ? 'specials/gsc/body.png' : (isSc ? 'specials/sc/body.png' : (isRocker ? 'rockerbody/body.png' : (isInvis ? (currentGender === 'female' ? 'specials/female/body.png' : 'body.png') : (currentGender === 'female' ? 'specials/female/body.png' : 'specials/body.png')))),
-    'arm': isGsc ? 'specials/gsc/hand.png' : (isSc ? 'specials/sc/hand.png' : (isRocker ? 'rockerbody/arm.png' : (isInvis ? 'arm.png' : 'specials/arm.png'))),
-    'leg': (isGsc || isSc) ? '' : (isRocker ? 'rockerbody/leg.png' : (isInvis ? 'leg.png' : 'specials/leg.png')),
-    'feet': isGsc ? 'specials/gsc/feet.png' : (isSc ? 'specials/sc/feet.png' : (isRocker ? 'rockerbody/feet.png' : (isInvis ? 'feet.png' : 'specials/feet.png'))),
-    'pupil': isGsc ? 'specials/gsc/pupil.png' : (isSc ? 'specials/sc/pupil.png' : (isRocker ? 'rockerbody/pupil.png' : (isInvis ? (currentGender === 'female' ? 'specials/female/pupil.png' : 'specials/pupil.png') : (currentGender === 'female' ? 'specials/female/pupil.png' : 'specials/pupil.png'))))
+    'base': isRobot ? 'specials/robotskin/base.png' : (isGsc ? 'specials/gsc/base.png' : (isSc ? 'specials/sc/base.png' : (isRocker ? 'rockerbody/base.png' : (isInvis ? 'base.png' : 'specials/base.png')))),
+    'head': isRobot ? 'specials/robotskin/head.png' : (isGsc ? 'specials/gsc/head.png' : (isSc ? 'specials/sc/head.png' : (isRocker ? 'rockerbody/head.png' : 'specials/head.png'))),
+    'body': isRobot ? 'specials/robotskin/body.png' : (isGsc ? 'specials/gsc/body.png' : (isSc ? 'specials/sc/body.png' : (isRocker ? 'rockerbody/body.png' : (isInvis ? (currentGender === 'female' ? 'specials/female/body.png' : 'body.png') : (currentGender === 'female' ? 'specials/female/body.png' : 'specials/body.png'))))),
+    'arm': isRobot ? 'specials/robotskin/arm.png' : (isGsc ? 'specials/gsc/hand.png' : (isSc ? 'specials/sc/hand.png' : (isRocker ? 'rockerbody/arm.png' : (isInvis ? 'arm.png' : 'specials/arm.png')))),
+    'leg': isRobot ? 'specials/robotskin/leg.png' : ((isGsc || isSc) ? '' : (isRocker ? 'rockerbody/leg.png' : (isInvis ? 'leg.png' : 'specials/leg.png'))),
+    'feet': isRobot ? 'specials/robotskin/feet.png' : (isGsc ? 'specials/gsc/feet.png' : (isSc ? 'specials/sc/feet.png' : (isRocker ? 'rockerbody/feet.png' : (isInvis ? 'feet.png' : 'specials/feet.png')))),
+    'pupil': isRobot ? 'specials/pupil.png' : (isGsc ? 'specials/gsc/pupil.png' : (isSc ? 'specials/sc/pupil.png' : (isRocker ? 'rockerbody/pupil.png' : (isInvis ? (currentGender === 'female' ? 'specials/female/pupil.png' : 'specials/pupil.png') : (currentGender === 'female' ? 'specials/female/pupil.png' : 'specials/pupil.png')))))
   };
 
   Object.entries(parts).forEach(([id, src]) => {
@@ -2387,7 +2503,7 @@ function syncHeadSprite() {
     return;
   }
 
-  // Priority 1.5: Golden Skeleton / Skeleton Character
+  // Priority 1.5: Golden Skeleton / Skeleton Character / Robot Skin
   if (isGoldenSkeletonActive()) {
     headLayer.src = "specials/gsc/head.png";
     headLayer.style.display = "block";
@@ -2396,6 +2512,12 @@ function syncHeadSprite() {
   }
   if (isSkeletonActive()) {
     headLayer.src = "specials/sc/head.png";
+    headLayer.style.display = "block";
+    headLayer.style.opacity = '1';
+    return;
+  }
+  if (isRobotSkinActive()) {
+    headLayer.src = "specials/robotskin/head.png";
     headLayer.style.display = "block";
     headLayer.style.opacity = '1';
     return;
@@ -4517,9 +4639,22 @@ window.unequipAll = function (force = false) {
   const normalBaseBtn = document.querySelector('#specialsMenu li[onclick*="equipNormalCharacter"]');
   const invisBaseBtn = document.querySelector('#specialsMenu li[onclick*="equipInvisCharacter"]');
 
+  const isRobot = isRobotSkinActive();
+  const isDracula = isDraculaSkinActive();
+
   if (isInvisActive) {
+    document.querySelectorAll('#specialsMenu li').forEach(el => el.classList.remove('equipped'));
     if (invisBaseBtn) invisBaseBtn.classList.add('equipped');
+  } else if (isRobot) {
+    document.querySelectorAll('#specialsMenu li').forEach(el => el.classList.remove('equipped'));
+    const robotBtn = document.getElementById('robotSkinBtn');
+    if (robotBtn) robotBtn.classList.add('equipped');
+  } else if (isDracula) {
+    document.querySelectorAll('#specialsMenu li').forEach(el => el.classList.remove('equipped'));
+    const draculaBtn = document.getElementById('draculaSkinBtn');
+    if (draculaBtn) draculaBtn.classList.add('equipped');
   } else {
+    document.querySelectorAll('#specialsMenu li').forEach(el => el.classList.remove('equipped'));
     if (normalBaseBtn) normalBaseBtn.classList.add('equipped');
   }
 
@@ -6154,11 +6289,7 @@ window.addEventListener('load', () => {
           whatsNewBtn.classList.add('visible');
         }
 
-        // Show "Created By B7R" credit with delay
-        setTimeout(() => {
-          const creditEl = document.getElementById('main-menu-credit');
-          if (creditEl) creditEl.classList.add('visible');
-        }, 400);
+
 
         // Show "Report Bugs" button with delay
         setTimeout(() => {
@@ -6386,9 +6517,7 @@ window.backToSelection = function () {
     if (loaderInitial) loaderInitial.style.display = "none";
     if (loadingSelection) loadingSelection.style.display = "flex";
 
-    // Show credit and report bugs buttons
-    const creditEl = document.getElementById('main-menu-credit');
-    if (creditEl) creditEl.classList.add('visible');
+
     const bugBtn = document.getElementById('report-bugs-btn');
     if (bugBtn) bugBtn.classList.add('visible');
   }
