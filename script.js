@@ -369,9 +369,11 @@ window.equipSkinColor = function(element, color) {
   // Stop any active rainbow
   stopSkinRainbow();
 
-  // Jester characters cannot change skin color
+  // Jester characters switch to normal skin when changing skin color
   if (isDarkJesterActive() || isNormalJesterActive()) {
-    return;
+    const normalBtn = document.querySelector('#specialsMenu li[onclick*="equipNormalCharacter"]');
+    if (normalBtn) equipNormalCharacter(normalBtn);
+    // Proceed with the skin tint change after switching back to normal
   }
 
   // Ensure we're on Normal character (not invis or GSC) - do this WITHOUT calling
@@ -3048,12 +3050,13 @@ function equipItem(element) {
   const actualLayerName = layerName === 'outfits' ? 'shirts' : layerName;
   const layer = document.getElementById(actualLayerName);
 
-  // === DARK / NORMAL JESTER RESTRICTIONS ===
-  // Jester characters can only equip specific categories
+  // === DARK / NORMAL JESTER AUTO-UNEQUIP ===
+  // If Jester is active and equipping a non-allowed category, switch back to tan character
   if (isDarkJesterActive() || isNormalJesterActive()) {
     const djcAllowed = ['hands', 'pets', 'pets-back', 'wings', 'capes', 'platforms'];
     if (!djcAllowed.includes(layerName)) {
-      return; // Do nothing, Jester stays active but item isn't equipped
+      const normalBtn = document.querySelector('#specialsMenu li[onclick*="equipNormalCharacter"]');
+      if (normalBtn) equipNormalCharacter(normalBtn);
     }
   }
 
@@ -4295,9 +4298,10 @@ function equipItem(element) {
 }
 
 function equipHat(imagePath, element) {
-  // === JESTER RESTRICTIONS ===
+  // === DARK / NORMAL JESTER AUTO-UNEQUIP ===
   if (isDarkJesterActive() || isNormalJesterActive()) {
-    return; // Jester characters cannot equip hats
+    const normalBaseBtn = document.querySelector('#specialsMenu li[onclick*="equipNormalCharacter"]');
+    if (normalBaseBtn) equipNormalCharacter(normalBaseBtn);
   }
 
   const hat = document.getElementById("hat");
