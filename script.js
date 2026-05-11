@@ -369,12 +369,14 @@ window.equipSkinColor = function(element, color) {
   // Stop any active rainbow
   stopSkinRainbow();
 
-  // Ensure we're on Normal character (not invis or DJC or NJC or GSC) - do this WITHOUT calling
+  // Jester characters cannot change skin color
+  if (isDarkJesterActive() || isNormalJesterActive()) {
+    return;
+  }
+
+  // Ensure we're on Normal character (not invis or GSC) - do this WITHOUT calling
   // equipNormalCharacter since that clears skin tint
-  if (isInvisSkinActive() || isDarkJesterActive() || isNormalJesterActive() || isGoldenSkeletonActive() || isSkeletonActive()) {
-    // Clean up DJC/NJC specific layers
-    if (isDarkJesterActive()) hideDjcLayers();
-    if (isNormalJesterActive()) hideNjcLayers();
+  if (isInvisSkinActive() || isGoldenSkeletonActive() || isSkeletonActive()) {
     
     // Restore arm to normal positioning (may have been overridden by DJC)
     const armRestore = document.getElementById('arm');
@@ -3046,13 +3048,12 @@ function equipItem(element) {
   const actualLayerName = layerName === 'outfits' ? 'shirts' : layerName;
   const layer = document.getElementById(actualLayerName);
 
-  // === DARK / NORMAL JESTER AUTO-UNEQUIP ===
-  // If DJC/NJC is active and equipping a non-allowed category, switch back to normal character
+  // === DARK / NORMAL JESTER RESTRICTIONS ===
+  // Jester characters can only equip specific categories
   if (isDarkJesterActive() || isNormalJesterActive()) {
     const djcAllowed = ['hands', 'pets', 'pets-back', 'wings', 'capes', 'platforms'];
     if (!djcAllowed.includes(layerName)) {
-      const normalBtn = document.querySelector('#specialsMenu li[onclick*="equipNormalCharacter"]');
-      if (normalBtn) equipNormalCharacter(normalBtn);
+      return; // Do nothing, Jester stays active but item isn't equipped
     }
   }
 
@@ -4294,10 +4295,9 @@ function equipItem(element) {
 }
 
 function equipHat(imagePath, element) {
-  // === DARK / NORMAL JESTER AUTO-UNEQUIP ===
+  // === JESTER RESTRICTIONS ===
   if (isDarkJesterActive() || isNormalJesterActive()) {
-    const normalBtn = document.querySelector('#specialsMenu li[onclick*="equipNormalCharacter"]');
-    if (normalBtn) equipNormalCharacter(normalBtn);
+    return; // Jester characters cannot equip hats
   }
 
   const hat = document.getElementById("hat");
