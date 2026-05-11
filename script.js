@@ -369,16 +369,12 @@ window.equipSkinColor = function(element, color) {
   // Stop any active rainbow
   stopSkinRainbow();
 
-  // Jester characters switch to normal skin when changing skin color
-  if (isDarkJesterActive() || isNormalJesterActive()) {
-    const normalBtn = document.querySelector('#specialsMenu li[onclick*="equipNormalCharacter"]');
-    if (normalBtn) equipNormalCharacter(normalBtn);
-    // Proceed with the skin tint change after switching back to normal
-  }
-
-  // Ensure we're on Normal character (not invis or GSC) - do this WITHOUT calling
+  // Ensure we're on Normal character (not invis or DJC or NJC or GSC) - do this WITHOUT calling
   // equipNormalCharacter since that clears skin tint
-  if (isInvisSkinActive() || isGoldenSkeletonActive() || isSkeletonActive()) {
+  if (isInvisSkinActive() || isDarkJesterActive() || isNormalJesterActive() || isGoldenSkeletonActive() || isSkeletonActive()) {
+    // Clean up DJC/NJC specific layers
+    if (isDarkJesterActive()) hideDjcLayers();
+    if (isNormalJesterActive()) hideNjcLayers();
     
     // Restore arm to normal positioning (may have been overridden by DJC)
     const armRestore = document.getElementById('arm');
@@ -3051,12 +3047,12 @@ function equipItem(element) {
   const layer = document.getElementById(actualLayerName);
 
   // === DARK / NORMAL JESTER AUTO-UNEQUIP ===
-  // If Jester is active and equipping a non-allowed category, switch back to tan character
+  // If DJC/NJC is active and equipping a non-allowed category, switch back to normal character
   if (isDarkJesterActive() || isNormalJesterActive()) {
     const djcAllowed = ['hands', 'pets', 'pets-back', 'wings', 'capes', 'platforms'];
     if (!djcAllowed.includes(layerName)) {
-      const normalBtn = document.querySelector('#specialsMenu li[onclick*="equipNormalCharacter"]');
-      if (normalBtn) equipNormalCharacter(normalBtn);
+      const tanSkinBtn = document.querySelector('#specialsMenu li[data-skin-color="#d49e7a"]');
+      if (tanSkinBtn) equipSkinColor(tanSkinBtn, '#d49e7a');
     }
   }
 
@@ -4300,8 +4296,8 @@ function equipItem(element) {
 function equipHat(imagePath, element) {
   // === DARK / NORMAL JESTER AUTO-UNEQUIP ===
   if (isDarkJesterActive() || isNormalJesterActive()) {
-    const normalBaseBtn = document.querySelector('#specialsMenu li[onclick*="equipNormalCharacter"]');
-    if (normalBaseBtn) equipNormalCharacter(normalBaseBtn);
+    const tanSkinBtn = document.querySelector('#specialsMenu li[data-skin-color="#d49e7a"]');
+    if (tanSkinBtn) equipSkinColor(tanSkinBtn, '#d49e7a');
   }
 
   const hat = document.getElementById("hat");
