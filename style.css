@@ -8739,7 +8739,6 @@ body.njc-active #pupil {
   word-wrap: break-word;
   padding: 10px;
   line-height: 1.2;
-  transition: text-shadow 0.2s;
 }
 
 /* Mobile Adjustments Removed to keep identical layout to desktop */
@@ -10178,7 +10177,6 @@ body.njc-active #pupil {
   word-wrap: break-word;
   padding: 10px;
   line-height: 1.2;
-  transition: text-shadow 0.2s;
 }
 
 /* Mobile Adjustments Block 2 Removed to keep identical layout to desktop */
