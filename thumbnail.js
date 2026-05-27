@@ -664,16 +664,20 @@
 
       const clickedObjEl = e.target.closest('.tm-object');
       let isThemeClick = false;
+      let isLockedClick = false;
       if (clickedObjEl) {
         const oid = clickedObjEl.dataset.id;
         const obj = tmState.objects.find(o => o.id === oid);
         if (obj && obj.isTheme) {
           isThemeClick = true;
         }
+        if (obj && obj.isLocked) {
+          isLockedClick = true;
+        }
       }
 
-      // Do NOT deselect or lasso if clicking inside an object (except the background theme layer), selection handles, property panel, sidebar, dock, or catalog/modal buttons
-      if ((clickedObjEl && !isThemeClick) || 
+      // Do NOT deselect or lasso if clicking inside an object (except the background theme layer or locked layers), selection handles, property panel, sidebar, dock, or catalog/modal buttons
+      if ((clickedObjEl && !isThemeClick && !isLockedClick) || 
           e.target.closest('.tm-layers-dock') || 
           e.target.closest('.tm-property-panel') ||
           e.target.closest('.wp-catalogue') ||
@@ -1801,8 +1805,7 @@
       }
 
       if (dragTargetObj.isLocked) {
-        e.stopPropagation();
-        e.preventDefault();
+        // Let it bubble up to the global document pointerdown listener to allow starting a selection lasso
         tmDeselect();
         return;
       }
