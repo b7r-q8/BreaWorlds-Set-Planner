@@ -7247,6 +7247,16 @@ let wpBackgroundGrid = []; // Background: Array of arrays [y][x]
 let wpInventory = []; // Max 10 items
 let wpSelectedBlockId = 'spr_fg_dirt';
 let wpCanvas, wpCtx;
+let wpCanvasCachedRect = null;
+function getWPCanvasRect() {
+  if (!wpCanvasCachedRect && wpCanvas) {
+    wpCanvasCachedRect = wpCanvas.getBoundingClientRect();
+  }
+  return wpCanvasCachedRect;
+}
+window.addEventListener('scroll', () => {
+  wpCanvasCachedRect = null;
+}, { passive: true });
 let wpTempCanvas, wpTempCtx; // For optimized textures
 let wpRainbowPattern, wpRainbowPatternCanvas;
 let wpRainbowAnimatedCanvas, wpRainbowAnimatedCtx; // Buffer for applying pattern to bases
@@ -8365,7 +8375,7 @@ function wpZoomTo(delta, mouseX, mouseY) {
 
   // Zoom anchoring: Keep the world position under the mouse the same
   if (mouseX !== undefined && mouseY !== undefined) {
-    const rect = wpCanvas.getBoundingClientRect();
+    const rect = getWPCanvasRect();
     const localX = mouseX - rect.left;
     const localY = mouseY - rect.top;
 
@@ -8373,7 +8383,7 @@ function wpZoomTo(delta, mouseX, mouseY) {
     const worldX = localX / oldZoom - wpOffsetX;
     const worldY = localY / oldZoom - wpOffsetY;
 
-    wpZoom = newZoom;
+  wpZoom = newZoom;
 
     // Adjust offsets to keep worldX/worldY at the same localX/localY
     wpOffsetX = localX / wpZoom - worldX;
@@ -8382,7 +8392,10 @@ function wpZoomTo(delta, mouseX, mouseY) {
     wpZoom = newZoom;
   }
 
-  applyWPTransform();
+  // Draw directly to avoid double-rAF latency on touch devices
+  wpDirty = true;
+  wpFrameScheduled = false;
+  drawWPWorld(performance.now());
 }
 
 window.wpZoomIn = function () {
@@ -8427,6 +8440,7 @@ window.addEventListener('resize', handleWPResize);
 window.addEventListener('orientationchange', handleWPResize);
 
 function handleWPResize() {
+  wpCanvasCachedRect = null;
   if (wpCanvas && document.getElementById('world-planner-container').style.display !== 'none') {
     const viewport = document.getElementById('wp-viewport');
     const dpr = window.devicePixelRatio || 1;
@@ -9382,6 +9396,7 @@ function setupWPEvents() {
   let wpRightMouseDown = false;
 
   wpCanvas.onmousedown = (e) => {
+    wpCanvasCachedRect = null;
     document.body.classList.add('wp-dragging');
     wpLastGridX = -1;
     wpLastGridY = -1;
@@ -9405,7 +9420,7 @@ function setupWPEvents() {
     }
     if (e.button === 0) {
       e.preventDefault();
-      const rect = wpCanvas.getBoundingClientRect();
+      const rect = getWPCanvasRect();
       const canvasMouseX = (e.clientX - rect.left) / wpZoom - wpOffsetX;
       const canvasMouseY = (e.clientY - rect.top) / wpZoom - wpOffsetY;
       const x = Math.floor(canvasMouseX / BLOCK_SIZE);
@@ -9581,7 +9596,7 @@ function setupWPEvents() {
       return;
     }
 
-    if (!rect) rect = wpCanvas.getBoundingClientRect();
+    if (!rect) rect = getWPCanvasRect();
     const worldX = (clientX - rect.left) / wpZoom - wpOffsetX;
     const worldY = (clientY - rect.top) / wpZoom - wpOffsetY;
     const gridX = Math.floor(worldX / BLOCK_SIZE);
@@ -9596,7 +9611,7 @@ function setupWPEvents() {
   };
 
   wpCanvas.onmousemove = (e) => {
-    const rect = wpCanvas.getBoundingClientRect();
+    const rect = getWPCanvasRect();
     window.wpLastMouseX = (e.clientX - rect.left) / wpZoom - wpOffsetX;
     window.wpLastMouseY = (e.clientY - rect.top) / wpZoom - wpOffsetY;
     wpUpdateCoordsDisplay(e.clientX, e.clientY, rect);
@@ -9649,6 +9664,7 @@ function setupWPEvents() {
   let wpTouchDidMove = false;
 
   wpCanvas.addEventListener('touchstart', (e) => {
+    wpCanvasCachedRect = null;
     e.preventDefault();
     document.body.classList.add('wp-dragging');
     wpTouchActive = true;
@@ -9697,7 +9713,7 @@ function setupWPEvents() {
         isPanning = true;
         wpIsPanningActive = true;
       } else {
-        const rect = wpCanvas.getBoundingClientRect();
+        const rect = getWPCanvasRect();
         const canvasTouchX = (e.touches[0].clientX - rect.left) / wpZoom - wpOffsetX;
         const canvasTouchY = (e.touches[0].clientY - rect.top) / wpZoom - wpOffsetY;
         const x = Math.floor(canvasTouchX / BLOCK_SIZE);
@@ -9833,7 +9849,9 @@ function setupWPEvents() {
           wpPanPending = true;
           requestAnimationFrame(() => {
             wpPanPending = false;
-            applyWPTransform();
+            wpDirty = true;
+            wpFrameScheduled = false;
+            drawWPWorld(performance.now());
           });
         }
       }
@@ -9856,7 +9874,9 @@ function setupWPEvents() {
             wpPanPending = true;
             requestAnimationFrame(() => {
               wpPanPending = false;
-              applyWPTransform();
+              wpDirty = true;
+              wpFrameScheduled = false;
+              drawWPWorld(performance.now());
             });
           }
         }
@@ -9868,7 +9888,7 @@ function setupWPEvents() {
       }
       
       if (typeof mpSendCursorPosition === 'function') {
-        const rect = wpCanvas.getBoundingClientRect();
+        const rect = getWPCanvasRect();
         const touch = e.touches[0];
         const cx = (touch.clientX - rect.left) / wpZoom - wpOffsetX;
         const cy = (touch.clientY - rect.top) / wpZoom - wpOffsetY;
@@ -9910,7 +9930,7 @@ function setupWPEvents() {
 let wpLastTouchX, wpLastTouchY;
 
 function pickWPBlock(e) {
-  const rect = wpCanvas.getBoundingClientRect();
+  const rect = getWPCanvasRect();
   const canvasMouseX = (e.clientX - rect.left) / wpZoom - wpOffsetX;
   const canvasMouseY = (e.clientY - rect.top) / wpZoom - wpOffsetY;
   const x = Math.floor(canvasMouseX / BLOCK_SIZE);
@@ -10002,7 +10022,7 @@ function handleWPInteraction(e) {
   }
   if (wpCurrentTool === 'move') return;
 
-  const rect = wpCanvas.getBoundingClientRect();
+  const rect = getWPCanvasRect();
   const canvasMouseX = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
   const canvasMouseY = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
 
