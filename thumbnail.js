@@ -4807,13 +4807,12 @@ async function tmGenerateBakedCanvas(finalScale, onProgress) {
         contentMaxX = Math.max(contentMaxX, cx + bw / 2);
         contentMaxY = Math.max(contentMaxY, cy + bh / 2);
       });
-      const overflowBuffer = 30;
-      const overflowPadLeft = Math.ceil(Math.max(0, -contentMinX)) + overflowBuffer;
-      const overflowPadTop = Math.ceil(Math.max(0, -contentMinY)) + overflowBuffer;
-      const overflowPadRight = Math.ceil(Math.max(0, contentMaxX - wsWidth)) + overflowBuffer;
-      const overflowPadBottom = Math.ceil(Math.max(0, contentMaxY - wsHeight)) + overflowBuffer;
-      const captureWidth = wsWidth + overflowPadLeft + overflowPadRight;
-      const captureHeight = wsHeight + overflowPadTop + overflowPadBottom;
+      const overflowPadLeft = 0;
+      const overflowPadTop = 0;
+      const overflowPadRight = 0;
+      const overflowPadBottom = 0;
+      const captureWidth = wsWidth;
+      const captureHeight = wsHeight;
 
       const hasTheme = tmState.objects.some(o => o.isTheme);
 
