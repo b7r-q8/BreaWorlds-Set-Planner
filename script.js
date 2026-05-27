@@ -8383,7 +8383,7 @@ function wpZoomTo(delta, mouseX, mouseY) {
     const worldX = localX / oldZoom - wpOffsetX;
     const worldY = localY / oldZoom - wpOffsetY;
 
-  wpZoom = newZoom;
+    wpZoom = newZoom;
 
     // Adjust offsets to keep worldX/worldY at the same localX/localY
     wpOffsetX = localX / wpZoom - worldX;
@@ -8392,10 +8392,7 @@ function wpZoomTo(delta, mouseX, mouseY) {
     wpZoom = newZoom;
   }
 
-  // Draw directly to avoid double-rAF latency on touch devices
-  wpDirty = true;
-  wpFrameScheduled = false;
-  drawWPWorld(performance.now());
+  applyWPTransform();
 }
 
 window.wpZoomIn = function () {
@@ -9666,7 +9663,6 @@ function setupWPEvents() {
   wpCanvas.addEventListener('touchstart', (e) => {
     wpCanvasCachedRect = null;
     e.preventDefault();
-    document.body.classList.add('wp-dragging');
     wpTouchActive = true;
     wpTouchDidMove = false;
 
@@ -9849,9 +9845,7 @@ function setupWPEvents() {
           wpPanPending = true;
           requestAnimationFrame(() => {
             wpPanPending = false;
-            wpDirty = true;
-            wpFrameScheduled = false;
-            drawWPWorld(performance.now());
+            applyWPTransform();
           });
         }
       }
@@ -9874,9 +9868,7 @@ function setupWPEvents() {
             wpPanPending = true;
             requestAnimationFrame(() => {
               wpPanPending = false;
-              wpDirty = true;
-              wpFrameScheduled = false;
-              drawWPWorld(performance.now());
+              applyWPTransform();
             });
           }
         }
