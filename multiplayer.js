@@ -836,6 +836,10 @@ function mpEmergencySave() {
   const allSlots = JSON.parse(localStorage.getItem('wpSaveSlotsList') || '[]');
   let next = 1; while (allSlots.includes(next)) next++;
   allSlots.push(next);
-  localStorage.setItem('wpSaveSlotsList', JSON.stringify(allSlots));
+  try {
+    localStorage.setItem('wpSaveSlotsList', JSON.stringify(allSlots));
+  } catch (error) {
+    console.error('Emergency save failed to update slots list:', error);
+  }
   if (typeof saveWPWorldToSlot === 'function') saveWPWorldToSlot(next);
 }

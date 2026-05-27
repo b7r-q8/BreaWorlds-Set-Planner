@@ -32,7 +32,14 @@ function cmGetStore(key, fallback) {
     try { const d = localStorage.getItem('cm_' + key); return d ? JSON.parse(d) : fallback; }
     catch { return fallback; }
 }
-function cmSetStore(key, val) { localStorage.setItem('cm_' + key, JSON.stringify(val)); }
+function cmSetStore(key, val) {
+    try {
+        localStorage.setItem('cm_' + key, JSON.stringify(val));
+    } catch (error) {
+        console.error('Failed to save community store:', error);
+        alert('Storage cache is full! Please delete some other slots (character/world/thumbnails) to free up space.');
+    }
+}
 
 function cmGetUsers() { return cmGetStore('users', []); }
 function cmSetUsers(u) { cmSetStore('users', u); }
@@ -302,9 +309,9 @@ function cmLoadPosts(page) {
       ${p.blocks && p.blocks.length ? '<div class="cm-post-blocks"><strong>Blocks:</strong> ' + p.blocks.slice(0, 8).map(b => '<span class="cm-block-tag">' + cmEscapeHTML(b) + '</span>').join('') + (p.blocks.length > 8 ? '<span class="cm-block-more">+' + (p.blocks.length - 8) + '</span>' : '') + '</div>' : ''}
       <div class="cm-post-actions">
         <div class="cm-vote-group">
-          <button class="cm-vote-btn up ${voteVal === 1 ? 'active' : ''}" onclick="cmVote('${p.id}',1)">▲ ${p.upvotes || 0}</button>
+          <button class="cm-vote-btn up ${voteVal === 1 ? 'active' : ''}" onclick="cmVote('${p.id}',1)">\u25B2 ${p.upvotes || 0}</button>
           <span class="cm-vote-score">${score}</span>
-          <button class="cm-vote-btn down ${voteVal === -1 ? 'active' : ''}" onclick="cmVote('${p.id}',-1)">▼ ${p.downvotes || 0}</button>
+          <button class="cm-vote-btn down ${voteVal === -1 ? 'active' : ''}" onclick="cmVote('${p.id}',-1)">\u25BC ${p.downvotes || 0}</button>
         </div>
         <button class="cm-action-btn" onclick="cmOpenComments('${p.id}')">💬 ${comments.length}</button>
         <button class="cm-action-btn" onclick="cmShowLoadModal('${p.id}')">📥 Load</button>
@@ -638,7 +645,12 @@ function cmLoadToSlot(slotNum) {
         cmCloseLoadModal();
         cmShowToast('Loaded to Slot ' + slotNum + '! Go to the ' + (post.type === 'world' ? 'World' : 'Set') + ' Planner to use it.', 'success');
     } catch (err) {
-        cmShowToast('Failed to load', 'error');
+        console.error('Failed to load community slot:', err);
+        if (err && (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED' || (err.message && err.message.toLowerCase().includes('quota')))) {
+            alert('Storage cache is full! Please delete some other slots (character/world/thumbnails) to free up space.');
+        } else {
+            cmShowToast('Failed to load', 'error');
+        }
     }
 }
 
@@ -705,9 +717,9 @@ function cmOpenProfile(userId) {
         </div>
         <div class="cm-post-actions">
           <div class="cm-vote-group">
-            <button class="cm-vote-btn up ${voteVal === 1 ? 'active' : ''}" onclick="cmVote('${p.id}',1)">▲ ${p.upvotes || 0}</button>
+            <button class="cm-vote-btn up ${voteVal === 1 ? 'active' : ''}" onclick="cmVote('${p.id}',1)">\u25B2 ${p.upvotes || 0}</button>
             <span class="cm-vote-score">${score}</span>
-            <button class="cm-vote-btn down ${voteVal === -1 ? 'active' : ''}" onclick="cmVote('${p.id}',-1)">▼ ${p.downvotes || 0}</button>
+            <button class="cm-vote-btn down ${voteVal === -1 ? 'active' : ''}" onclick="cmVote('${p.id}',-1)">\u25BC ${p.downvotes || 0}</button>
           </div>
           <button class="cm-action-btn" onclick="cmOpenComments('${p.id}')">💬 ${comments.length}</button>
           <button class="cm-action-btn" onclick="cmShowLoadModal('${p.id}')">📥 Load</button>
@@ -827,7 +839,14 @@ function cmDownloadCloudSave(saveId, type) {
             if (data.overlayState) localStorage.setItem('overlayState', data.overlayState);
             cmShowToast('Set loaded! Open Set Planner to see it.', 'success');
         }
-    } catch { cmShowToast('Failed to load', 'error'); }
+    } catch (err) {
+        console.error('Failed to download cloud save:', err);
+        if (err && (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED' || (err.message && err.message.toLowerCase().includes('quota')))) {
+            alert('Storage cache is full! Please delete some other slots (character/world/thumbnails) to free up space.');
+        } else {
+            cmShowToast('Failed to load', 'error');
+        }
+    }
 }
 
 function cmDeleteCloudSave(saveId) {

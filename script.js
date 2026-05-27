@@ -99,6 +99,40 @@ function stopBlinkAnimation() {
 // Start blinking once the page loads
 document.addEventListener('DOMContentLoaded', () => {
   startBlinkAnimation();
+
+  // === One-time migration: clear old save slots so users re-save with corrected pivots ===
+  if (!localStorage.getItem('saveSlots_v2')) {
+    const oldSlots = JSON.parse(localStorage.getItem('saveSlotsList') || '[]');
+    oldSlots.forEach(num => localStorage.removeItem('saveSlot' + num));
+    localStorage.removeItem('saveSlotsList');
+    localStorage.setItem('saveSlots_v2', '1');
+  }
+
+  // Set the initial active state of hand duplication button from localStorage
+  const btn = document.getElementById('btnDuplicateHand');
+  if (btn) {
+    if (isDuplicateHandEnabled) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  }
+
+  // Orientation warning overlay logic
+  const orientationOverlay = document.getElementById('orientation-warning-overlay');
+  const proceedBtn = document.getElementById('proceed-vertical-btn');
+  if (orientationOverlay && proceedBtn) {
+    // Only show overlay if not confirmed
+    if (localStorage.getItem('vertical_proceed_confirmed')) {
+      orientationOverlay.style.display = 'none';
+    } else {
+      orientationOverlay.style.display = '';
+    }
+    proceedBtn.onclick = function() {
+      orientationOverlay.style.display = 'none';
+      localStorage.setItem('vertical_proceed_confirmed', '1');
+    };
+  }
 });
 // ==========================================================
 
@@ -576,6 +610,7 @@ function saveState() {
     normalJesterActive: isNormalJesterActive(),
     robotActive: isRobotSkinActive(),
     draculaActive: isDraculaSkinActive(),
+    invisActive: isInvisSkinActive(),
     equippedItems: {},
     background: document.body.style.backgroundImage || '',
     platformSrc: document.getElementById("platforms")?.dataset.originalSrc || document.getElementById("platforms")?.src || '',
@@ -673,7 +708,11 @@ function saveState() {
     }
   });
 
-  localStorage.setItem('overlayState', JSON.stringify(state));
+  try {
+    localStorage.setItem('overlayState', JSON.stringify(state));
+  } catch (error) {
+    console.warn('Failed to save overlayState:', error);
+  }
   // Apply scale immediately after saving to ensure consistency
   applySceneScale();
 }
@@ -783,7 +822,7 @@ function loadState() {
           headElement.style.transform = (t === 'none') ? '' : t;
 
           // If head is invisibleskin, mark the invis character as equipped in UI
-          if (itemData.src.includes('invisibleskin')) {
+          if (itemData.src.includes('invisibleskin') || itemData.src.includes('pupil.png')) {
             document.querySelectorAll("#specialsMenu li").forEach(li => li.classList.remove("equipped"));
             const invisMenuItem = document.querySelector("#specialsMenu li[onclick*='equipInvisCharacter']");
             if (invisMenuItem) invisMenuItem.classList.add("equipped");
@@ -977,6 +1016,15 @@ function loadState() {
           skinBtn.classList.add('equipped');
         }
         syncBodyParts();
+      }
+    }
+
+    // Restore Invis Skin Character if it was active
+    if (state.invisActive || (state.equippedItems && state.equippedItems['head'] && (state.equippedItems['head'].src.includes('invisibleskin') || state.equippedItems['head'].src.includes('pupil.png')))) {
+      const invisBtn = document.querySelector('#specialsMenu li[onclick*="equipInvisCharacter"]');
+      if (invisBtn) {
+        document.querySelectorAll('#specialsMenu li').forEach(el => el.classList.remove('equipped'));
+        equipInvisCharacter(invisBtn);
       }
     }
 
@@ -1240,6 +1288,10 @@ function applyArmRotation() {
       sleeve.style.transform = transform;
     }
   });
+
+  // Sync back sleeves and hand duplications
+  syncBackShirtsabove();
+  duplicateHandItemToBack();
 }
 
 function addToInventory(item) {
@@ -3037,6 +3089,124 @@ function isEyeException(src) {
   }
   return false;
 }
+// =============================================================
+// HAND DUPLICATION & BACK SLEEVE SYNC SYSTEM
+// =============================================================
+let isDuplicateHandEnabled = localStorage.getItem('duplicate_hand_enabled') === 'true';
+
+window.toggleDuplicateHand = function() {
+  isDuplicateHandEnabled = !isDuplicateHandEnabled;
+  localStorage.setItem('duplicate_hand_enabled', isDuplicateHandEnabled);
+  
+  const btn = document.getElementById('btnDuplicateHand');
+  if (btn) {
+    if (isDuplicateHandEnabled) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  }
+
+  // Sync hand to back immediately when toggled
+  duplicateHandItemToBack();
+  saveState();
+};
+
+function syncBackShirtsabove() {
+  const shirtsabove = document.getElementById('shirtsabove');
+  const backShirtsabove = document.getElementById('back-shirtsabove');
+  if (!shirtsabove || !backShirtsabove) return;
+
+  backShirtsabove.style.display = shirtsabove.style.display;
+  backShirtsabove.src = shirtsabove.src;
+
+  if (shirtsabove.style.display === 'block') {
+    // Look up current active shirt or outfit item in the submenus to grab dataset attributes
+    const equippedShirt = document.querySelector('#shirtsMenu li.equipped, #outfitsMenu li.equipped');
+    if (equippedShirt) {
+      const aboveScale = parseFloat(equippedShirt.dataset.aboveScale ?? 1);
+      const aboveX = parseFloat(equippedShirt.dataset.aboveX ?? 0);
+      const aboveY = parseFloat(equippedShirt.dataset.aboveY ?? 0);
+
+      // Shift back-shirtsabove by 130px X relative to shirtsabove to place it on the base arm
+      backShirtsabove.style.transform = `
+        translateX(-50%)
+        translate(${aboveX + 130}px, ${aboveY}px)
+        scale(${aboveScale})
+      `;
+    } else {
+      // Fallback
+      backShirtsabove.style.transform = `
+        translateX(-50%)
+        translate(130px, 0px)
+        scale(1)
+      `;
+    }
+  } else {
+    backShirtsabove.style.transform = '';
+  }
+}
+
+function duplicateHandItemToBack() {
+  const hands = document.getElementById('hands');
+  const backHands = document.getElementById('back-hands');
+  if (!hands || !backHands) return;
+
+  const equippedHand = document.querySelector('#handsMenu li.equipped');
+  let isDualDefault = false;
+  if (equippedHand) {
+    const itemName = equippedHand.textContent.toLowerCase();
+    if (itemName.includes('spiked mace') || itemName.includes('dual pickaxe') || itemName.includes('double red lightsaber')) {
+      isDualDefault = true;
+    }
+  }
+
+  if ((isDuplicateHandEnabled || isDualDefault) && hands.style.display === 'block' && hands.src) {
+    if (equippedHand) {
+      // Exclude specific oversized/two-handed items from being duplicated
+      const itemName = equippedHand.textContent.toLowerCase();
+      if (itemName.includes('ray blaster') || itemName.includes('water blaster') || itemName.includes('clown hammer')) {
+        backHands.style.display = 'none';
+        stopAnimation(backHands);
+        backHands.src = '';
+        backHands.style.transform = '';
+        return;
+      }
+
+      backHands.style.display = 'block';
+      backHands.src = hands.src;
+
+      const scale = parseFloat(equippedHand.dataset.scale ?? 1);
+      const x = parseFloat(equippedHand.dataset.x ?? 0);
+      const y = parseFloat(equippedHand.dataset.y ?? 0);
+      const rotation = equippedHand.dataset.rotation ?? 0;
+
+      // Duplicate onto the base arm: shift by 130px X and keep original scale
+      backHands.style.transform = `
+        translateX(-50%)
+        translate(${x + 130}px, ${y}px)
+        scale(${scale})
+        rotate(${rotation}deg)
+      `;
+
+      if (equippedHand.dataset.animated === 'true') {
+        stopAnimation(backHands);
+        startAnimation(backHands, {
+          framesPath: equippedHand.dataset.frames,
+          frameCount: Number(equippedHand.dataset.frameCount),
+          fps: Number(equippedHand.dataset.fps) || 8
+        });
+      } else {
+        stopAnimation(backHands);
+      }
+    }
+  } else {
+    backHands.style.display = 'none';
+    stopAnimation(backHands);
+    backHands.src = '';
+    backHands.style.transform = '';
+  }
+}
 
 function equipItem(element) {
   console.log('=== equipItem CALLED ===', element.dataset.layer, element.dataset.frames || element.dataset.src);
@@ -3674,6 +3844,8 @@ function equipItem(element) {
         applyEquippedFilter();
       }
 
+      syncBackShirtsabove();
+      duplicateHandItemToBack();
       saveState();
       return;
     } else {
@@ -4291,6 +4463,10 @@ function equipItem(element) {
   if (isFilterEquippedActive && typeof applyEquippedFilter === 'function') {
     applyEquippedFilter();
   }
+
+  // Sync back sleeves and hand duplications
+  syncBackShirtsabove();
+  duplicateHandItemToBack();
 }
 
 function equipHat(imagePath, element) {
@@ -4799,6 +4975,9 @@ function enforceLayerOrder() {
   const order = [
     "platforms",
     "wings",
+    "back-arm",
+    "back-shirtsabove",
+    "back-hands",
     "pets-back",
     "capes",
     "shirtsbehind",
@@ -4879,7 +5058,12 @@ function overrideLayerOrder() {
     'pets': { z: 60, order: 21 },
     'shirtsbehind': { z: 2, order: 23 },
     'pets-back': { z: 1, order: 24 },
-    'capes': { z: 1, order: 25 }
+    'capes': { z: 1, order: 25 },
+    'back-arm': { z: 10, order: -0.5 },
+    'djc-right-arm': { z: 10, order: -0.5 },
+    'njc-right-arm': { z: 10, order: -0.5 },
+    'back-shirtsabove': { z: 11, order: -0.4 },
+    'back-hands': { z: 11, order: -0.3 }
   };
 
   Object.entries(customOrder).forEach(([id, config]) => {
@@ -4941,7 +5125,7 @@ window.downloadSet = async function () {
   try {
     // Get all visible character layers in z-index order
     const layers = [
-      'platforms', 'pets-back', 'base', 'body', 'diaperbody', 'leg', 'diaperleg', 'feet', 'arm', 'pants', 'shirtsbehind', 'shirtstop',
+      'platforms', 'back-arm', 'back-shirtsabove', 'back-hands', 'pets-back', 'base', 'body', 'diaperbody', 'leg', 'diaperleg', 'feet', 'arm', 'pants', 'shirtsbehind', 'shirtstop',
       'head', 'pupil', 'shoes', 'rightshoe', 'outfitshoes', 'outfitrightshoe', 'shirts', 'eyes', 'hair', 'faces', 'hands',
       'shirtsabove', 'capesabove', 'headgears', 'headgearsabove', 'hat', 'capes', 'wings', 'cars', 'floaties',
       'scarfs', 'pets'
@@ -5717,7 +5901,50 @@ window.addEventListener('load', function () {
   }
 });
 
-// ==================== SAVE SLOT FUNCTIONALITY ====================
+function cropCanvasToActivePixels(canvas) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  const imgData = ctx.getImageData(0, 0, w, h);
+  const data = imgData.data;
+
+  let minX = w, maxX = 0, minY = h, maxY = 0;
+  let hasPixels = false;
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = (y * w + x) * 4;
+      const alpha = data[idx + 3];
+      if (alpha > 5) {
+        hasPixels = true;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  if (!hasPixels) return canvas;
+
+  const padding = 4;
+  minX = Math.max(0, minX - padding);
+  maxX = Math.min(w - 1, maxX + padding);
+  minY = Math.max(0, minY - padding);
+  maxY = Math.min(h - 1, maxY + padding);
+
+  const cropW = maxX - minX + 1;
+  const cropH = maxY - minY + 1;
+
+  const croppedCanvas = document.createElement('canvas');
+  croppedCanvas.width = cropW;
+  croppedCanvas.height = cropH;
+  const croppedCtx = croppedCanvas.getContext('2d');
+  croppedCtx.imageSmoothingEnabled = false;
+  
+  croppedCtx.drawImage(canvas, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+  return croppedCanvas;
+}
 
 // Generate preview image for save slot (transparent PNG without platform)
 async function generateSavePreview() {
@@ -5737,7 +5964,8 @@ async function generateSavePreview() {
         const style = window.getComputedStyle(img);
         const zIndex = parseInt(style.zIndex || '0');
         const opacity = parseFloat(style.opacity || '1');
-        if (opacity > 0) {
+        const isBodyLayer = ['body', 'base', 'head', 'pupil', 'arm', 'leg', 'feet', 'back-arm'].includes(img.id);
+        if (opacity > 0 || isBodyLayer) {
           visibleImages.push({ element: img, src: img.src, zIndex, opacity });
         }
       }
@@ -5769,6 +5997,53 @@ async function generateSavePreview() {
     characterScene.style.transform = 'none';
     characterScene.style.zoom = '1';
 
+    // ── Stable Pivot Fix ──────────────────────────────────────────────
+    // Temporarily reset arm-related inline transforms to their CSS-class
+    // defaults so that hand-item rotation/positioning overrides don't
+    // affect pivot calculations or baked-in arm group rendering.
+    // For shirtsabove layers, re-apply ONLY the shirt's base transform
+    // (scale + translate) WITHOUT any hand-item-induced rotation.
+    const _armRelatedIds = ['arm', 'shirtsabove', 'shirtstop',
+                            'back-arm', 'back-shirtsabove'];
+    const _savedArmTransforms = {};
+    _armRelatedIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        _savedArmTransforms[id] = el.style.transform;
+        el.style.transform = '';  // Reset to CSS class default
+      }
+    });
+
+    // Re-apply shirt-specific base transforms for shirtsabove (without rotation)
+    const _eqShirt = document.querySelector('.submenu[id$="shirtsMenu"] .equipped') ||
+                     document.querySelector('[data-layer="shirts"].equipped') ||
+                     document.querySelector('[data-layer="outfits"].equipped');
+    if (_eqShirt) {
+      const _saEl = document.getElementById('shirtsabove');
+      if (_saEl && _saEl.style.display !== 'none' && _saEl.src) {
+        const s = _eqShirt.dataset.aboveScale ?? 1;
+        const x = _eqShirt.dataset.aboveX ?? 0;
+        const y = _eqShirt.dataset.aboveY ?? 0;
+        _saEl.style.transform = `translateX(-50%) translate(${x}px, ${y}px) scale(${s})`;
+      }
+      const _bsaEl = document.getElementById('back-shirtsabove');
+      if (_bsaEl && _bsaEl.style.display !== 'none' && _bsaEl.src) {
+        const s = _eqShirt.dataset.aboveScale ?? 1;
+        const x = parseFloat(_eqShirt.dataset.aboveX ?? 0) + 130;
+        const y = _eqShirt.dataset.aboveY ?? 0;
+        _bsaEl.style.transform = `translateX(-50%) translate(${x}px, ${y}px) scale(${s})`;
+      }
+      // Re-apply shirtstop base transform (without rotation)
+      const _stEl = document.getElementById('shirtstop');
+      if (_stEl && _stEl.style.display !== 'none' && _stEl.src && _eqShirt.dataset.topSrc) {
+        const s = _eqShirt.dataset.topScale ?? 1;
+        const x = _eqShirt.dataset.topX ?? 0;
+        const y = _eqShirt.dataset.topY ?? 0;
+        _stEl.style.transform = `translateX(-50%) translate(${x}px, ${y}px) scale(${s})`;
+      }
+    }
+    // ── End Stable Pivot Fix ──────────────────────────────────────────
+
     // Force reflow
     void characterScene.offsetWidth;
 
@@ -5784,6 +6059,7 @@ async function generateSavePreview() {
       const cy = rect.top + rect.height / 2 - sceneRect.top;
 
       imageData.push({
+        id: item.element.id,
         image: item.image,
         minX: rect.left - sceneRect.left,
         minY: rect.top - sceneRect.top,
@@ -5801,6 +6077,14 @@ async function generateSavePreview() {
     // Restore transforms
     characterScene.style.transform = originalTransform;
     characterScene.style.zoom = originalZoom;
+
+    // Restore arm-related inline transforms
+    _armRelatedIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && _savedArmTransforms[id] !== undefined) {
+        el.style.transform = _savedArmTransforms[id];
+      }
+    });
 
     if (imageData.length === 0) return null;
 
@@ -5824,33 +6108,176 @@ async function generateSavePreview() {
     const width = Math.ceil(allMaxX - allMinX);
     const height = Math.ceil(allMaxY - allMinY);
 
-    if (width <= 0 || height <= 0) return null;
+    // Define Layer Groups (MUST be defined before findPivot)
+    const HEAD_LAYERS = ['head', 'pupil', 'headgears', 'headgearsabove', 'hair', 'eyes', 'faces', 'hat', 'djc-head', 'njc-head', 'shirtstop'];
+    const HEAD_BASE_LAYERS = ['head', 'djc-head', 'njc-head', 'pupil'];
+    const HEAD_ACC_LAYERS = ['headgears', 'headgearsabove', 'hair', 'eyes', 'faces', 'hat', 'shirtstop'];
+    const ARM_LAYERS = ['arm', 'hands', 'shirtsabove', 'weapons', 'shields'];
+    const BASE_ARM_LAYERS = ['base', 'back-arm', 'back-shirtsabove', 'back-hands', 'djc-right-arm', 'njc-right-arm'];
 
+    // Scale factor for high-resolution captures (Full HD quality)
+    const EXPORT_SCALE = 2;
+
+    // Helper to draw a subset of images
+    const renderGroup = (subset) => {
+      if (!subset || subset.length === 0) return null;
+      const canvas = document.createElement('canvas');
+      canvas.width = width * EXPORT_SCALE;
+      canvas.height = height * EXPORT_SCALE;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+
+      for (const imgData of subset) {
+        ctx.save();
+        ctx.globalAlpha = imgData.opacity;
+        const drawX = (imgData.cx - allMinX) * EXPORT_SCALE;
+        const drawY = (imgData.cy - allMinY) * EXPORT_SCALE;
+        ctx.translate(drawX, drawY);
+        const t = imgData.transform;
+        ctx.transform(t.a, t.b, t.c, t.d, 0, 0);
+        ctx.drawImage(imgData.image, (-imgData.w / 2) * EXPORT_SCALE, (-imgData.h / 2) * EXPORT_SCALE, imgData.w * EXPORT_SCALE, imgData.h * EXPORT_SCALE);
+        ctx.restore();
+      }
+      return canvas.toDataURL('image/webp', 0.8);
+    };
+
+    // Calculate Pivot Points for Thumbnail Maker Rotation
+    function getCanvasPoint(imgData, px, py) {
+      if (!imgData) return { x: 0, y: 0 };
+      const drawX = imgData.cx - allMinX;
+      const drawY = imgData.cy - allMinY;
+      const localX = px - imgData.w / 2;
+      const localY = py - imgData.h / 2;
+      const t = imgData.transform;
+      return {
+        x: (drawX + (t.a * localX + t.c * localY)) * EXPORT_SCALE,
+        y: (drawY + (t.b * localX + t.d * localY)) * EXPORT_SCALE
+      };
+    }
+
+    let armPivotX = 0, armPivotY = 0, headPivotX = 0, headPivotY = 0, baseArmPivotX = 0, baseArmPivotY = 0;
+
+    const isJester = imageData.some(i => i.id.startsWith('djc-') || i.id.startsWith('njc-'));
+
+    if (isJester) {
+      // Jester custom pivots (calibrated)
+      const jArm = imageData.find(i => i.id === 'arm');
+      if (jArm) {
+        const pt = getCanvasPoint(jArm, 140, 45); // Left arm pivot moved 10px up and 10px left (X: 140, Y: 45)
+        armPivotX = pt.x; armPivotY = pt.y;
+      }
+      
+      const jesterBase = imageData.find(i => i.id === 'djc-right-arm' || i.id === 'njc-right-arm');
+      if (jesterBase) {
+        const pt = getCanvasPoint(jesterBase, 70, 60);
+        baseArmPivotX = pt.x; baseArmPivotY = pt.y;
+      } else {
+        baseArmPivotX = armPivotX; baseArmPivotY = armPivotY;
+      }
+      
+      const jHead = imageData.find(i => i.id === 'djc-head' || i.id === 'njc-head');
+      if (jHead) {
+        const pt = getCanvasPoint(jHead, jHead.w / 2, jHead.h); // Neck pivot at bottom center of head image
+        headPivotX = pt.x; headPivotY = pt.y;
+      } else {
+        headPivotX = ((allMaxX - allMinX) / 2) * EXPORT_SCALE;
+        headPivotY = ((allMaxY - allMinY) / 2) * EXPORT_SCALE;
+      }
+    } else {
+      // Normal character pivots using findPivot
+      const findPivot = (layers, px, py) => {
+        // 1. High Priority: Actual body part layers (arm, head, base, back-arm)
+        const primaryIds = ['arm', 'head', 'base', 'body', 'back-arm'];
+        const primaryRef = imageData.find(i => layers.includes(i.id) && primaryIds.includes(i.id) && i.w > 100);
+        if (primaryRef) return getCanvasPoint(primaryRef, px, py);
+
+        // 2. Medium Priority: Fallback to any large layer in the group
+        const ref = imageData.find(i => layers.includes(i.id) && i.w > 100);
+        if (ref) return getCanvasPoint(ref, px, py);
+        
+        return null;
+      };
+
+      const headPt = findPivot(HEAD_LAYERS, 118.5, 118);
+      if (headPt) { headPivotX = headPt.x; headPivotY = headPt.y; }
+      else { headPivotX = ((allMaxX - allMinX) / 2) * EXPORT_SCALE; headPivotY = ((allMaxY - allMinY) / 2) * EXPORT_SCALE; }
+
+      const armPt = findPivot(ARM_LAYERS, 59.5, 129.5);
+      if (armPt) { armPivotX = armPt.x; armPivotY = armPt.y; }
+
+      const basePt = findPivot(BASE_ARM_LAYERS, 82, 175); 
+      if (basePt) { baseArmPivotX = basePt.x; baseArmPivotY = basePt.y; }
+      else { baseArmPivotX = armPivotX; baseArmPivotY = armPivotY; }
+    }
+
+    // Filter images into groups
+    const headImages = imageData.filter(i => HEAD_LAYERS.includes(i.id));
+    const headBaseImages = imageData.filter(i => HEAD_BASE_LAYERS.includes(i.id));
+    const headAccImages = imageData.filter(i => HEAD_ACC_LAYERS.includes(i.id));
+    const armImages = imageData.filter(i => ARM_LAYERS.includes(i.id));
+    const baseArmImages = imageData.filter(i => BASE_ARM_LAYERS.includes(i.id));
+    const CAPES_ABOVE_LAYERS = ['capesabove'];
+    const restImages = imageData.filter(i => !HEAD_LAYERS.includes(i.id) && !ARM_LAYERS.includes(i.id) && !BASE_ARM_LAYERS.includes(i.id) && !CAPES_ABOVE_LAYERS.includes(i.id));
+    const capesAboveImages = imageData.filter(i => CAPES_ABOVE_LAYERS.includes(i.id));
+
+    // Render components
+    const restDataUrl = renderGroup(restImages);
+    const baseArmDataUrl = renderGroup(baseArmImages);
+    const headDataUrl = renderGroup(headImages);
+    const headBaseDataUrl = renderGroup(headBaseImages);
+    const headAccDataUrl = renderGroup(headAccImages);
+    const armDataUrl = renderGroup(armImages);
+    const capesAboveDataUrl = renderGroup(capesAboveImages);
+
+    // Flat combined canvas for the preview card
     const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = width * EXPORT_SCALE;
+    canvas.height = height * EXPORT_SCALE;
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
-
     for (const imgData of imageData) {
       ctx.save();
       ctx.globalAlpha = imgData.opacity;
-
-      // Position on the new small canvas
-      const drawX = imgData.cx - allMinX;
-      const drawY = imgData.cy - allMinY;
-
+      const drawX = (imgData.cx - allMinX) * EXPORT_SCALE;
+      const drawY = (imgData.cy - allMinY) * EXPORT_SCALE;
       ctx.translate(drawX, drawY);
       const t = imgData.transform;
-      // We only apply the rotation part of the matrix if possible, 
-      // but ctx.transform is more robust for general CSS transforms.
       ctx.transform(t.a, t.b, t.c, t.d, 0, 0);
-
-      ctx.drawImage(imgData.image, -imgData.w / 2, -imgData.h / 2, imgData.w, imgData.h);
+      ctx.drawImage(imgData.image, (-imgData.w / 2) * EXPORT_SCALE, (-imgData.h / 2) * EXPORT_SCALE, imgData.w * EXPORT_SCALE, imgData.h * EXPORT_SCALE);
       ctx.restore();
     }
 
-    return canvas.toDataURL('image/png');
+    const isRobot = imageData.some(i => i.image.src.includes('robot_body') || i.image.src.includes('robot_head') || i.image.src.includes('robotskin'));
+    const isGsc = imageData.some(i => i.image.src.includes('gsc/head.png'));
+    const isSc = imageData.some(i => i.image.src.includes('sc/head.png'));
+    const isInvis = imageData.some(i => i.id === 'head' && (i.image.src.includes('invisibleskin') || i.image.src.includes('pupil.png')));
+
+    const calculatedSkinType = isJester ? 'jester' : (isGsc ? 'golden_skeleton' : (isSc ? 'skeleton' : (isInvis ? 'invisible' : (isRobot ? 'robot' : 'normal'))));
+    const croppedCanvas = cropCanvasToActivePixels(canvas);
+
+    return {
+      previewImage: croppedCanvas.toDataURL('image/webp', 0.8),
+      skinType: calculatedSkinType,
+      width: width * EXPORT_SCALE,
+      height: height * EXPORT_SCALE,
+      layers: {
+        rest: restDataUrl,
+        baseArm: baseArmDataUrl,
+        head: headDataUrl,
+        headBase: headBaseDataUrl,
+        headAccessories: headAccDataUrl,
+        arm: armDataUrl,
+        capesAbove: capesAboveDataUrl
+      },
+      pivots: {
+        armX: armPivotX,
+        armY: armPivotY,
+        baseArmX: baseArmPivotX,
+        baseArmY: baseArmPivotY,
+        headX: headPivotX,
+        headY: headPivotY
+      }
+    };
   } catch (error) {
     console.error('Preview generation failed:', error);
     return null;
@@ -5867,19 +6294,32 @@ async function saveToSlot(slotNumber) {
     return;
   }
 
-  // Generate preview image
-  const previewImage = await generateSavePreview();
+  // Generate preview image and layers
+  const previewData = await generateSavePreview();
+  if (!previewData) return;
+
+  const skinColorVal = activeSkinColor === 'rainbow' ? `hsl(${Math.round(globalRainbowHue)}, 100%, 60%)` : (activeSkinColor || '#d49e7a');
 
   const saveData = {
     overlayState: overlayState || '{}',
-    previewImage: previewImage,
+    previewImage: previewData.previewImage,
+    skinType: previewData.skinType,
+    skinColor: skinColorVal,
+    layers: previewData.layers,
+    pivots: previewData.pivots,
     timestamp: Date.now()
   };
 
-  localStorage.setItem(`saveSlot${slotNumber}`, JSON.stringify(saveData));
+  try {
+    localStorage.setItem(`saveSlot${slotNumber}`, JSON.stringify(saveData));
+  } catch (error) {
+    console.error('Failed to save to character slot:', error);
+    alert('Storage cache is full! Please delete some other slots (character/world/thumbnails) to free up space.');
+    return;
+  }
 
   // Update slot visual
-  updateSlotVisual(slotNumber, previewImage);
+  updateSlotVisual(slotNumber, previewData.previewImage);
 
   // Visual feedback
   const slot = document.querySelector(`.save-slot[data-slot="${slotNumber}"]`);
@@ -6030,8 +6470,57 @@ function renderSaveSlots() {
   });
 }
 
+function migrateSaveSlots() {
+  try {
+    // 1. Character Slots Migration
+    const charSlots = JSON.parse(localStorage.getItem('saveSlotsList') || '[]');
+    let charSlotsChanged = false;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      const match = key.match(/^saveSlot(\d+)$/);
+      if (match) {
+        const slotNum = parseInt(match[1]);
+        if (!charSlots.includes(slotNum)) {
+          charSlots.push(slotNum);
+          charSlotsChanged = true;
+        }
+      }
+    }
+    if (charSlotsChanged) {
+      charSlots.sort((a, b) => a - b);
+      localStorage.setItem('saveSlotsList', JSON.stringify(charSlots));
+      console.log('Migrated character slots list:', charSlots);
+    }
+
+    // 2. World Planner Slots Migration
+    const wpSlots = JSON.parse(localStorage.getItem('wpSaveSlotsList') || '[]');
+    let wpSlotsChanged = false;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      const match = key.match(/^wpSaveSlot_(\d+)$/);
+      if (match) {
+        const slotNum = parseInt(match[1]);
+        if (!wpSlots.includes(slotNum)) {
+          wpSlots.push(slotNum);
+          wpSlotsChanged = true;
+        }
+      }
+    }
+    if (wpSlotsChanged) {
+      wpSlots.sort((a, b) => a - b);
+      localStorage.setItem('wpSaveSlotsList', JSON.stringify(wpSlots));
+      console.log('Migrated World Planner slots list:', wpSlots);
+    }
+  } catch (e) {
+    console.error('Failed to run save slots migration:', e);
+  }
+}
+
 // Initialize slots on page load
 window.addEventListener('DOMContentLoaded', () => {
+  // Run metadata migration for existing save slots
+  migrateSaveSlots();
+
   // Hard reset utility: visit ?reset=true to clear state
   if (window.location.search.includes('reset=true')) {
     localStorage.clear();
@@ -6300,9 +6789,8 @@ window.addEventListener('load', () => {
         // Auto-show modal if not confirmed yet
         // Auto-show modal if not confirmed yet
         if (!localStorage.getItem('whats_new_v251_confirmed')) {
-          if (typeof initWhatsNewModal === 'function') {
-            initWhatsNewModal();
-          }
+          // Do not auto-show updates modal for new users anymore
+          // Only show when user clicks Updates in the menu
         }
       }
     }, remaining);
@@ -6335,6 +6823,7 @@ window.selectPlanner = function (type) {
   const wpContainer = document.getElementById("world-planner-container");
   const setContainer = document.getElementById("set-planner-container");
   const fishContainer = document.getElementById("fish-calculator-container");
+  const tmContainer = document.getElementById("thumbnail-maker-container");
   const loadingScreen = document.getElementById("loading-screen");
 
   // Set Planner Specific UI
@@ -6347,6 +6836,7 @@ window.selectPlanner = function (type) {
   wpContainer.style.display = "none";
   if (setContainer) setContainer.style.display = "none";
   if (fishContainer) fishContainer.style.display = "none";
+  if (tmContainer) tmContainer.style.display = "none";
 
   // Toggle mode-specific UI - SP inventory bar ONLY shows in set planner
   if (hamburger) {
@@ -6370,6 +6860,9 @@ window.selectPlanner = function (type) {
     initWorldPlanner();
   } else if (type === "fish") {
     if (fishContainer) fishContainer.style.display = "block";
+  } else if (type === "thumbnail") {
+    if (tmContainer) tmContainer.style.display = "flex";
+    if (window.initThumbnailMaker) window.initThumbnailMaker();
   } else {
     if (setContainer) setContainer.style.display = "block";
 
@@ -6476,6 +6969,7 @@ window.backToSelection = function () {
   const wpContainer = document.getElementById("world-planner-container");
   const setContainer = document.getElementById("set-planner-container");
   const fishContainer = document.getElementById("fish-calculator-container");
+  const tmContainer = document.getElementById("thumbnail-maker-container");
   const loadingScreen = document.getElementById("loading-screen");
   const loaderInitial = document.getElementById("loader-initial");
   const loadingSelection = document.getElementById("loading-selection");
@@ -6489,6 +6983,7 @@ window.backToSelection = function () {
   if (wpContainer) wpContainer.style.display = "none";
   if (setContainer) setContainer.style.display = "none";
   if (fishContainer) fishContainer.style.display = "none";
+  if (tmContainer) tmContainer.style.display = "none";
 
   // Hide SP UI
   if (hamburger) {
@@ -7021,16 +7516,20 @@ window.clearSpotlight = function() {
 };
 
 function saveActiveWorld() {
-  // USER REQUEST: Keep the bedrock foundation in the save file after all
-  localStorage.setItem('wp_active_grid_exclusive', JSON.stringify(wpGrid));
-  localStorage.setItem('wp_background_grid_exclusive', JSON.stringify(wpBackgroundGrid));
-  const viewport = document.getElementById('wp-viewport');
-  if (viewport) {
-    localStorage.setItem('wp_planner_theme_bg', viewport.style.getPropertyValue('--wp-theme-bg'));
-    localStorage.setItem('wp_planner_theme_id', wpCurrentTheme);
+  try {
+    // USER REQUEST: Keep the bedrock foundation in the save file after all
+    localStorage.setItem('wp_active_grid_exclusive', JSON.stringify(wpGrid));
+    localStorage.setItem('wp_background_grid_exclusive', JSON.stringify(wpBackgroundGrid));
+    const viewport = document.getElementById('wp-viewport');
+    if (viewport) {
+      localStorage.setItem('wp_planner_theme_bg', viewport.style.getPropertyValue('--wp-theme-bg'));
+      localStorage.setItem('wp_planner_theme_id', wpCurrentTheme);
+    }
+    // USER REQUEST: Save Inventory Hotbar
+    localStorage.setItem('wp_inventory', JSON.stringify(wpInventory));
+  } catch (error) {
+    console.warn('Silent active-world save failed due to storage limit:', error);
   }
-  // USER REQUEST: Save Inventory Hotbar
-  localStorage.setItem('wp_inventory', JSON.stringify(wpInventory));
 }
 
 
@@ -7717,7 +8216,11 @@ function checkAndShowWPTutorial() {
 }
 
 window.closeWPTutorial = function () {
-  localStorage.setItem('wp_tutorial_seen_v12', 'true');
+  try {
+    localStorage.setItem('wp_tutorial_seen_v12', 'true');
+  } catch (error) {
+    console.error('Failed to save tutorial state:', error);
+  }
   const popupId = 'wp-tutorial-popup';
   const el = document.getElementById(popupId);
   if (el) {
@@ -7736,6 +8239,7 @@ function setupWPToolbarEvents() {
     btn.onclick = () => {
       const tool = btn.getAttribute('data-tool');
       if (tool === 'blocks') {
+        window.wpCatalogueThumbPick = null;
         document.getElementById('blockCatalogue').classList.toggle('hidden');
         return;
       }
@@ -7771,6 +8275,65 @@ function setupWPToolbarEvents() {
   // Sync initial tool
   const activeBtn = document.querySelector('.wp-tool-btn.active[data-tool]');
   if (activeBtn) wpCurrentTool = activeBtn.getAttribute('data-tool');
+
+  // Drag to scroll on PC/Desktop for .wp-toolbar
+  const toolbar = document.getElementById('wp-toolbar');
+  if (toolbar) {
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+    let hasDragged = false;
+    let startPageX;
+
+    toolbar.addEventListener('mousedown', (e) => {
+      // Only drag with left click
+      if (e.button !== 0) return;
+      // Skip if clicking inputs/selectors
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+
+      isDown = true;
+      hasDragged = false;
+      toolbar.classList.add('grabbing');
+      startX = e.pageX - toolbar.offsetLeft;
+      startPageX = e.pageX;
+      scrollLeft = toolbar.scrollLeft;
+    });
+
+    toolbar.addEventListener('mouseleave', () => {
+      isDown = false;
+      toolbar.classList.remove('grabbing');
+    });
+
+    toolbar.addEventListener('mouseup', () => {
+      isDown = false;
+      toolbar.classList.remove('grabbing');
+    });
+
+    toolbar.addEventListener('mousemove', (e) => {
+      if (!isDown) return;
+
+      const deltaX = Math.abs(e.pageX - startPageX);
+      if (deltaX > 5) {
+        hasDragged = true;
+      }
+
+      if (hasDragged) {
+        e.preventDefault();
+        const x = e.pageX - toolbar.offsetLeft;
+        const walk = (x - startX) * 1.5; // Drag scroll speed factor
+        toolbar.scrollLeft = scrollLeft - walk;
+      }
+    });
+
+    // Capture-phase click intercept to prevent selecting a tool if user dragged
+    toolbar.addEventListener('click', (e) => {
+      if (hasDragged) {
+        e.preventDefault();
+        e.stopPropagation();
+        hasDragged = false; // reset
+      }
+    }, true);
+  }
 }
 
 window.toggleWPInventory = function () {
@@ -8091,8 +8654,13 @@ async function saveWPWorldToSlot(slotNumber) {
     timestamp: Date.now()
   };
 
-  localStorage.setItem(`wpSaveSlot_${slotNumber}`, JSON.stringify(saveData));
-  renderWPWorldSlots();
+  try {
+    localStorage.setItem(`wpSaveSlot_${slotNumber}`, JSON.stringify(saveData));
+    renderWPWorldSlots();
+  } catch (error) {
+    console.error('Failed to save world to slot:', error);
+    alert('Storage cache is full! Please delete some other slots (character/world/thumbnails) to free up space.');
+  }
 }
 
 function loadWPWorldFromSlot(slotNumber, skipToggle = false) {
@@ -8397,7 +8965,11 @@ window.handleWPWorldImport = async function(event) {
     alert(`World imported successfully into Slot ${next}!`);
   } catch (e) {
     console.error('Failed to import world file:', e);
-    alert('Failed to import world file. Please make sure the file is a valid BreaWorlds world export.');
+    if (e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || (e.message && e.message.toLowerCase().includes('quota')))) {
+      alert('Storage cache is full! Please delete some other slots (character/world/thumbnails) to free up space.');
+    } else {
+      alert('Failed to import world file. Please make sure the file is a valid BreaWorlds world export.');
+    }
   }
 };
 
@@ -8810,6 +9382,7 @@ function setupWPEvents() {
   let wpRightMouseDown = false;
 
   wpCanvas.onmousedown = (e) => {
+    document.body.classList.add('wp-dragging');
     wpLastGridX = -1;
     wpLastGridY = -1;
     if (e.button === 1) {
@@ -8987,6 +9560,7 @@ function setupWPEvents() {
       wpIsPanningActive = false;
       wpMarkDirty(); // Final full-quality redraw with animations
     }
+    document.body.classList.remove('wp-dragging');
   }
 
   // Use both window.onmouseup and document listener for maximum reliability
@@ -9076,6 +9650,7 @@ function setupWPEvents() {
 
   wpCanvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
+    document.body.classList.add('wp-dragging');
     wpTouchActive = true;
     wpTouchDidMove = false;
 
@@ -9326,6 +9901,10 @@ function setupWPEvents() {
   }, { passive: false });
 
   wpCanvas.oncontextmenu = (e) => e.preventDefault();
+
+  // Prevent native Safari gesture scaling to eliminate lag spikes on zoom
+  wpCanvas.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+  wpCanvas.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
 }
 
 let wpLastTouchX, wpLastTouchY;
@@ -10609,6 +11188,7 @@ function setupTabListeners() {
 function closeWPCatalogue() {
   const catalogue = document.getElementById('blockCatalogue');
   if (catalogue) catalogue.classList.add('hidden');
+  window.wpCatalogueThumbPick = null;
 }
 
 function renderWPCollection() {
@@ -10669,6 +11249,11 @@ function renderWPCollection() {
     if (wpSelectedBlockId === block.id) item.classList.add('active');
 
     item.onclick = () => {
+      if (typeof window.wpCatalogueThumbPick === 'function') {
+        window.wpCatalogueThumbPick(block);
+        closeWPCatalogue();
+        return;
+      }
       wpSelectedBlockId = block.id;
       pushToWPInventory(block.id);
       renderWPCollection(); 
@@ -10791,9 +11376,12 @@ function setWPTheme(themeId, fromNetwork = false) {
   if (viewport) {
     viewport.style.setProperty('--wp-theme-bg', `url("${theme.src}")`);
     wpCurrentTheme = themeId;
-    // Isolated keys to prevent leakage into main app theme
-    localStorage.setItem('wp_planner_theme_bg', `url("${theme.src}")`);
-    localStorage.setItem('wp_planner_theme_id', themeId);
+    try {
+      localStorage.setItem('wp_planner_theme_bg', `url("${theme.src}")`);
+      localStorage.setItem('wp_planner_theme_id', themeId);
+    } catch (error) {
+      console.error('Failed to save active theme options:', error);
+    }
   }
 
   // Sync to other players
@@ -11454,7 +12042,11 @@ function initWhatsNewModal() {
     if (!confirmBtn.disabled) {
       overlay.style.display = 'none';
       // Set confirmation flag in localStorage
-      localStorage.setItem('whats_new_v251_confirmed', 'true');
+      try {
+        localStorage.setItem('whats_new_v251_confirmed', 'true');
+      } catch (error) {
+        console.error('Failed to save confirmation flag:', error);
+      }
     }
   };
   
