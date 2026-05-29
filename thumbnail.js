@@ -18,7 +18,7 @@
     if (resType === 'instagram') { w = 720; h = 720; }
     else if (resType === 'tiktok') { w = 405; h = 720; }
     else if (resType === 'insta-portrait') { w = 576; h = 720; }
-    
+
     return {
       x: w / 2 - (objWidth || 0) / 2,
       y: h / 2 - (objHeight || 0) / 2
@@ -461,7 +461,7 @@
           let objects = [];
           let vEnabled = false;
           let vIntensity = 0.55;
-          
+
           if (Array.isArray(data.objects)) {
             objects = data.objects;
             vEnabled = !!data.vignetteEnabled;
@@ -677,17 +677,17 @@
       }
 
       // Do NOT deselect or lasso if clicking inside an object (except the background theme layer or locked layers), selection handles, property panel, sidebar, dock, or catalog/modal buttons
-      if ((clickedObjEl && !isThemeClick && !isLockedClick) || 
-          e.target.closest('.tm-layers-dock') || 
-          e.target.closest('.tm-property-panel') ||
-          e.target.closest('.wp-catalogue') ||
-          e.target.closest('.wp-popup') ||
-          e.target.closest('.tm-toolbar') ||
-          e.target.closest('button') ||
-          e.target.closest('.tm-btn-primary') ||
-          e.target.closest('.tm-btn-secondary') ||
-          e.target.closest('input') ||
-          e.target.closest('select')) {
+      if ((clickedObjEl && !isThemeClick && !isLockedClick) ||
+        e.target.closest('.tm-layers-dock') ||
+        e.target.closest('.tm-property-panel') ||
+        e.target.closest('.wp-catalogue') ||
+        e.target.closest('.wp-popup') ||
+        e.target.closest('.tm-toolbar') ||
+        e.target.closest('button') ||
+        e.target.closest('.tm-btn-primary') ||
+        e.target.closest('.tm-btn-secondary') ||
+        e.target.closest('input') ||
+        e.target.closest('select')) {
         return;
       }
 
@@ -741,14 +741,14 @@
 
             const rect = obj.el.getBoundingClientRect();
             // Check intersection of element's bounding rect with lasso
-            const intersects = !(rect.left > left + width || 
-                                 rect.right < left || 
-                                 rect.top > top + height || 
-                                 rect.bottom < top);
+            const intersects = !(rect.left > left + width ||
+              rect.right < left ||
+              rect.top > top + height ||
+              rect.bottom < top);
 
             // Check if pointer itself is hovering over the element
             const pointerHover = (moveEv.clientX >= rect.left && moveEv.clientX <= rect.right &&
-                                  moveEv.clientY >= rect.top && moveEv.clientY <= rect.bottom);
+              moveEv.clientY >= rect.top && moveEv.clientY <= rect.bottom);
 
             if (intersects || pointerHover) {
               wsHoveredIds.add(obj.id);
@@ -788,7 +788,7 @@
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp);
     });
-    
+
     const propPanel = document.getElementById('tm-property-panel');
     if (propPanel) {
       propPanel.addEventListener('change', () => {
@@ -798,16 +798,16 @@
 
     const imgUp = document.getElementById('tm-image-upload');
     if (imgUp) imgUp.value = '';
-    
+
     // Automatically load the auto-saved workspace!
     if (window.tmLoadAutoSavedWorkspace) window.tmLoadAutoSavedWorkspace();
-    
+
     // Ensure the theme and workspace are correctly sized upon initialization
     const activeResBtn = document.querySelector('.tm-res-btn.active');
     if (activeResBtn && window.tmSetResolution) {
       window.tmSetResolution(activeResBtn.getAttribute('data-res'));
     }
-    
+
     tmRenderLayersPanel();
     if (window.tmUpdateVignetteUI) window.tmUpdateVignetteUI();
     if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -876,7 +876,7 @@
               obj.scale = parseFloat(newScale.toFixed(2));
               applyTransform(obj);
             });
-            
+
             // Sync properties panel scale slider if active
             const primaryObj = selected();
             if (primaryObj) {
@@ -957,10 +957,10 @@
       if (!raw) return;
       let data;
       try { data = JSON.parse(raw); } catch { return; }
-      
+
       const card = document.createElement('div');
       card.className = 'tm-save-slot-card';
-      
+
       if (data.previewImage) {
         const preview = document.createElement('div');
         preview.className = 'tm-save-slot-preview';
@@ -971,20 +971,20 @@
         preview.style.imageRendering = 'pixelated';
         card.appendChild(preview);
       }
-      
+
       const lbl = document.createElement('div');
       lbl.className = 'tm-save-slot-label';
       lbl.textContent = data.title || 'Slot ' + num;
       card.appendChild(lbl);
-      
+
       card.addEventListener('click', () => {
         const selObj = selected();
         if (selObj && selObj.type === 'character') {
           if (window.tmPushHistoryState) window.tmPushHistoryState();
-          
+
           selObj.data = data;
           if (data.pivots) selObj.pivots = data.pivots;
-          
+
           // Re-determine special skin and skinColor
           selObj.skinType = (function () {
             let type = data.skinType || 'normal';
@@ -1040,10 +1040,10 @@
 
             // Rebuild DOM inside existing element
             tmBuildCharacterDOM(selObj.el, data, w, h);
-            
+
             // Reset visual wrapping and apply transformations/filters
             applyTransform(selObj);
-            
+
             // If the slot has an expression, apply it
             if (data.expression) {
               selObj.expression = data.expression;
@@ -1051,7 +1051,7 @@
             } else {
               selObj.expression = null;
             }
-            
+
             tmSelectObject(selObj.id);
             tmRenderLayersPanel();
             tmAutoSaveWorkspace();
@@ -1097,7 +1097,7 @@
     const grid = document.getElementById('tm-thumbnail-slots-grid');
     if (!grid) return;
     grid.innerHTML = '';
-    
+
     const saves = tmGetThumbnailSaves();
     saves.forEach(slot => {
       const card = document.createElement('div');
@@ -1108,7 +1108,7 @@
       card.style.height = 'auto';
       card.style.padding = '0';
       card.style.overflow = 'hidden';
-      
+
       const preview = document.createElement('div');
       preview.className = 'tm-save-slot-preview';
       preview.style.height = '120px';
@@ -1128,17 +1128,17 @@
       label.style.flexDirection = 'column';
       label.style.gap = '4px';
       label.style.padding = '10px';
-      
+
       const title = document.createElement('span');
       title.textContent = slot.title;
       title.style.fontWeight = 'bold';
       title.style.fontSize = '13px';
       title.style.color = '#fff';
       label.appendChild(title);
-      
+
       const date = document.createElement('span');
       const d = new Date(slot.timestamp);
-      date.textContent = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      date.textContent = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       date.style.fontSize = '10px';
       date.style.color = 'rgba(255,255,255,0.4)';
       label.appendChild(date);
@@ -1167,7 +1167,7 @@
         e.stopPropagation();
         tmLoadThumbnailSave(slot.id);
       };
-      
+
       const overwriteBtn = document.createElement('button');
       overwriteBtn.style.flex = '1';
       overwriteBtn.style.background = 'rgba(168, 218, 220, 0.1)';
@@ -1211,7 +1211,7 @@
   window.tmCreateNewThumbnailSave = async function () {
     const ws = document.getElementById('tm-workspace');
     if (!ws) return;
-    
+
     const name = prompt("Enter a name for this thumbnail save:", "My Thumbnail " + (tmGetThumbnailSaves().length + 1));
     if (!name) return;
 
@@ -1247,7 +1247,7 @@
     const saves = tmGetThumbnailSaves();
     saves.push(newSave);
     tmSaveThumbnailSaves(saves);
-    
+
     tmRenderThumbnailSlots();
   };
 
@@ -1255,7 +1255,7 @@
     const saves = tmGetThumbnailSaves();
     const save = saves.find(s => s.id === id);
     if (!save) return;
-    
+
     if (confirm(`Are you sure you want to load "${save.title}"? Your current work will be replaced.`)) {
       if (window.tmPushHistoryState) window.tmPushHistoryState();
       tmState.nextId = save.nextId || tmState.nextId;
@@ -1270,11 +1270,11 @@
     const saves = tmGetThumbnailSaves();
     const saveIdx = saves.findIndex(s => s.id === id);
     if (saveIdx === -1) return;
-    
+
     if (confirm(`Are you sure you want to overwrite "${saves[saveIdx].title}" with your current workspace?`)) {
       const ws = document.getElementById('tm-workspace');
       if (!ws) return;
-      
+
       const wasSelected = tmState.selectedId;
       tmDeselect();
 
@@ -1299,7 +1299,7 @@
       saves[saveIdx].nextId = tmState.nextId;
       saves[saveIdx].vignetteEnabled = snapshot.vignetteEnabled;
       saves[saveIdx].vignetteIntensity = snapshot.vignetteIntensity;
-      
+
       tmSaveThumbnailSaves(saves);
       tmRenderThumbnailSlots();
     }
@@ -1309,7 +1309,7 @@
     let saves = tmGetThumbnailSaves();
     const save = saves.find(s => s.id === id);
     if (!save) return;
-    
+
     if (confirm(`Are you sure you want to delete "${save.title}"?`)) {
       saves = saves.filter(s => s.id !== id);
       tmSaveThumbnailSaves(saves);
@@ -1425,7 +1425,7 @@
       id: charId, type: 'character', el: root,
       data: saveData,
       x: startX, y: startY, width: w, height: h,
-      scale: 0.33, rotation: 0,
+      scale: 0.33, stretchX: 1, stretchY: 1, rotation: 0,
       headRotation: 0, armRotation: 0, baseArmRotation: 0,
       opacity: 1, inverted: false,
       headInverted: false, armInverted: false, baseArmInverted: false,
@@ -1552,12 +1552,14 @@
     const height = obj.height !== undefined ? obj.height : 100;
     const scale = obj.scale !== undefined ? obj.scale : 1;
     const rotation = obj.rotation !== undefined ? obj.rotation : 0;
+    const stretchX = obj.stretchX !== undefined ? obj.stretchX : 1;
+    const stretchY = obj.stretchY !== undefined ? obj.stretchY : 1;
 
     // Characters use center-based positioning
     if (obj.type === 'character') {
       let t = 'translate(' + (x * q) + 'px,' + (y * q) + 'px)';
       t += ' rotate(' + rotation + 'deg)';
-      t += ' scale(' + (scale * q) + ')';
+      t += ' scale(' + (scale * stretchX * q) + ',' + (scale * stretchY * q) + ')';
       if (obj.inverted) t += ' scaleX(-1)';
       t += ' translate(-50%,-50%)';
       el.style.position = 'absolute';
@@ -1566,17 +1568,20 @@
     } else {
       // Non-characters: top-left based (but center-based if nested in character)
       let t = '';
-      let visualScale = scale;
+      let visualScale = scale * Math.max(stretchX, stretchY);
       if (obj.parentId) {
         const p = getObj(obj.parentId);
         const pScale = p && p.scale !== undefined ? p.scale : 1;
-        visualScale = scale * pScale;
+        const pStretchX = p && p.stretchX !== undefined ? p.stretchX : 1;
+        const pStretchY = p && p.stretchY !== undefined ? p.stretchY : 1;
+        visualScale = scale * pScale * Math.max(stretchX, stretchY);
         const centerX = p ? p.width / 2 : 118.5;
         const centerY = p ? p.height / 2 : 141;
-        // Nested objects: parent's scale(ps*q) already handles magnification
+        // Nested objects: parent's scale(ps*q) already handles magnification.
+        // Divide by parent's stretch factors to prevent inheriting stretching distortion.
         t = 'translate(' + (centerX + x) + 'px, ' + (centerY + y) + 'px)';
         t += ' rotate(' + rotation + 'deg)';
-        t += ' scale(' + scale + ')';
+        t += ' scale(' + ((scale * stretchX) / pStretchX) + ',' + ((scale * stretchY) / pStretchY) + ')';
         if (obj.inverted) t += ' scaleX(-1)';
         t += ' translate(-50%,-50%)';
       } else {
@@ -1585,9 +1590,9 @@
         t = 'translate(' + centerX + 'px,' + centerY + 'px)';
         t += ' rotate(' + rotation + 'deg)';
         if (obj.isTheme) {
-          t += ' scale(' + scale + ')';
+          t += ' scale(' + (scale * stretchX) + ',' + (scale * stretchY) + ')';
         } else {
-          t += ' scale(' + (scale * q) + ')';
+          t += ' scale(' + (scale * stretchX * q) + ',' + (scale * stretchY * q) + ')';
         }
         if (obj.inverted) t += ' scaleX(-1)';
         t += ' translate(-50%,-50%)';
@@ -1605,7 +1610,7 @@
     }
 
     // Counter-scale outline and handles to keep them constant size across all scale levels
-    const finalVisualScale = (typeof visualScale === 'number') ? visualScale : scale;
+    const finalVisualScale = (typeof visualScale === 'number') ? visualScale : scale * Math.max(stretchX, stretchY);
     if (finalVisualScale && finalVisualScale !== 1) {
       const scaleFactor = 1 / finalVisualScale;
       el.style.outlineWidth = (2 * scaleFactor) + 'px';
@@ -1670,7 +1675,7 @@
     }
 
     const filters = [];
-    
+
     const applySharedFilters = (arr) => {
       if (obj.blur > 0) arr.push('blur(' + obj.blur + 'px)');
       if (obj.hue) arr.push('hue-rotate(' + obj.hue + 'deg)');
@@ -1680,7 +1685,7 @@
       if (obj.grayscale > 0) arr.push(`grayscale(${obj.grayscale}%)`);
       if (obj.sepia > 0) arr.push(`sepia(${obj.sepia}%)`);
     };
-    
+
     if (obj.isTheme) {
       const themeFilters = [];
       applySharedFilters(themeFilters);
@@ -1778,6 +1783,15 @@
       const f = obj.backFade || 0;
       fade.style.opacity = String(Math.max(0, Math.min(1, f)));
     }
+
+    // Update all child elements parented to this object to cancel out parent scale/stretch distortion dynamically
+    if (obj.id && typeof tmState !== 'undefined' && tmState.objects) {
+      tmState.objects.forEach(child => {
+        if (child.parentId === obj.id) {
+          applyTransform(child, q);
+        }
+      });
+    }
   }
 
   // â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• â• 
@@ -1794,11 +1808,11 @@
       // Check if another object is currently selected and the click lies inside its bounding rect
       const sel = selected();
       dragTargetObj = obj; // Reset drag target to clicked object
-      
+
       if (sel && sel.id !== obj.id && sel.el) {
         const selRect = sel.el.getBoundingClientRect();
         if (e.clientX >= selRect.left && e.clientX <= selRect.right &&
-            e.clientY >= selRect.top && e.clientY <= selRect.bottom) {
+          e.clientY >= selRect.top && e.clientY <= selRect.bottom) {
           // Redirect selection and drag to the currently selected object!
           dragTargetObj = sel;
         }
@@ -1813,7 +1827,7 @@
         // Let it bubble up to the global document pointerdown listener to allow starting a selection lasso
         return;
       }
-      
+
       // Transparent click check for characters to allow clicking beside them to deselect
       if (dragTargetObj.type === 'character') {
         const targetEl = dragTargetObj.el;
@@ -1832,28 +1846,28 @@
       }
 
       e.stopPropagation();
-      
+
       // If clicked item is already part of the multi-selection, preserve the multi-selection!
       const isAlreadySelected = tmState.selectedIds && tmState.selectedIds.includes(dragTargetObj.id);
       if (!isAlreadySelected) {
         tmSelectObject(dragTargetObj.id);
       }
-      
+
       dragging = true;
       document.body.classList.add('tm-dragging');
       sx = e.clientX; sy = e.clientY;
-      
+
       // Gather all objects that should be dragged together
       const dragGroup = (tmState.selectedIds && tmState.selectedIds.length > 0)
         ? tmState.selectedIds.map(id => getObj(id)).filter(Boolean)
         : [dragTargetObj];
-        
+
       initialPositions = dragGroup.map(o => ({
         obj: o,
         ox: o.x,
         oy: o.y
       }));
-      
+
       el.style.cursor = 'grabbing';
       try { el.setPointerCapture(e.pointerId); } catch (err) { }
     });
@@ -1863,7 +1877,7 @@
         endDrag(e);
         return;
       }
-      
+
       let wsScale = 1;
       const ws = document.getElementById('tm-workspace');
       if (ws && ws.style.transform) {
@@ -1880,7 +1894,7 @@
         const targetObj = pos.obj;
         let odx = dx;
         let ody = dy;
-        
+
         // If nested, account for parent scale, rotation, and inversion (horizontal flip)
         if (targetObj.parentId) {
           const p = getObj(targetObj.parentId);
@@ -1966,7 +1980,7 @@
       document.body.classList.remove('tm-dragging');
       el.style.cursor = 'grab';
       try { el.releasePointerCapture(e.pointerId); } catch { }
-      
+
       // Push history if any object's position changed
       let hasMoved = initialPositions.some(pos => pos.obj.x !== pos.ox || pos.obj.y !== pos.oy);
       if (hasMoved) {
@@ -2044,12 +2058,17 @@
       startW: obj.width, startH: obj.height,
       startObjX: obj.x, startObjY: obj.y,
       ratio: obj.width / obj.height,
+      startScale: obj.scale || 1,
+      startStretchX: obj.stretchX !== undefined ? obj.stretchX : 1,
+      startStretchY: obj.stretchY !== undefined ? obj.stretchY : 1,
       selectedObjects: dragGroup.map(o => ({
         obj: o,
         startW: o.width, startH: o.height,
         startObjX: o.x, startObjY: o.y,
         ratio: o.width / o.height,
-        startScale: o.scale || 1
+        startScale: o.scale || 1,
+        startStretchX: o.stretchX !== undefined ? o.stretchX : 1,
+        startStretchY: o.stretchY !== undefined ? o.stretchY : 1
       }))
     };
     document.body.classList.add('tm-dragging');
@@ -2060,7 +2079,7 @@
   function onResizing(e) {
     if (!resizeData) return;
     const { obj, corner, startX, startY, startW, startH, startObjX, startObjY, ratio, selectedObjects } = resizeData;
-    
+
     let wsScale = 1;
     const ws = document.getElementById('tm-workspace');
     if (ws && ws.style.transform) {
@@ -2073,51 +2092,127 @@
     let dx = (e.clientX - startX) / wsScale / TM_QUALITY;
     let dy = (e.clientY - startY) / wsScale / TM_QUALITY;
 
-    // Calculate scale factor relative to the dragged object
-    let scaleRatio = 1;
-    if (obj.type === 'character') {
-      let dist = (corner === 'br' || corner === 'tl') ? (dx + dy) : (dx - dy);
-      if (corner === 'bl') dist = -dx + dy;
-      if (corner === 'tr') dist = dx - dy;
-      if (corner === 'tl') dist = -dx - dy;
-      if (corner === 'br') dist = dx + dy;
+    // Lock dragMode if not already locked
+    if (!resizeData.dragMode) {
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance > 8) {
+        const rad = Math.atan2(dy, dx);
+        const deg = Math.abs(rad * 180 / Math.PI);
+        let qDeg = deg;
+        if (qDeg > 90) qDeg = 180 - qDeg;
 
-      let scaleChange = dist * 0.005;
-      let startScale = selectedObjects.find(info => info.obj.id === obj.id)?.startScale || 1;
-      let newScale = startScale + scaleChange;
-      if (newScale < 0.1) newScale = 0.1;
-      scaleRatio = newScale / startScale;
-    } else {
-      let nw = startW;
-      if (corner === 'br') nw = startW + dx;
-      else if (corner === 'bl') nw = startW - dx;
-      else if (corner === 'tr') nw = startW + dx;
-      else if (corner === 'tl') nw = startW - dx;
-      
-      if (nw < 20) nw = 20;
-      scaleRatio = nw / startW;
+        if (qDeg < 22.5) {
+          resizeData.dragMode = 'stretchX';
+        } else if (qDeg > 67.5) {
+          resizeData.dragMode = 'stretchY';
+        } else {
+          resizeData.dragMode = 'scale';
+        }
+      } else {
+        return; // Wait for distance threshold
+      }
     }
+
+    const mode = resizeData.dragMode;
 
     selectedObjects.forEach(info => {
       const targetObj = info.obj;
-      if (targetObj.type === 'character') {
-        let newScale = info.startScale * scaleRatio;
-        if (newScale < 0.1) newScale = 0.1;
-        targetObj.scale = newScale;
-      } else {
-        let newW = info.startW * scaleRatio;
-        let newH = info.startH * scaleRatio;
-        if (newW < 20) newW = 20;
-        if (newH < 20) newH = 20;
 
-        targetObj.width = Math.round(newW);
-        targetObj.height = Math.round(newH);
+      // Swap logical corners for horizontal resizing if flipped horizontally
+      let effCorner = corner;
+      if (targetObj.inverted) {
+        if (corner === 'br') effCorner = 'bl';
+        else if (corner === 'bl') effCorner = 'br';
+        else if (corner === 'tr') effCorner = 'tl';
+        else if (corner === 'tl') effCorner = 'tr';
       }
+
+      if (mode === 'scale') {
+        // Uniform Scale
+        let scaleRatio = 1;
+        if (targetObj.type === 'character') {
+          let dist = (effCorner === 'br' || effCorner === 'tl') ? (dx + dy) : (dx - dy);
+          if (effCorner === 'bl') dist = -dx + dy;
+          if (effCorner === 'tr') dist = dx - dy;
+          if (effCorner === 'tl') dist = -dx - dy;
+          if (effCorner === 'br') dist = dx + dy;
+
+          // Divide by 2 to align sensitivity with single-axis stretchX/stretchY modes
+          let scaleChange = (dist / 2) * 0.005;
+          let newScale = info.startScale + scaleChange;
+          if (newScale < 0.1) newScale = 0.1;
+          targetObj.scale = newScale;
+        } else {
+          let nw = info.startW;
+          // Dampen horizontal delta to balance quadratic area growth and match stretch feel
+          const dampenedDx = dx * 0.6;
+          if (effCorner === 'br') nw = info.startW + dampenedDx;
+          else if (effCorner === 'bl') nw = info.startW - dampenedDx;
+          else if (effCorner === 'tr') nw = info.startW + dampenedDx;
+          else if (effCorner === 'tl') nw = info.startW - dampenedDx;
+
+          if (nw < 20) nw = 20;
+          scaleRatio = nw / info.startW;
+          
+          let newW = info.startW * scaleRatio;
+          let newH = info.startH * scaleRatio;
+          if (newW < 20) newW = 20;
+          if (newH < 20) newH = 20;
+
+          targetObj.width = Math.round(newW);
+          targetObj.height = Math.round(newH);
+        }
+      } else if (mode === 'stretchX') {
+        // Stretch X
+        let scaleRatioX = 1;
+        if (targetObj.type === 'character') {
+          let distX = (effCorner === 'br' || effCorner === 'tr') ? dx : -dx;
+          let scaleChangeX = distX * 0.005;
+          let newStretchX = info.startStretchX + scaleChangeX;
+          if (newStretchX < 0.1) newStretchX = 0.1;
+          targetObj.stretchX = newStretchX;
+        } else {
+          let nw = info.startW;
+          if (effCorner === 'br' || effCorner === 'tr') nw = info.startW + dx;
+          else if (effCorner === 'bl' || effCorner === 'tl') nw = info.startW - dx;
+
+          if (nw < 20) nw = 20;
+          scaleRatioX = nw / info.startW;
+          let newStretchX = info.startStretchX * scaleRatioX;
+          if (newStretchX < 0.1) newStretchX = 0.1;
+          targetObj.stretchX = newStretchX;
+        }
+      } else if (mode === 'stretchY') {
+        // Stretch Y
+        let scaleRatioY = 1;
+        if (targetObj.type === 'character') {
+          let distY = (effCorner === 'br' || effCorner === 'bl') ? dy : -dy;
+          let scaleChangeY = distY * 0.005;
+          let newStretchY = info.startStretchY + scaleChangeY;
+          if (newStretchY < 0.1) newStretchY = 0.1;
+          targetObj.stretchY = newStretchY;
+        } else {
+          let nh = info.startH;
+          if (effCorner === 'br' || effCorner === 'bl') nh = info.startH + dy;
+          else if (effCorner === 'tr' || effCorner === 'tl') nh = info.startH - dy;
+
+          if (nh < 20) nh = 20;
+          scaleRatioY = nh / info.startH;
+          let newStretchY = info.startStretchY * scaleRatioY;
+          if (newStretchY < 0.1) newStretchY = 0.1;
+          targetObj.stretchY = newStretchY;
+        }
+      }
+
       applyTransform(targetObj);
     });
 
-    const slider = document.getElementById('tm-prop-scale');
-    if (slider) slider.value = obj.scale;
+    const sliderScale = document.getElementById('tm-prop-scale');
+    if (sliderScale) sliderScale.value = obj.scale;
+    const sliderStretchX = document.getElementById('tm-prop-stretch-x');
+    if (sliderStretchX) sliderStretchX.value = obj.stretchX !== undefined ? obj.stretchX : 1;
+    const sliderStretchY = document.getElementById('tm-prop-stretch-y');
+    if (sliderStretchY) sliderStretchY.value = obj.stretchY !== undefined ? obj.stretchY : 1;
   }
 
   function stopResizing() {
@@ -2214,7 +2309,7 @@
       if (!obj) return;
       obj.el.classList.add('tm-selected');
       obj.el.classList.add('selected');
-      
+
       // Add handles to the primary one, so they can drag/scale/rotate using its handles
       if (id === tmState.selectedId && !obj.isLocked && !obj.isTheme) {
         addHandles(obj.el, obj);
@@ -2249,6 +2344,8 @@
     // Sync sliders
     const s = (sel, v) => { const e = document.getElementById(sel); if (e) e.value = v; };
     s('tm-prop-scale', obj.scale);
+    s('tm-prop-stretch-x', obj.stretchX !== undefined ? obj.stretchX : 1);
+    s('tm-prop-stretch-y', obj.stretchY !== undefined ? obj.stretchY : 1);
     s('tm-prop-rotation', obj.rotation);
     s('tm-prop-opacity', obj.opacity);
     s('tm-prop-blur', obj.blur || 0);
@@ -2268,7 +2365,7 @@
     if (intensityGroup) {
       intensityGroup.style.display = obj.vignetteEnabled ? '' : 'none';
     }
-    
+
     // Toggle UI visibility
     const hueGrp = document.getElementById('tm-prop-group-hue');
     if (hueGrp) hueGrp.style.display = (obj.type === 'character') ? 'none' : '';
@@ -2283,13 +2380,19 @@
 
     // Hide Scale, Rotation, and Flip controls for theme layers
     const scaleSlider = document.getElementById('tm-prop-scale');
+    const stretchXSlider = document.getElementById('tm-prop-stretch-x');
+    const stretchYSlider = document.getElementById('tm-prop-stretch-y');
     const rotSlider = document.getElementById('tm-prop-rotation');
     const flipCheckbox = document.getElementById('tm-prop-flip');
     const scaleGroup = scaleSlider ? scaleSlider.closest('.tm-prop-group') : null;
+    const stretchXGroup = stretchXSlider ? stretchXSlider.closest('.tm-prop-group') : null;
+    const stretchYGroup = stretchYSlider ? stretchYSlider.closest('.tm-prop-group') : null;
     const rotGroup = rotSlider ? rotSlider.closest('.tm-prop-group') : null;
     const flipGroup = flipCheckbox ? flipCheckbox.closest('.tm-prop-group') : null;
 
     if (scaleGroup) scaleGroup.style.display = '';
+    if (stretchXGroup) stretchXGroup.style.display = '';
+    if (stretchYGroup) stretchYGroup.style.display = '';
     if (rotGroup) rotGroup.style.display = obj.isTheme ? 'none' : '';
     if (flipGroup) flipGroup.style.display = obj.isTheme ? 'none' : '';
 
@@ -2308,7 +2411,7 @@
       if (remExprBtn) {
         remExprBtn.style.display = obj.expression ? 'flex' : 'none';
       }
-      
+
       const exprRow = document.querySelector('.tm-expression-row');
       if (exprRow) {
         const skinType = tmGetSkinType(obj);
@@ -2417,7 +2520,7 @@
     function deleteObjectRecursive(targetObj) {
       const children = tmState.objects.filter(o => o.parentId === targetObj.id);
       children.forEach(child => deleteObjectRecursive(child));
-      
+
       if (targetObj.el) targetObj.el.remove();
       tmState.objects = tmState.objects.filter(o => o.id !== targetObj.id);
     }
@@ -2425,7 +2528,7 @@
     deleteObjectRecursive(obj);
 
     tmDeselect();
-    
+
     // Toggle active theme class on workspace if theme was deleted
     const wsElement = document.getElementById('tm-workspace');
     if (wsElement) {
@@ -2541,9 +2644,9 @@
     const selectedIds = tmState.selectedIds || [];
     const targets = selectedIds.length > 0 ? selectedIds.map(id => getObj(id)).filter(Boolean) : [selected()].filter(Boolean);
     if (targets.length === 0) return;
-    
+
     targets.forEach(obj => {
-      if (['scale', 'rotation', 'opacity', 'blur', 'glow', 'halo', 'backFade', 'hue', 'brightness', 'contrast', 'saturation', 'grayscale', 'sepia'].includes(prop)) {
+      if (['scale', 'stretchX', 'stretchY', 'rotation', 'opacity', 'blur', 'glow', 'halo', 'backFade', 'hue', 'brightness', 'contrast', 'saturation', 'grayscale', 'sepia'].includes(prop)) {
         obj[prop] = parseFloat(value);
       } else if (prop === 'inverted') {
         obj.inverted = !!value;
@@ -2600,7 +2703,7 @@
     const obj = {
       id, type: 'block', el: root,
       x: center.x, y: center.y, width: 120, height: 120,
-      scale: 1, rotation: 0, opacity: 1,
+      scale: 1, stretchX: 1, stretchY: 1, rotation: 0, opacity: 1,
       blur: 0, glow: 0, glowColor: '#ffffff',
       inverted: false, halo: 0, backFade: 0,
       data: { src, blockId: block.id },
@@ -2779,7 +2882,7 @@
     const obj = {
       id, type: 'item', el: root,
       x: center.x, y: center.y, width: 200, height: 200,
-      scale: 1, rotation: 0, opacity: 1,
+      scale: 1, stretchX: 1, stretchY: 1, rotation: 0, opacity: 1,
       blur: 0, glow: 0, glowColor: '#ffffff',
       inverted: false, halo: 0, backFade: 0,
       data: { src, label },
@@ -2803,12 +2906,18 @@
     if (m) m.classList.add('hidden');
   };
 
-  window.tmOpenConsumablesCatalogModal = function () {
+  window.tmOpenConsumablesCatalogModal = async function () {
     const m = document.getElementById('tm-consumables-catalog-modal');
     if (m) {
       m.classList.remove('hidden');
       const inp = document.getElementById('tm-consumables-search');
       if (inp) inp.value = '';
+      
+      // Load blocks/themes manifest if not already loaded so we can filter duplicates accurately
+      if (typeof loadWPManifest === 'function' && (typeof wpBlocks === 'undefined' || !wpBlocks.length)) {
+        await loadWPManifest();
+      }
+      
       tmRenderConsumablesCatalog();
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
@@ -2862,30 +2971,142 @@
     let combinedList = [...extraItems, ...manifestList];
 
     if (combinedList.length > 0) {
+      // Gather existing items from Set Planner menus
+      const existingItemSrcs = new Set();
+      const existingItemLabels = new Set();
+      if (typeof TM_ITEM_SUBMENU_IDS !== 'undefined') {
+        TM_ITEM_SUBMENU_IDS.forEach(subId => {
+          const ul = document.getElementById(subId);
+          if (!ul) return;
+          ul.querySelectorAll(':scope > li').forEach(li => {
+            const spriteSrc = tmResolveLiStaticSrc(li);
+            const iconSrc = li.querySelector('img')?.src;
+            const label = tmItemLabelFromLi(li);
+
+            if (spriteSrc) {
+              const cleanSprite = spriteSrc.toLowerCase();
+              existingItemSrcs.add(cleanSprite);
+              const fname = cleanSprite.split('/').pop().replace('.png', '').replace(/_\d+$/, '');
+              existingItemSrcs.add(fname);
+            }
+            if (iconSrc) {
+              const cleanIcon = iconSrc.toLowerCase();
+              existingItemSrcs.add(cleanIcon);
+              const fname = cleanIcon.split('/').pop().replace('.png', '').replace(/_\d+$/, '');
+              existingItemSrcs.add(fname);
+            }
+            if (label) {
+              existingItemLabels.add(label.trim().toLowerCase());
+              existingItemLabels.add(label.trim().toLowerCase().replace(/\s+/g, '_'));
+            }
+          });
+        });
+      }
+
+      // Gather existing blocks and themes from World Planner
       const blockIds = new Set((window.wpBlocks || []).map(b => b.id.toLowerCase()));
+      const blockNames = new Set((window.wpBlocks || []).map(b => b.name.toLowerCase().trim()));
+      const themeIds = new Set((window.wpManifestThemes || []).map(t => t.id.toLowerCase()));
+      const themeNames = new Set((window.wpManifestThemes || []).map(t => t.name.toLowerCase().trim()));
+
+      const duplicatePrefixes = [
+        'spr_hat_', 'hat_', 'spr_mask_', 'mask_',
+        'spr_hair_', 'hair_',
+        'spr_face_', 'face_',
+        'spr_eye_', 'eye_',
+        'spr_wing_', 'wing_',
+        'spr_cape_', 'cape_',
+        'spr_shirt_', 'shirt_',
+        'spr_pant_', 'pant_',
+        'spr_shoe_', 'shoe_',
+        'spr_pet_', 'pet_',
+        'spr_car_', 'car_',
+        'spr_float_', 'float_',
+        'spr_scarf_', 'scarf_',
+        'spr_wa_'
+      ];
+
       const consumables = combinedList.filter(path => {
-        const filename = path.split('/').pop().toLowerCase();
+        // 1. Hardcoded extra items (fish) always stay
+        if (extraItems.includes(path)) return true;
+
+        const pathLower = path.toLowerCase();
+        const filename = pathLower.split('/').pop();
         const foldername = path.split('/').slice(-2, -1)[0].toLowerCase();
-        // Don't filter out the manually added fishes/bottle even if they match wpBlocks
-        if (extraItems.includes(path)) {
-          const label = path.split('/').pop().replace('_0.png', '').replace('spr_', '').replace('ca_', '').replace('fishing_', '');
-          return !q || label.toLowerCase().includes(q) || path.toLowerCase().includes(q);
+        const cleanName = filename.replace(/_\d+\.png$/, '').replace(/\.png$/, '');
+
+        // 0. EXPLICIT DUPLICATES EXCLUSION REQUESTED BY USER
+        const fLower = foldername.toLowerCase();
+        const cLower = cleanName.toLowerCase();
+        if (fLower.includes('jester') || cLower.includes('jester')) return false;
+        if (fLower.includes('portal') || cLower.includes('portal')) return false;
+        if (fLower.includes('brick') || cLower.includes('brick')) return false;
+        if (fLower.includes('bg_') || cLower.includes('bg_') || fLower.includes('background') || cLower.includes('background') || fLower.includes('wall') || cLower.includes('wall')) return false;
+        if (fLower.includes('window') || cLower.includes('window')) return false;
+        if (fLower.includes('curtain') || cLower.includes('curtain')) return false;
+        if (fLower.includes('character_') || cLower.includes('character_')) return false;
+        if (fLower.includes('diaper') || cLower.includes('diaper')) return false;
+        if (fLower.includes('display') || cLower.includes('display')) return false;
+        if (fLower.includes('death') || cLower.includes('death')) return false;
+
+        // Exclude seeds (tiling parts) or helper assets
+        if (foldername.includes('seed') || cleanName.includes('seed') || foldername === 'spr_') return false;
+
+        // Exclude background themes / backgrounds
+        if (foldername.startsWith('bg_') || cleanName.startsWith('bg_') || foldername.includes('background') || cleanName.includes('background')) {
+          return false;
         }
-        if (blockIds.has(foldername) || blockIds.has(foldername.replace('spr_', ''))) return false;
-        if (foldername.includes('block') || foldername.includes('npc') || foldername.includes('door')) return false;
-        const label = path.split('/').pop().replace('_0.png', '').replace('spr_', '');
-        return !q || label.toLowerCase().includes(q) || path.toLowerCase().includes(q);
+        if (themeIds.has(foldername) || themeIds.has(cleanName)) return false;
+
+        // Exclude doors
+        if (foldername.includes('door') || cleanName.includes('door')) return false;
+
+        // Exclude wearable / character parts (e.g. spr_wa_...)
+        if (foldername.startsWith('spr_wa_') || cleanName.startsWith('spr_wa_')) return false;
+
+        // Exclude items matching Set Planner submenus prefixes
+        for (const prefix of duplicatePrefixes) {
+          if (foldername.startsWith(prefix) || cleanName.startsWith(prefix)) return false;
+        }
+
+        // Exclude matches in existing Set Planner items
+        if (existingItemSrcs.has(foldername) || existingItemSrcs.has(cleanName) || existingItemSrcs.has(pathLower)) return false;
+
+        // Exclude if cleanName matches an existing item label
+        const cleanNameNoSpr = cleanName.replace(/^spr_/, '').replace(/_/g, ' ').trim();
+        if (existingItemLabels.has(cleanNameNoSpr)) return false;
+
+        // Exclude if foldername matches an existing block ID or block name
+        if (blockIds.has(foldername) || blockIds.has(cleanName) || blockIds.has(cleanName.replace(/^spr_/, ''))) return false;
+        const cleanNameNoSprBlock = cleanName.replace(/^spr_fg_/, '').replace(/^spr_bg_/, '').replace(/^spr_/, '').replace(/_/g, ' ').trim();
+        if (blockNames.has(cleanNameNoSprBlock)) return false;
+
+        // Include NPCs, Consumables (NPCs and ca always stay if not already filtered)
+        const isNPC = foldername.includes('npc') || cleanName.includes('npc');
+        const isConsumable = foldername.startsWith('spr_ca_') || cleanName.startsWith('spr_ca_');
+        if (isNPC || isConsumable) return true;
+
+        // Filter out general blocks (anything containing "block" or "tile")
+        if (foldername.includes('block') || cleanName.includes('block') || foldername.includes('tile') || cleanName.includes('tile')) return false;
+
+        // Default include for anything else (UI elements, miscellaneous)
+        return true;
+      }).filter(path => {
+        if (!q) return true;
+        const cleanName = path.split('/').pop().toLowerCase().replace('_0.png', '')
+          .replace(/^spr_/, '').replace(/^fg_/, '').replace(/^ca_/, '').replace(/^wa_/, '').replace(/_/g, ' ');
+        return cleanName.includes(q) || path.toLowerCase().includes(q);
       });
 
       if (consumables.length > 0) {
         const grid = document.createElement('div');
         grid.className = 'tm-items-section-grid';
         consumables.forEach(path => {
-          let label = path.split('/').pop().replace('_0.png', '').replace('spr_', '');
-          if (extraItems.includes(path)) {
-            label = label.replace('ca_', '').replace('fishing_', '');
-          }
-          label = label.replace(/_/g, ' ');
+          let label = path.split('/').pop().replace('_0.png', '');
+          // Remove messy prefixes and clean up underscores
+          label = label.replace(/^spr_/, '').replace(/^fg_/, '').replace(/^ca_/, '').replace(/^wa_/, '');
+          label = label.replace(/_/g, ' ').trim();
+
           const cell = document.createElement('div');
           cell.className = 'wp-cat-item tm-item-catalog-cell';
           cell.title = path;
@@ -2896,7 +3117,7 @@
           cell.appendChild(img);
           const cap = document.createElement('span');
           cap.className = 'wp-cat-name';
-          cap.textContent = label.length > 28 ? label.slice(0, 26) + '\u2026' : label;
+          cap.textContent = label.length > 28 ? label.slice(0, 26) + '…' : label;
           cap.style.textTransform = 'capitalize';
           cell.appendChild(cap);
           cell.onclick = () => {
@@ -2942,7 +3163,7 @@
       const obj = {
         id, type: 'image', el: root,
         x: center.x, y: center.y, width: 360, height: 360,
-        scale: 1, rotation: 0, opacity: 1,
+        scale: 1, stretchX: 1, stretchY: 1, rotation: 0, opacity: 1,
         blur: 0, glow: 0, glowColor: '#ffffff',
         inverted: false, halo: 0, backFade: 0,
         data: { src: e.target.result },
@@ -2988,7 +3209,7 @@
       id, type: 'text', el: root, contentEl: content,
       text: 'Your title',
       x: center.x, y: center.y, width: 520, height: 120,
-      scale: 1, rotation: 0, opacity: 1,
+      scale: 1, stretchX: 1, stretchY: 1, rotation: 0, opacity: 1,
       blur: 0, glow: 0, glowColor: '#ffffff',
       inverted: false,
       fontSize: 56, color: '#ffffff',
@@ -3134,7 +3355,7 @@
       const obj = {
         id, type: 'image', el: root,
         x: 0, y: 0, width: w, height: h,
-        scale: 1.05, rotation: 0, opacity: 1,
+        scale: 1.05, stretchX: 1, stretchY: 1, rotation: 0, opacity: 1,
         blur: 0, glow: 0, glowColor: '#ffffff',
         inverted: false, halo: 0, backFade: 0,
         data: { src: theme.src, label: (theme.name || theme.id) + ' Theme' },
@@ -3343,7 +3564,7 @@
           const targetId = hoverTarget.dataset.layerId;
           tmMoveLayer(draggedId, targetId, hoverAction);
         }
-        
+
         hoverTarget = null;
         hoverAction = '';
       });
@@ -3646,10 +3867,10 @@
       if (!char) return null;
       const child = char.el.querySelector(
         subName === 'Head' ? '.tm-head-group' :
-        subName === 'Left Arm' ? '.tm-arm-group' :
-        subName === 'Right Arm' ? '.tm-base-arm-group' :
-        subName === 'Body (Rest)' ? '.tm-rest-group' :
-        subName === 'Cape (Above)' ? '.tm-capesabove-group' : 'none'
+          subName === 'Left Arm' ? '.tm-arm-group' :
+            subName === 'Right Arm' ? '.tm-base-arm-group' :
+              subName === 'Body (Rest)' ? '.tm-rest-group' :
+                subName === 'Cape (Above)' ? '.tm-capesabove-group' : 'none'
       );
       return { char, child };
     };
@@ -3839,7 +4060,7 @@
         } else {
           // Dragged into a character sibling
           const p = getObj(draggedObj.parentId);
-          
+
           if (!p.childOrder) {
             p.childOrder = ['base-arm', 'rest', 'head', 'capes-above', 'arm'];
           }
@@ -3973,7 +4194,7 @@
     console.log(`Resolution switched to ${type} (${width}x${height})`);
   };
 
-async function tmGenerateBakedCanvas(finalScale, onProgress) {
+  async function tmGenerateBakedCanvas(finalScale, onProgress) {
     const ws = document.getElementById('tm-workspace');
     if (!ws) return null;
 
@@ -3991,7 +4212,7 @@ async function tmGenerateBakedCanvas(finalScale, onProgress) {
         }
         return ctx;
       };
-      CanvasRenderingContext2D.prototype.drawImage = function(...args) {
+      CanvasRenderingContext2D.prototype.drawImage = function (...args) {
         this.imageSmoothingEnabled = false;
         this.mozImageSmoothingEnabled = false;
         this.webkitImageSmoothingEnabled = false;
@@ -4118,17 +4339,17 @@ async function tmGenerateBakedCanvas(finalScale, onProgress) {
         // 1. Box Blur on downscaled canvas (extremely smooth and fast)
         if (blurVal > 0) {
           const blurRadius = blurVal * scale;
-          
+
           // Determine downscale factor to keep performance optimal
           const maxDim = 250;
           let factor = 1;
           if (w > maxDim || h > maxDim) {
             factor = maxDim / Math.max(w, h);
           }
-          
+
           const downW = Math.max(1, Math.round(w * factor));
           const downH = Math.max(1, Math.round(h * factor));
-          
+
           const tempCanvas = document.createElement('canvas');
           tempCanvas.width = downW;
           tempCanvas.height = downH;
@@ -4136,14 +4357,14 @@ async function tmGenerateBakedCanvas(finalScale, onProgress) {
           tctx.imageSmoothingEnabled = true;
           // Use originalDrawImage to ensure smooth downscaling
           originalDrawImage.call(tctx, canvas, 0, 0, w, h, 0, 0, downW, downH);
-          
+
           // Apply manual box blur on the small canvas
           const r = Math.round(blurRadius * factor);
           if (r >= 1) {
             const imgData = tctx.getImageData(0, 0, downW, downH);
             const data = imgData.data;
             const temp = new Uint8ClampedArray(data.length);
-            
+
             // Horizontal pass
             for (let y = 0; y < downH; y++) {
               for (let x = 0; x < downW; x++) {
@@ -4166,7 +4387,7 @@ async function tmGenerateBakedCanvas(finalScale, onProgress) {
                 temp[idx + 3] = aSum / count;
               }
             }
-            
+
             // Vertical pass
             for (let x = 0; x < downW; x++) {
               for (let y = 0; y < downH; y++) {
@@ -4191,7 +4412,7 @@ async function tmGenerateBakedCanvas(finalScale, onProgress) {
             }
             tctx.putImageData(imgData, 0, 0);
           }
-          
+
           // Draw back onto original canvas with bilinear upscaling
           ctx.clearRect(0, 0, w, h);
           ctx.save();
@@ -4203,7 +4424,7 @@ async function tmGenerateBakedCanvas(finalScale, onProgress) {
 
         // 2. Pixel-level color filters
         const hasColorAdjustments = (hueVal !== 0) || (brightVal !== 100) || (contrastVal !== 100) ||
-                                   (satVal !== 100) || (grayVal > 0) || (sepiaVal > 0);
+          (satVal !== 100) || (grayVal > 0) || (sepiaVal > 0);
 
         if (hasColorAdjustments) {
           let imgData;
@@ -4218,15 +4439,15 @@ async function tmGenerateBakedCanvas(finalScale, onProgress) {
           const angle = hueVal * Math.PI / 180;
           const u = Math.cos(angle);
           const w_sin = Math.sin(angle);
-          
+
           const rY = 0.213 + u * 0.787 - w_sin * 0.213;
           const gY = 0.715 - u * 0.715 - w_sin * 0.715;
           const bY = 0.072 - u * 0.072 + w_sin * 0.928;
-          
+
           const rG = 0.213 - u * 0.213 + w_sin * 0.143;
           const gG = 0.715 + u * 0.285 + w_sin * 0.140;
           const bG = 0.072 - u * 0.072 - w_sin * 0.283;
-          
+
           const rB = 0.213 - u * 0.213 - w_sin * 0.787;
           const gB = 0.715 - u * 0.715 + w_sin * 0.715;
           const bB = 0.072 + u * 0.928 + w_sin * 0.072;
@@ -4340,9 +4561,9 @@ async function tmGenerateBakedCanvas(finalScale, onProgress) {
         const hasShadow = !!obj.enableShadow;
 
         const hasEffects = (blurVal > 0) || (glowVal > 0) || (hueVal !== 0) ||
-                           (brightVal !== 100) || (contrastVal !== 100) ||
-                           (satVal !== 100) || (grayVal > 0) || (sepiaVal > 0) || hasShadow ||
-                           !!obj.vignetteEnabled;
+          (brightVal !== 100) || (contrastVal !== 100) ||
+          (satVal !== 100) || (grayVal > 0) || (sepiaVal > 0) || hasShadow ||
+          !!obj.vignetteEnabled;
 
         // Skip theme layers that don't have any effects. If a theme layer has effects, it MUST be baked.
         if (obj.isTheme && !hasEffects) continue;
@@ -4441,7 +4662,7 @@ async function tmGenerateBakedCanvas(finalScale, onProgress) {
               try {
                 if (!cimg.complete) await new Promise(r => { cimg.onload = r; cimg.onerror = r; });
                 if (typeof cimg.decode === 'function') await cimg.decode();
-              } catch (e) {}
+              } catch (e) { }
             }));
 
             forceSharpContext();
@@ -4694,7 +4915,7 @@ async function tmGenerateBakedCanvas(finalScale, onProgress) {
             // Clear CSS filter during capture so it doesn't double-apply with baked image
             targetContent.style.filter = 'none';
             targetContent.style.outline = 'none';
-            
+
             // Prevent clipping of rotated/transformed elements
             targetContent.style.setProperty('overflow', 'visible', 'important');
             liveEl.style.setProperty('overflow', 'visible', 'important');
@@ -4708,7 +4929,7 @@ async function tmGenerateBakedCanvas(finalScale, onProgress) {
                   const bakedImg = document.createElement('img');
                   bakedImg.className = 'tm-baked-temp-img';
                   bakedImg.src = segmentBake.bakedPng;
-                  
+
                   const objBlur = parseFloat(obj.blur) || 0;
                   if (objBlur === 0) {
                     bakedImg.style.imageRendering = 'pixelated';
@@ -4755,7 +4976,7 @@ async function tmGenerateBakedCanvas(finalScale, onProgress) {
               const bakedImg = document.createElement('img');
               bakedImg.className = 'tm-baked-temp-img';
               bakedImg.src = obj._bakedPng;
-              
+
               const objBlur = parseFloat(obj.blur) || 0;
               if (objBlur === 0) {
                 bakedImg.style.imageRendering = 'pixelated';
@@ -4787,8 +5008,10 @@ async function tmGenerateBakedCanvas(finalScale, onProgress) {
       tmState.objects.forEach(obj => {
         if (obj.isTheme || obj.parentId) return;
         const s = obj.scale || 1;
-        const sw = (obj.width || 0) * s;
-        const sh = (obj.height || 0) * s;
+        const sx = s * (obj.stretchX !== undefined ? obj.stretchX : 1);
+        const sy = s * (obj.stretchY !== undefined ? obj.stretchY : 1);
+        const sw = (obj.width || 0) * sx;
+        const sh = (obj.height || 0) * sy;
         const rot = (obj.rotation || 0) * Math.PI / 180;
         let cx, cy;
         if (obj.type === 'character') {
@@ -4903,11 +5126,11 @@ async function tmGenerateBakedCanvas(finalScale, onProgress) {
       return finalCanvas;
     } finally {
       restoreContext();
-      
+
       if (vignetteEl) {
         vignetteEl.style.display = savedVignetteDisplay;
       }
-      
+
       // Restore CSS transform and margins back to live workspace instantly
       ws.style.transform = savedTransform;
       ws.style.margin = savedMargin;
@@ -5015,7 +5238,7 @@ async function tmGenerateBakedCanvas(finalScale, onProgress) {
   function tmGetSkinType(obj) {
     if (!obj || obj.type !== 'character') return 'normal';
     let type = obj.skinType || 'normal';
-    
+
     // Check in obj.data if available
     const data = obj.data;
     if (data) {
@@ -5037,7 +5260,7 @@ async function tmGenerateBakedCanvas(finalScale, onProgress) {
               }
             }
           }
-        } catch (e) {}
+        } catch (e) { }
       }
     }
     return type;
@@ -5403,21 +5626,21 @@ async function tmGenerateBakedCanvas(finalScale, onProgress) {
   window.tmResetWorkspace = function () {
     if (confirm("Are you sure you want to start over? This will completely clear your workspace!")) {
       if (window.tmPushHistoryState) window.tmPushHistoryState();
-      
+
       tmDeselect();
-      
+
       tmState.objects.forEach(obj => {
         if (obj.el) obj.el.remove();
       });
       tmState.objects = [];
       tmState.selectedId = null;
       window.tmCurrentWorkspaceThemeId = null;
-      
+
       const ws = document.getElementById('tm-workspace');
       if (ws) {
         ws.className = 'tm-workspace';
       }
-      
+
       tmAutoSaveWorkspace();
       tmRenderLayersPanel();
       updateUndoRedoUI();

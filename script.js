@@ -6754,16 +6754,153 @@ window.addEventListener('DOMContentLoaded', () => {
     populateUpdatesMenu();
   }
 });
-// Original Loading Logic Restored
+// Original Loading Logic Restored — now preloads World Planner assets during the loading screen
 const loadingStartTime = Date.now();
-window.addEventListener('load', () => {
+window.wpAssetsPreloaded = false; // Flag so we never preload again after first load
+
+window.addEventListener('load', async () => {
   const loadingScreen = document.getElementById('loading-screen');
   const loaderInitial = document.getElementById('loader-initial');
   const loadingSelection = document.getElementById('loading-selection');
+  const loaderProgressFill = document.querySelector('#loader-initial .loader-progress-fill');
 
   if (loadingScreen) {
+    // Private visitor tracking (fire-and-forget, doesn't block)
+    if (!sessionStorage.getItem('counted')) {
+      fetch('https://api.counterapi.dev/v1/breaworlds-set-planner/visits/up')
+        .then(() => sessionStorage.setItem('counted', 'true'))
+        .catch(() => { });
+    }
+
+    // Preload World Planner assets during the loading screen
+    // This replaces the old fake CSS progress animation with real progress
+    try {
+      // Stop the fake CSS grow animation and drive the bar with real progress
+      if (loaderProgressFill) {
+        loaderProgressFill.style.animation = 'progress-slide 2s linear infinite';
+        loaderProgressFill.style.width = '0%';
+      }
+
+      // Fetch manifest, parse blocks, load active world, then preload all used images
+      const manifestResponse = await fetch(`worldplanner/blocks_manifest.json?t=${Date.now()}`);
+      const manifestData = await manifestResponse.json();
+
+      // Build a temporary block map for preloading
+      const preloadBlocks = manifestData.blocks || [];
+      const preloadThemes = manifestData.themes || [];
+      const preloadBlockMap = {};
+      for (const b of preloadBlocks) preloadBlockMap[b.id] = b;
+
+      // Load saved world grid from localStorage to know which blocks to preload
+      const savedGrid = localStorage.getItem('wp_active_grid_exclusive') || localStorage.getItem('wp_active_grid');
+      const savedBGGrid = localStorage.getItem('wp_background_grid_exclusive');
+      const savedInventory = localStorage.getItem('wp_inventory');
+
+      const uniqueSrcs = new Set();
+      const uniqueBlockIds = new Set();
+
+      // Scan active world grid
+      if (savedGrid) {
+        try {
+          const gridData = JSON.parse(savedGrid);
+          for (let y = 0; y < gridData.length; y++) {
+            if (gridData[y]) {
+              for (let x = 0; x < gridData[y].length; x++) {
+                const cell = gridData[y][x];
+                if (cell) {
+                  const bid = (typeof cell === 'object') ? cell.id : cell;
+                  if (bid) uniqueBlockIds.add(bid);
+                }
+              }
+            }
+          }
+        } catch (e) { /* ignore parse errors */ }
+      }
+
+      // Scan background grid
+      if (savedBGGrid) {
+        try {
+          const bgData = JSON.parse(savedBGGrid);
+          for (let y = 0; y < bgData.length; y++) {
+            if (bgData[y]) {
+              for (let x = 0; x < bgData[y].length; x++) {
+                const cell = bgData[y][x];
+                if (cell) {
+                  const bid = (typeof cell === 'object') ? cell.id : cell;
+                  if (bid) uniqueBlockIds.add(bid);
+                }
+              }
+            }
+          }
+        } catch (e) { /* ignore parse errors */ }
+      }
+
+      // Scan saved inventory
+      if (savedInventory) {
+        try {
+          const invData = JSON.parse(savedInventory);
+          if (Array.isArray(invData)) invData.forEach(id => { if (id) uniqueBlockIds.add(id); });
+        } catch (e) { /* ignore parse errors */ }
+      }
+
+      // Default blocks
+      ['spr_fg_dirt', 'spr_fg_grass', 'spr_fg_obsidian_block', 'spr_fg_bedrock'].forEach(id => uniqueBlockIds.add(id));
+
+      // Theme backgrounds (preload all 15 themes to prevent black background when switching slots or themes)
+      if (Array.isArray(preloadThemes) && preloadThemes.length > 0) {
+        preloadThemes.forEach(t => {
+          if (t && t.src) uniqueSrcs.add(t.src);
+        });
+      } else {
+        const savedThemeId = localStorage.getItem('wp_planner_theme_id') || 'bg_forest';
+        const activeTheme = preloadThemes.find(t => t.id === savedThemeId);
+        if (activeTheme && activeTheme.src) uniqueSrcs.add(activeTheme.src);
+      }
+
+      // Resolve block IDs to image sources
+      uniqueBlockIds.forEach(id => {
+        const block = preloadBlockMap[id];
+        if (block) {
+          if (block.src) uniqueSrcs.add(block.src);
+          if (block.framesPath && block.frameCount > 0) {
+            for (let f = 0; f < block.frameCount; f++) {
+              uniqueSrcs.add(`${block.framesPath}${f}.png`);
+            }
+          }
+        }
+      });
+
+      const srcList = Array.from(uniqueSrcs);
+      const total = srcList.length;
+      let loadedCount = 0;
+
+      if (total > 0) {
+        const promises = srcList.map(src => {
+          return new Promise(resolve => {
+            const img = new Image();
+            if (window.location.protocol !== 'file:') img.crossOrigin = 'anonymous';
+            img.onload = () => { resolve(img); };
+            img.onerror = () => { resolve(null); };
+            img.src = src;
+          }).then(() => {
+            loadedCount++;
+            if (loaderProgressFill) {
+              loaderProgressFill.style.width = `${Math.min(100, Math.round((loadedCount / total) * 100))}%`;
+            }
+          });
+        });
+        await Promise.all(promises);
+      }
+
+      window.wpAssetsPreloaded = true;
+      console.log(`Pre-loaded ${total} World Planner assets during loading screen.`);
+    } catch (e) {
+      console.warn("Asset preloading during loading screen failed (will load on demand):", e);
+    }
+
+    // Ensure a minimum display time of 1.5s so the loading screen isn't a flash
     const elapsed = Date.now() - loadingStartTime;
-    const remaining = Math.max(0, 3000 - elapsed);
+    const remaining = Math.max(0, 1500 - elapsed);
 
     setTimeout(() => {
       // Replace bar with selection options
@@ -6771,14 +6908,11 @@ window.addEventListener('load', () => {
         loaderInitial.style.display = 'none';
         loadingSelection.style.display = 'flex';
 
-
         // Show "See What's New" button with matching fade
         const whatsNewBtn = document.querySelector('.whats-new-trigger-btn');
         if (whatsNewBtn) {
           whatsNewBtn.classList.add('visible');
         }
-
-
 
         // Show "Report Bugs" button with delay
         setTimeout(() => {
@@ -6787,20 +6921,11 @@ window.addEventListener('load', () => {
         }, 600);
 
         // Auto-show modal if not confirmed yet
-        // Auto-show modal if not confirmed yet
         if (!localStorage.getItem('whats_new_v251_confirmed')) {
           // Do not auto-show updates modal for new users anymore
-          // Only show when user clicks Updates in the menu
         }
       }
     }, remaining);
-
-    // Private visitor tracking
-    if (!sessionStorage.getItem('counted')) {
-      fetch('https://api.counterapi.dev/v1/breaworlds-set-planner/visits/up')
-        .then(() => sessionStorage.setItem('counted', 'true'))
-        .catch(() => { });
-    }
   }
 });
 
@@ -7241,6 +7366,11 @@ let wpBlocks = []; // Will be populated from manifest
 let wpManifestThemes = [];
 let wpCurrentTab = 'foreground';
 let wpCurrentTheme = 'bg_forest'; // Default theme ID
+
+// Export variables to window object for other scripts to use
+window.wpBlocks = wpBlocks;
+window.wpManifestThemes = wpManifestThemes;
+window.wpCurrentTheme = wpCurrentTheme;
 
 let wpGrid = []; // Foreground: Array of arrays [y][x]
 let wpBackgroundGrid = []; // Background: Array of arrays [y][x]
@@ -8063,7 +8193,7 @@ function disableWPSmoothing(ctx) {
   ctx.msImageSmoothingEnabled = false;
 }
 
-function initWorldPlanner() {
+async function initWorldPlanner() {
   wpCanvas = document.getElementById('worldCanvas');
   wpCtx = wpCanvas.getContext('2d');
   disableWPSmoothing(wpCtx);
@@ -8080,7 +8210,36 @@ function initWorldPlanner() {
     }
   }
 
-  loadWPManifest();
+  // CRITICAL SYNCHRONOUS HOT-FIX: Restore active theme background immediately before yielding to browser paint
+  const savedThemeId = localStorage.getItem('wp_planner_theme_id') || 'bg_forest';
+  const themeSrcMap = {
+    bg_desert: "worldplanner/Blocks/bg_desert/bg_desert_0.png",
+    bg_forest: "worldplanner/Blocks/bg_forest/bg_forest_0.png",
+    bg_halloween: "worldplanner/Blocks/bg_halloween/bg_halloween_0.png",
+    bg_light: "worldplanner/Blocks/bg_light/bg_light_0.png",
+    bg_midnight: "worldplanner/Blocks/bg_midnight/bg_midnight_0.png",
+    bg_newween: "worldplanner/Blocks/bg_newween/bg_newween_0.png",
+    bg_night: "worldplanner/Blocks/bg_night/bg_night_0.png",
+    bg_retro: "worldplanner/Blocks/bg_retro/bg_retro_0.png",
+    bg_space: "worldplanner/Blocks/bg_space/bg_space_0.png",
+    bg_spooky_new: "worldplanner/Blocks/bg_spooky_new/bg_spooky_new_0.png",
+    bg_summer: "worldplanner/Blocks/bg_summer/bg_summer_0.png",
+    bg_sunset: "worldplanner/Blocks/bg_sunset/bg_sunset_0.png",
+    bg_valentines: "worldplanner/Blocks/bg_valentines/bg_valentines_0.png",
+    bg_winter: "worldplanner/Blocks/bg_winter/bg_winter_0.png",
+    bg_darkness: "worldplanner/Blocks/bg_darkness/bg_darkness_0.png"
+  };
+  const initialThemeSrc = themeSrcMap[savedThemeId] || "worldplanner/Blocks/bg_forest/bg_forest_0.png";
+  const initialViewport = document.getElementById('wp-viewport');
+  if (initialViewport) {
+    initialViewport.style.setProperty('--wp-theme-bg', `url("${initialThemeSrc}")`);
+    const gridBg = document.getElementById('wp-grid-bg');
+    if (gridBg) {
+      gridBg.style.backgroundImage = `url("${initialThemeSrc}")`;
+    }
+  }
+
+  await loadWPManifest();
 
   // Initialize temp canvas for rainbow effect (and others)
   // Sized to viewport for correct masking
@@ -11094,12 +11253,127 @@ document.addEventListener('visibilitychange', () => {
 // O(1) block lookup map ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â  populated in loadWPManifest
 let wpBlockMap = {};
 
+// Utility: Preload a single World Planner image and add it to cache
+function preloadWPImage(src) {
+  if (wpImageCache[src] && wpImageCache[src].complete) {
+    return Promise.resolve(wpImageCache[src]);
+  }
+  return new Promise((resolve) => {
+    const img = new Image();
+    if (window.location.protocol !== 'file:') {
+      img.crossOrigin = 'anonymous';
+    }
+    img.onload = () => {
+      wpImageCache[src] = img;
+      wpMarkStaticDirty();
+      resolve(img);
+    };
+    img.onerror = () => {
+      // Resolve anyway to prevent blocking the loading screen if an image is missing
+      resolve(null);
+    };
+    img.src = src;
+  });
+}
+
+// Preload all assets used in the active world canvas, backgrounds, and inventory slots
+async function preloadWorldAssets(progressCallback) {
+  const uniqueSrcs = new Set();
+  
+  // 1. Preload all background themes to prevent black background when switching slots or themes
+  if (Array.isArray(wpManifestThemes) && wpManifestThemes.length > 0) {
+    wpManifestThemes.forEach(t => {
+      if (t && t.src) uniqueSrcs.add(t.src);
+    });
+  } else {
+    const savedThemeId = localStorage.getItem('wp_planner_theme_id') || 'bg_forest';
+    const defTheme = wpManifestThemes.find(t => t.id === savedThemeId);
+    if (defTheme && defTheme.src) uniqueSrcs.add(defTheme.src);
+  }
+
+  // 2. Scan unique block IDs in the grid, background grid, and inventory slots
+  const uniqueBlockIds = new Set();
+  
+  for (let y = 0; y < WORLD_HEIGHT; y++) {
+    if (wpGrid[y]) {
+      for (let x = 0; x < WORLD_WIDTH; x++) {
+        const cell = wpGrid[y][x];
+        if (cell) {
+          const bid = (typeof cell === 'object') ? cell.id : cell;
+          if (bid) uniqueBlockIds.add(bid);
+        }
+      }
+    }
+  }
+
+  for (let y = 0; y < WORLD_HEIGHT; y++) {
+    if (wpBackgroundGrid[y]) {
+      for (let x = 0; x < WORLD_WIDTH; x++) {
+        const cell = wpBackgroundGrid[y][x];
+        if (cell) {
+          const bid = (typeof cell === 'object') ? cell.id : cell;
+          if (bid) uniqueBlockIds.add(bid);
+        }
+      }
+    }
+  }
+
+  if (Array.isArray(wpInventory)) {
+    wpInventory.forEach(id => {
+      if (id) uniqueBlockIds.add(id);
+    });
+  }
+
+  // Fallback defaults
+  const defaultBlocks = ['spr_fg_dirt', 'spr_fg_grass', 'spr_fg_obsidian_block', 'spr_fg_bedrock'];
+  defaultBlocks.forEach(id => uniqueBlockIds.add(id));
+
+  // Collect image sources
+  uniqueBlockIds.forEach(id => {
+    const block = wpBlockMap[id];
+    if (block) {
+      if (block.src) {
+        uniqueSrcs.add(block.src);
+      }
+      if (block.framesPath && block.frameCount > 0) {
+        for (let f = 0; f < block.frameCount; f++) {
+          uniqueSrcs.add(`${block.framesPath}${f}.png`);
+        }
+      }
+    }
+  });
+
+  const srcList = Array.from(uniqueSrcs);
+  const total = srcList.length;
+  if (total === 0) {
+    if (progressCallback) progressCallback(100);
+    return;
+  }
+
+  let loadedCount = 0;
+  const promises = srcList.map(src => {
+    return preloadWPImage(src).then(() => {
+      loadedCount++;
+      if (progressCallback) {
+        const percent = Math.min(100, Math.round((loadedCount / total) * 100));
+        progressCallback(percent);
+      }
+    });
+  });
+
+  await Promise.all(promises);
+}
+
 async function loadWPManifest() {
   try {
     const response = await fetch(`worldplanner/blocks_manifest.json?t=${Date.now()}`);
     const data = await response.json();
     wpBlocks = data.blocks || [];
     wpManifestThemes = data.themes || [];
+    
+    // Explicitly update window object references for cross-script scoping
+    window.wpBlocks = wpBlocks;
+    window.wpManifestThemes = wpManifestThemes;
 
     // SCAN blocks for themes if dedicated themes array is empty
     if (wpManifestThemes.length === 0) {
@@ -11143,6 +11417,26 @@ async function loadWPManifest() {
         for (let x = 0; x < WORLD_WIDTH; x++) {
           wpUpdateTilingAt(x, y);
         }
+      }
+    }
+
+    // PRELOAD BLOCKS used in the active world, theme background, and inventory slots
+    // OPTIMIZATION: Skip preloading entirely if assets have already been preloaded during loading screen
+    if (!window.wpAssetsPreloaded) {
+      try {
+        const loaderProgressFill = document.querySelector("#loader-initial .loader-progress-fill");
+        if (loaderProgressFill) {
+          loaderProgressFill.style.animation = "progress-slide 2s linear infinite";
+          loaderProgressFill.style.width = "0%";
+        }
+        await preloadWorldAssets((percent) => {
+          if (loaderProgressFill) {
+            loaderProgressFill.style.width = `${percent}%`;
+          }
+        });
+        window.wpAssetsPreloaded = true;
+      } catch (e) {
+        console.warn("Preloading world assets failed, using fallback load-on-demand:", e);
       }
     }
 
@@ -11387,7 +11681,19 @@ function setWPTheme(themeId, fromNetwork = false) {
   const viewport = document.getElementById('wp-viewport');
   if (viewport) {
     viewport.style.setProperty('--wp-theme-bg', `url("${theme.src}")`);
+    
+    // Direct fallback: Set inline background-image directly on the grid element to avoid browser pseudo-element repaint timing bugs
+    const gridBg = document.getElementById('wp-grid-bg');
+    if (gridBg) {
+      gridBg.style.backgroundImage = `url("${theme.src}")`;
+      void gridBg.offsetHeight; // Force immediate style update
+    }
+    
+    // Force immediate style update on viewport
+    void viewport.offsetHeight;
+
     wpCurrentTheme = themeId;
+    window.wpCurrentTheme = themeId;
     try {
       localStorage.setItem('wp_planner_theme_bg', `url("${theme.src}")`);
       localStorage.setItem('wp_planner_theme_id', themeId);
