@@ -286,7 +286,8 @@
     } else if (obj.type === 'text') {
       const content = document.createElement('div');
       content.className = 'tm-text-content';
-      content.style.fontWeight = 'bold';
+      content.style.fontWeight = obj.italic ? 'bold' : 'bold';
+      content.style.fontStyle = obj.italic ? 'italic' : 'normal';
       root.appendChild(content);
       obj.contentEl = content;
     } else {
@@ -1645,9 +1646,12 @@
     const targetEl = contentEl || el;
     targetEl.style.opacity = obj.opacity;
 
-    // Render/update per-layer vignette
+    // Render/update per-layer vignette (text vignette handled in text fill layer below)
     let vig = el.querySelector('.tm-object-vignette');
-    if (obj.vignetteEnabled) {
+    if (obj.type === 'text') {
+      // Text vignette is integrated into the text fill layer via background-clip:text
+      if (vig) { vig.style.display = 'none'; vig.style.webkitMaskImage = ''; vig.style.maskImage = ''; }
+    } else if (obj.vignetteEnabled) {
       if (!vig) {
         vig = document.createElement('div');
         vig.className = 'tm-object-vignette';
@@ -1666,8 +1670,32 @@
       const opOuter1 = 0.45 * intensity;
       const opOuter2 = 0.95 * intensity;
       vig.style.background = `radial-gradient(circle, rgba(0,0,0,${opMiddle}) 28%, rgba(0,0,0,${opMiddle}) 50%, rgba(0,0,0,${opOuter1}) 80%, rgba(0,0,0,${opOuter2}) 100%)`;
+
+      // Clip vignette to the content's pixel shape using the image as a CSS mask
+      if (obj.type === 'item' || obj.type === 'block' || obj.type === 'image') {
+        const contentImg = targetEl.querySelector('img');
+        if (contentImg && contentImg.src) {
+          const maskUrl = `url("${contentImg.src}")`;
+          vig.style.webkitMaskImage = maskUrl;
+          vig.style.maskImage = maskUrl;
+          vig.style.webkitMaskSize = 'contain';
+          vig.style.maskSize = 'contain';
+          vig.style.webkitMaskPosition = 'center';
+          vig.style.maskPosition = 'center';
+          vig.style.webkitMaskRepeat = 'no-repeat';
+          vig.style.maskRepeat = 'no-repeat';
+        }
+      } else {
+        // Character: no pixel-mask available — use rectangular vignette
+        vig.style.webkitMaskImage = '';
+        vig.style.maskImage = '';
+      }
     } else {
-      if (vig) vig.style.display = 'none';
+      if (vig) {
+        vig.style.display = 'none';
+        vig.style.webkitMaskImage = '';
+        vig.style.maskImage = '';
+      }
     }
     if (contentEl) {
       el.style.opacity = '1';
@@ -1741,12 +1769,158 @@
       }
     }
 
-    // Text styling
+    // Text styling — dual-layer approach with 100% layout parity:
+    //   Shadow layer (z1): transparent text + text-shadow + stroke (renders behind)
+    //   Fill layer (z2): gradient/solid text + vignette, NO shadows (renders on top)
     if (obj.type === 'text' && obj.contentEl) {
-      obj.contentEl.textContent = obj.text || '';
-      obj.contentEl.style.color = obj.color || '#ffffff';
-      obj.contentEl.style.fontSize = (obj.fontSize || 56) + 'px';
-      obj.contentEl.style.fontFamily = obj.fontFamily || "'Poppins', sans-serif";
+      const ce = obj.contentEl;
+      // Make ce fill its parent so text centers properly in the bounding box
+      ce.style.position = 'absolute';
+      ce.style.top = '0';
+      ce.style.left = '0';
+      ce.style.width = '100%';
+      ce.style.height = '100%';
+      ce.style.padding = '0';
+      ce.style.boxSizing = 'border-box';
+      // Clear any direct styles that might conflict
+      ce.style.background = '';
+      ce.style.webkitBackgroundClip = '';
+      ce.style.backgroundClip = '';
+      ce.style.webkitTextFillColor = '';
+      ce.style.textShadow = 'none';
+      ce.style.webkitTextStroke = '';
+      ce.style.filter = '';
+
+      let shadowEl = ce.querySelector('.tm-text-shadows');
+      let fillEl = ce.querySelector('.tm-text-fill');
+
+      if (!shadowEl || !fillEl) {
+        // Clear ALL parent content (text nodes + any stale children)
+        ce.innerHTML = '';
+
+        // Shadow layer — behind fill, renders outline/emboss/glow/drop-shadow
+        shadowEl = document.createElement('div');
+        shadowEl.className = 'tm-text-shadows';
+        shadowEl.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;padding:10px;box-sizing:border-box;z-index:1;pointer-events:none;display:flex;align-items:center;justify-content:center;text-align:center;white-space:pre-wrap;word-wrap:break-word;line-height:1.2;';
+        ce.appendChild(shadowEl);
+
+        // Fill layer — on top, renders visible text color/gradient
+        fillEl = document.createElement('div');
+        fillEl.className = 'tm-text-fill';
+        fillEl.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;padding:10px;box-sizing:border-box;z-index:2;display:flex;align-items:center;justify-content:center;text-align:center;white-space:pre-wrap;word-wrap:break-word;line-height:1.2;';
+        ce.appendChild(fillEl);
+      }
+
+      // Ensure inner spans exist on both layers to enforce 100% identical layout and wrapping
+      let shadowInner = shadowEl.querySelector('.tm-text-shadows-inner');
+      if (!shadowInner) {
+        shadowEl.textContent = '';
+        shadowInner = document.createElement('span');
+        shadowInner.className = 'tm-text-shadows-inner';
+        shadowInner.style.cssText = '-webkit-box-decoration-break:clone;box-decoration-break:clone;';
+        shadowEl.appendChild(shadowInner);
+      }
+
+      let fillInner = fillEl.querySelector('.tm-text-fill-inner');
+      if (!fillInner) {
+        fillEl.textContent = '';
+        fillInner = document.createElement('span');
+        fillInner.className = 'tm-text-fill-inner';
+        fillInner.style.cssText = '-webkit-box-decoration-break:clone;box-decoration-break:clone;';
+        fillEl.appendChild(fillInner);
+      }
+
+      // Sync text content to both inner spans
+      const txt = obj.text || '';
+      if (fillInner.textContent !== txt) fillInner.textContent = txt;
+      if (shadowInner.textContent !== txt) shadowInner.textContent = txt;
+
+      // Sync typography and layout styles on both inner spans and their parent containers
+      const fontSize = (obj.fontSize || 56) + 'px';
+      const fontFamily = obj.fontFamily || "'Century Gothic', sans-serif";
+      const letterSpacing = (obj.letterSpacing || 0) + 'px';
+      const fontStyle = obj.italic ? 'italic' : 'normal';
+      const textTransform = obj.textTransform || 'none';
+
+      [fillEl, shadowEl].forEach(layer => {
+        layer.style.fontSize = fontSize;
+        layer.style.fontFamily = fontFamily;
+        layer.style.letterSpacing = letterSpacing;
+        layer.style.fontStyle = fontStyle;
+        layer.style.textTransform = textTransform;
+        layer.style.fontWeight = 'bold';
+      });
+
+      [fillInner, shadowInner].forEach(span => {
+        span.style.fontSize = 'inherit';
+        span.style.fontFamily = 'inherit';
+        span.style.letterSpacing = 'inherit';
+        span.style.fontStyle = 'inherit';
+        span.style.textTransform = 'inherit';
+        span.style.fontWeight = 'inherit';
+        span.style.lineHeight = 'inherit';
+      });
+
+      // ── Fill Layer: gradient or solid color, with optional vignette ──
+      fillInner.style.textShadow = 'none';
+      fillInner.style.webkitTextStroke = '';
+      fillInner.style.filter = '';
+      fillEl.style.color = 'transparent';
+      fillEl.style.webkitTextFillColor = 'transparent';
+
+      // Build backgrounds
+      let fillBg = '';
+      if (obj.gradient) {
+        const angle = obj.gradientAngle || 135;
+        const c1 = obj.gradientColor1 || '#ffffff';
+        const c2 = obj.gradientColor2 || '#00b4d8';
+        fillBg = 'linear-gradient(' + angle + 'deg, ' + c1 + ', ' + c2 + ')';
+      } else {
+        const color = obj.color || '#ffffff';
+        fillBg = 'linear-gradient(to right, ' + color + ', ' + color + ')';
+      }
+
+      if (obj.vignetteEnabled) {
+        const vigI = obj.vignetteIntensity !== undefined ? obj.vignetteIntensity : 0.55;
+        const vM = 0, v1 = 0.45 * vigI, v2 = 0.95 * vigI;
+        const vigBg = 'radial-gradient(circle, rgba(0,0,0,' + vM + ') 28%, rgba(0,0,0,' + vM + ') 50%, rgba(0,0,0,' + v1 + ') 80%, rgba(0,0,0,' + v2 + ') 100%)';
+        
+        fillInner.style.background = vigBg + ', ' + fillBg;
+        fillInner.classList.add('tm-text-fill-gradient');
+      } else {
+        if (obj.gradient) {
+          fillInner.style.background = fillBg;
+          fillInner.classList.add('tm-text-fill-gradient');
+        } else {
+          fillInner.style.background = '';
+          fillInner.classList.remove('tm-text-fill-gradient');
+          fillInner.style.color = obj.color || '#ffffff';
+          fillInner.style.webkitTextFillColor = '';
+        }
+      }
+
+      // Hide legacy vignette overlays if any exist
+      let textVigOverlay = ce.querySelector('.tm-text-vignette-overlay');
+      if (textVigOverlay) textVigOverlay.style.display = 'none';
+
+      // ── Shadow Layer: transparent text, only renders shadows + stroke on the inner span ──
+      shadowEl.style.color = 'transparent';
+      shadowEl.style.webkitTextFillColor = 'transparent';
+      shadowEl.style.background = '';
+      shadowEl.style.textShadow = 'none';
+      shadowEl.style.webkitTextStroke = '';
+
+      shadowInner.style.color = 'transparent';
+      shadowInner.style.webkitTextFillColor = 'transparent';
+
+      // CSS text stroke on shadowInner
+      if (obj.textStroke > 0) {
+        shadowInner.style.webkitTextStroke = obj.textStroke + 'px ' + (obj.textStrokeColor || '#000000');
+      } else {
+        shadowInner.style.webkitTextStroke = '';
+      }
+
+      // Build text-shadow effects
       const shadows = [];
       if (obj.outlineSize > 0) {
         const s = obj.outlineSize, c = obj.outlineColor || '#000000';
@@ -1755,7 +1929,19 @@
       if (obj.shadowSize > 0) {
         shadows.push((obj.shadowX || 4) + 'px ' + (obj.shadowY || 4) + 'px ' + obj.shadowSize + 'px rgba(0,0,0,0.45)');
       }
-      obj.contentEl.style.textShadow = shadows.join(', ');
+      if (obj.emboss) {
+        const ec = obj.outlineColor || '#000000';
+        for (let i = 1; i <= 6; i++) {
+          shadows.push(i + 'px ' + i + 'px 0 ' + ec);
+        }
+      }
+      if (obj.neonGlow > 0) {
+        const nc = obj.glowColor || obj.color || '#ffffff';
+        shadows.push('0 0 ' + (obj.neonGlow * 0.5) + 'px ' + nc);
+        shadows.push('0 0 ' + obj.neonGlow + 'px ' + nc);
+        shadows.push('0 0 ' + (obj.neonGlow * 2) + 'px ' + nc);
+      }
+      shadowInner.style.textShadow = shadows.length > 0 ? shadows.join(', ') : 'none';
     }
 
     // Item/block halo and fade (and we intentionally do NOT double-flip the img here because the root element is already flipped by scaleX(-1) above)
@@ -2463,7 +2649,31 @@
         const ocol = document.getElementById('tm-prop-outline-color');
         if (ocol) ocol.value = obj.outlineColor || '#000000';
         const ff = document.getElementById('tm-prop-font-family');
-        if (ff) ff.value = obj.fontFamily || "'Poppins', sans-serif";
+        if (ff) ff.value = obj.fontFamily || "'Century Gothic', sans-serif";
+
+        // New text effect controls
+        s('tm-prop-letter-spacing', obj.letterSpacing || 0);
+        s('tm-prop-text-stroke', obj.textStroke || 0);
+        s('tm-prop-neon-glow', obj.neonGlow || 0);
+        s('tm-prop-gradient-angle', obj.gradientAngle || 135);
+        const tsc = document.getElementById('tm-prop-text-stroke-color');
+        if (tsc) tsc.value = obj.textStrokeColor || '#000000';
+        const gc1 = document.getElementById('tm-prop-gradient-color1');
+        if (gc1) gc1.value = obj.gradientColor1 || '#ffffff';
+        const gc2 = document.getElementById('tm-prop-gradient-color2');
+        if (gc2) gc2.value = obj.gradientColor2 || '#00b4d8';
+        const emb = document.getElementById('tm-prop-emboss');
+        if (emb) emb.checked = !!obj.emboss;
+        const ital = document.getElementById('tm-prop-italic');
+        if (ital) ital.checked = !!obj.italic;
+        const grad = document.getElementById('tm-prop-gradient');
+        if (grad) grad.checked = !!obj.gradient;
+        const gcolors = document.getElementById('tm-gradient-colors');
+        if (gcolors) gcolors.style.display = obj.gradient ? 'grid' : 'none';
+        const gangle = document.getElementById('tm-gradient-angle-group');
+        if (gangle) gangle.style.display = obj.gradient ? '' : 'none';
+        const tt = document.getElementById('tm-prop-text-transform');
+        if (tt) tt.value = obj.textTransform || 'none';
       }
     }
 
@@ -2929,6 +3139,48 @@
     const q = (document.getElementById('tm-consumables-search')?.value || '').trim().toLowerCase();
     body.innerHTML = '';
 
+    // ── Badges Section ──
+    const badgeFiles = [
+      { src: 'badges/spr_badge_staff.png', label: 'Staff Badge' },
+      { src: 'badges/spr_role_1.png', label: 'Role Badge 1' },
+      { src: 'badges/spr_role_3.png', label: 'Role Badge 3' },
+      { src: 'badges/spr_role_4.png', label: 'Role Badge 4' },
+      { src: 'badges/spr_role_5.png', label: 'Role Badge 5' },
+      { src: 'badges/spr_role_6.png', label: 'Role Badge 6' },
+      { src: 'badges/spr_role_7.png', label: 'Role Badge 7' },
+      { src: 'badges/spr_role_8.png', label: 'Role Badge 8' }
+    ];
+    const filteredBadges = badgeFiles.filter(b => !q || b.label.toLowerCase().includes(q) || b.src.toLowerCase().includes(q));
+    if (filteredBadges.length > 0) {
+      const badgeHeader = document.createElement('h3');
+      badgeHeader.className = 'tm-items-section-header';
+      badgeHeader.textContent = 'Badges';
+      badgeHeader.style.cssText = 'color: #a8dadc; font-size: 14px; margin: 12px 16px 8px; letter-spacing: 1px; text-transform: uppercase; font-weight: 700;';
+      body.appendChild(badgeHeader);
+      const badgeGrid = document.createElement('div');
+      badgeGrid.className = 'tm-items-section-grid';
+      filteredBadges.forEach(badge => {
+        const cell = document.createElement('div');
+        cell.className = 'wp-cat-item tm-item-catalog-cell';
+        cell.title = badge.label;
+        const img = document.createElement('img');
+        img.src = badge.src;
+        img.alt = badge.label;
+        img.style.imageRendering = 'pixelated';
+        cell.appendChild(img);
+        const cap = document.createElement('span');
+        cap.className = 'wp-cat-name';
+        cap.textContent = badge.label;
+        cell.appendChild(cap);
+        cell.onclick = () => {
+          tmAddItemToWorkspace(badge.src, badge.label);
+          tmCloseConsumablesCatalogModal();
+        };
+        badgeGrid.appendChild(cell);
+      });
+      body.appendChild(badgeGrid);
+    }
+
     const extraItems = [
       "worldplanner/new/spr_ca_fish_bottle/spr_ca_fish_bottle_0.png",
       "worldplanner/Blocks/spr_ca_fish_clown/spr_ca_fish_clown_0.png",
@@ -3200,7 +3452,7 @@
     content.textContent = 'Your title';
     content.style.fontSize = '56px';
     content.style.color = '#ffffff';
-    content.style.fontFamily = "'Poppins', sans-serif";
+    content.style.fontFamily = "'Century Gothic', sans-serif";
     content.style.fontWeight = 'bold';
     root.appendChild(content);
 
@@ -3215,7 +3467,11 @@
       fontSize: 56, color: '#ffffff',
       outlineColor: '#000000', outlineSize: 0,
       shadowSize: 0, shadowX: 4, shadowY: 4,
-      fontFamily: "'Poppins', sans-serif",
+      fontFamily: "'Century Gothic', sans-serif",
+      letterSpacing: 0,
+      textStroke: 0, textStrokeColor: '#000000',
+      gradient: false, gradientColor1: '#ffffff', gradientColor2: '#00b4d8', gradientAngle: 135,
+      emboss: false, neonGlow: 0, italic: false, textTransform: 'none',
       vignetteEnabled: false,
       vignetteIntensity: 0.55
     };
@@ -3245,20 +3501,42 @@
     const color = document.getElementById('tm-prop-text-color')?.value;
     const outline = document.getElementById('tm-prop-outline-color')?.value;
     const font = document.getElementById('tm-prop-font-family')?.value;
+    const strokeColor = document.getElementById('tm-prop-text-stroke-color')?.value;
+    const gc1 = document.getElementById('tm-prop-gradient-color1')?.value;
+    const gc2 = document.getElementById('tm-prop-gradient-color2')?.value;
+    const tt = document.getElementById('tm-prop-text-transform')?.value;
     if (text !== undefined) obj.text = text;
     if (color) obj.color = color;
     if (outline) obj.outlineColor = outline;
     if (font) obj.fontFamily = font;
+    if (strokeColor) obj.textStrokeColor = strokeColor;
+    if (gc1) obj.gradientColor1 = gc1;
+    if (gc2) obj.gradientColor2 = gc2;
+    if (tt) obj.textTransform = tt;
     applyTransform(obj);
   };
 
   window.tmUpdateTextProp = function (prop, value) {
     const obj = selected();
     if (!obj || obj.type !== 'text') return;
-    const v = parseFloat(value);
-    if (prop === 'fontSize') obj.fontSize = v;
-    else if (prop === 'outlineSize') obj.outlineSize = v;
-    else if (prop === 'shadowSize') obj.shadowSize = v;
+    if (prop === 'emboss' || prop === 'italic' || prop === 'gradient') {
+      obj[prop] = !!value;
+      if (prop === 'gradient') {
+        const gcolors = document.getElementById('tm-gradient-colors');
+        if (gcolors) gcolors.style.display = value ? 'grid' : 'none';
+        const gangle = document.getElementById('tm-gradient-angle-group');
+        if (gangle) gangle.style.display = value ? '' : 'none';
+      }
+    } else {
+      const v = parseFloat(value);
+      if (prop === 'fontSize') obj.fontSize = v;
+      else if (prop === 'outlineSize') obj.outlineSize = v;
+      else if (prop === 'shadowSize') obj.shadowSize = v;
+      else if (prop === 'letterSpacing') obj.letterSpacing = v;
+      else if (prop === 'textStroke') obj.textStroke = v;
+      else if (prop === 'neonGlow') obj.neonGlow = v;
+      else if (prop === 'gradientAngle') obj.gradientAngle = v;
+    }
     applyTransform(obj);
   };
 
@@ -4520,10 +4798,12 @@
           ctx.putImageData(imgData, 0, 0);
         }
 
-        // Apply per-layer vignette to the baked element canvas
-        if (obj.vignetteEnabled) {
+        // Apply per-layer vignette to the baked element canvas (text vignette is handled inside the custom text baking loop)
+        if (obj.vignetteEnabled && obj.type !== 'text') {
           const intensity = obj.vignetteIntensity !== undefined ? parseFloat(obj.vignetteIntensity) : 0.55;
-          const R = Math.sqrt(w * w + h * h) / 2;
+          const lw = (obj.width || (w / scale)) * scale;
+          const lh = (obj.height || (h / scale)) * scale;
+          const R = Math.sqrt(lw * lw + lh * lh) / 2;
           const gradient = ctx.createRadialGradient(
             w / 2, h / 2, 0,
             w / 2, h / 2, R
@@ -4726,66 +5006,202 @@
             }
           }
         } else if (obj.type === 'text') {
-          const elClone = obj.el.cloneNode(true);
-          elClone.style.transform = 'none';
-          elClone.style.position = 'relative';
-          elClone.style.left = '0';
-          elClone.style.top = '0';
-
-          const cloneContent = elClone.querySelector('.tm-object-content');
-          if (cloneContent) {
-            cloneContent.style.filter = 'none';
-            cloneContent.style.transform = 'none';
-            cloneContent.style.willChange = 'auto';
-          }
-
-          // Strip 3D transform properties that break html2canvas
-          [elClone, cloneContent].forEach(e => {
-            if (!e) return;
-            e.style.transformStyle = 'flat';
-            e.style.backfaceVisibility = 'visible';
-            e.style.perspective = 'none';
-          });
-
-          elClone.querySelectorAll('.tm-handle, .tm-rotate-handle, .tm-delete-handle, .tm-duplicate-handle').forEach(h => h.remove());
-          elClone.classList.remove('tm-selected', 'selected');
-          elClone.style.outline = 'none';
-
+          // ─── Canvas-based multiline text rendering ───
+          // html2canvas cannot render background-clip:text (gradient) or flex
+          // centering, so we draw text directly via Canvas 2D API instead.
           const baseW = obj.width || 300;
           const baseH = obj.height || 300;
           const pad = filterPadding || 0;
 
-          elClone.style.width = (baseW + pad * 2) + 'px';
-          elClone.style.height = (baseH + pad * 2) + 'px';
+          const cW = (baseW + pad * 2) * BAKE_SCALE;
+          const cH = (baseH + pad * 2) * BAKE_SCALE;
 
-          if (cloneContent) {
-            cloneContent.style.position = 'absolute';
-            cloneContent.style.left = pad + 'px';
-            cloneContent.style.top = pad + 'px';
-            cloneContent.style.width = baseW + 'px';
-            cloneContent.style.height = baseH + 'px';
+          elementCanvas = document.createElement('canvas');
+          elementCanvas.width = cW;
+          elementCanvas.height = cH;
+          const tctx = elementCanvas.getContext('2d');
+
+          const fSize = (obj.fontSize || 56) * BAKE_SCALE;
+          const fFamily = obj.fontFamily || "'Century Gothic', sans-serif";
+          const fStyle = obj.italic ? 'italic ' : '';
+          const fontStr = fStyle + 'bold ' + fSize + 'px ' + fFamily;
+
+          let displayText = obj.text || '';
+          const tt = obj.textTransform || 'none';
+          if (tt === 'uppercase') displayText = displayText.toUpperCase();
+          else if (tt === 'lowercase') displayText = displayText.toLowerCase();
+          else if (tt === 'capitalize') displayText = displayText.replace(/\b\w/g, c => c.toUpperCase());
+
+          tctx.font = fontStr;
+          tctx.textAlign = 'center';
+          tctx.textBaseline = 'middle';
+
+          // Wrap text into lines based on maximum width (baseW minus 20px padding)
+          const maxTextWidth = baseW - 20;
+          const lines = [];
+          const explicitParagraphs = displayText.split('\n');
+          
+          explicitParagraphs.forEach(para => {
+            if (!para.trim()) {
+              lines.push('');
+              return;
+            }
+            const words = para.split(' ');
+            let line = '';
+            for (let n = 0; n < words.length; n++) {
+              let testLine = line + (line ? ' ' : '') + words[n];
+              tctx.font = fontStr;
+              let metrics = tctx.measureText(testLine);
+              let testWidth = metrics.width;
+              if ('letterSpacing' in tctx) {
+                const spacing = (obj.letterSpacing || 0) * BAKE_SCALE;
+                testWidth += (testLine.length - 1) * spacing;
+              }
+              if (testWidth > maxTextWidth * BAKE_SCALE && n > 0) {
+                lines.push(line);
+                line = words[n];
+              } else {
+                line = testLine;
+              }
+            }
+            lines.push(line);
+          });
+
+          if ('letterSpacing' in tctx) {
+            tctx.letterSpacing = (obj.letterSpacing || 0) * BAKE_SCALE + 'px';
           }
 
-          const containerW = baseW + pad * 2;
-          const containerH = baseH + pad * 2;
-          const hiddenContainer = document.createElement('div');
-          hiddenContainer.style.cssText = `position:fixed;left:0px;top:0px;overflow:visible;pointer-events:none;z-index:-9999;width:${containerW}px;height:${containerH}px;`;
-          document.body.appendChild(hiddenContainer);
-          hiddenContainer.appendChild(elClone);
+          const cx = cW / 2;
+          const cy = cH / 2;
+          const olSize = (obj.outlineSize || 0) * BAKE_SCALE;
+          const olColor = obj.outlineColor || '#000000';
 
-          forceSharpContext();
-          elementCanvas = await html2canvas(elClone, {
-            scale: BAKE_SCALE,
-            logging: false,
-            backgroundColor: null,
-            scrollX: 0,
-            scrollY: 0,
-            useCORS: true,
-            allowTaint: true
+          // 1. Drop shadow (drawn first, behind everything)
+          if (obj.shadowSize > 0) {
+            tctx.save();
+            tctx.shadowColor = 'rgba(0,0,0,0.45)';
+            tctx.shadowBlur = obj.shadowSize * BAKE_SCALE;
+            tctx.shadowOffsetX = (obj.shadowX || 4) * BAKE_SCALE;
+            tctx.shadowOffsetY = (obj.shadowY || 4) * BAKE_SCALE;
+            tctx.fillStyle = 'rgba(0,0,0,0.45)';
+            lines.forEach((line, i) => {
+              if (!line) return;
+              const ly = cy + (i - (lines.length - 1) / 2) * (fSize * 1.2);
+              tctx.fillText(line, cx, ly);
+            });
+            tctx.restore();
+          }
+
+          // 2. Neon glow (drawn behind outline/stroke/fill)
+          if (obj.neonGlow > 0) {
+            const nc = obj.glowColor || obj.color || '#ffffff';
+            [obj.neonGlow * 0.5, obj.neonGlow, obj.neonGlow * 2].forEach(r => {
+              tctx.save();
+              tctx.fillStyle = nc;
+              tctx.shadowColor = nc;
+              tctx.shadowBlur = r * BAKE_SCALE;
+              tctx.shadowOffsetX = 0;
+              tctx.shadowOffsetY = 0;
+              lines.forEach((line, i) => {
+                if (!line) return;
+                const ly = cy + (i - (lines.length - 1) / 2) * (fSize * 1.2);
+                tctx.fillText(line, cx, ly);
+              });
+              tctx.restore();
+            });
+          }
+
+          // 3. Emboss (diagonal shadow offsets in outline color)
+          if (obj.emboss) {
+            tctx.fillStyle = olColor;
+            for (let ei = 1; ei <= 6; ei++) {
+              lines.forEach((line, i) => {
+                if (!line) return;
+                const ly = cy + (i - (lines.length - 1) / 2) * (fSize * 1.2);
+                tctx.fillText(line, cx + ei * BAKE_SCALE, ly + ei * BAKE_SCALE);
+              });
+            }
+          }
+
+          // 4. Outline (4 diagonal offsets in outline color)
+          if (olSize > 0) {
+            tctx.fillStyle = olColor;
+            lines.forEach((line, i) => {
+              if (!line) return;
+              const ly = cy + (i - (lines.length - 1) / 2) * (fSize * 1.2);
+              tctx.fillText(line, cx + olSize, ly + olSize);
+              tctx.fillText(line, cx - olSize, ly + olSize);
+              tctx.fillText(line, cx + olSize, ly - olSize);
+              tctx.fillText(line, cx - olSize, ly - olSize);
+            });
+          }
+
+          // 5. Text stroke (drawn on top of outline/emboss, behind fill)
+          if (obj.textStroke > 0) {
+            tctx.save();
+            tctx.strokeStyle = obj.textStrokeColor || '#000000';
+            tctx.lineWidth = obj.textStroke * BAKE_SCALE * 2;
+            tctx.lineJoin = 'round';
+            lines.forEach((line, i) => {
+              if (!line) return;
+              const ly = cy + (i - (lines.length - 1) / 2) * (fSize * 1.2);
+              tctx.strokeText(line, cx, ly);
+            });
+            tctx.restore();
+          }
+
+          // 6. Main fill — gradient or solid color with optional vignette (drawn on top of everything)
+          const fillCanvas = document.createElement('canvas');
+          fillCanvas.width = cW;
+          fillCanvas.height = cH;
+          const fctx = fillCanvas.getContext('2d');
+          fctx.imageSmoothingEnabled = false;
+
+          fctx.font = fontStr;
+          fctx.textAlign = 'center';
+          fctx.textBaseline = 'middle';
+          if ('letterSpacing' in fctx) fctx.letterSpacing = (obj.letterSpacing || 0) * BAKE_SCALE + 'px';
+
+          if (obj.gradient) {
+            const angleDeg = obj.gradientAngle || 135;
+            const angleRad = (angleDeg - 90) * Math.PI / 180;
+            const diagLen = Math.sqrt(cW * cW + cH * cH);
+            const cosA = Math.cos(angleRad);
+            const sinA = Math.sin(angleRad);
+            const grad = fctx.createLinearGradient(
+              cx - cosA * diagLen / 2, cy - sinA * diagLen / 2,
+              cx + cosA * diagLen / 2, cy + sinA * diagLen / 2
+            );
+            grad.addColorStop(0, obj.gradientColor1 || '#ffffff');
+            grad.addColorStop(1, obj.gradientColor2 || '#00b4d8');
+            fctx.fillStyle = grad;
+          } else {
+            fctx.fillStyle = obj.color || '#ffffff';
+          }
+
+          lines.forEach((line, i) => {
+            if (!line) return;
+            const ly = cy + (i - (lines.length - 1) / 2) * (fSize * 1.2);
+            fctx.fillText(line, cx, ly);
           });
-          restoreContext();
 
-          hiddenContainer.remove();
+          if (obj.vignetteEnabled) {
+            const vigI = obj.vignetteIntensity !== undefined ? obj.vignetteIntensity : 0.55;
+            const vM = 0, v1 = 0.45 * vigI, v2 = 0.95 * vigI;
+            const vigBg = fctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(cW, cH) / 2);
+            vigBg.addColorStop(0.28, 'rgba(0,0,0,' + vM + ')');
+            vigBg.addColorStop(0.50, 'rgba(0,0,0,' + vM + ')');
+            vigBg.addColorStop(0.80, 'rgba(0,0,0,' + v1 + ')');
+            vigBg.addColorStop(1.00, 'rgba(0,0,0,' + v2 + ')');
+
+            fctx.save();
+            fctx.globalCompositeOperation = 'source-atop';
+            fctx.fillStyle = vigBg;
+            fctx.fillRect(0, 0, cW, cH);
+            fctx.restore();
+          }
+
+          tctx.drawImage(fillCanvas, 0, 0);
         } else {
           const visualEl = obj.el.querySelector('.tm-object-content') || obj.el;
           const img = visualEl.querySelector('img');

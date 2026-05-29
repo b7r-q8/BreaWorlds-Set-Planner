@@ -10955,3 +10955,11 @@ body.wp-dragging * {
 .tm-workspace-vignette.hidden {
   display: none !important;
 }
+
+/* Custom Text Gradient Fill Class */
+.tm-text-fill-gradient {
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
+}

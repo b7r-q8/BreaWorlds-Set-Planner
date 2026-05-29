@@ -23,6 +23,9 @@
 
   <link rel="stylesheet" href="style.css?v=2.57">
   <link rel="stylesheet" href="tutorial.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Bangers&family=Russo+One&family=Bungee&family=Fredoka:wght@700&family=Permanent+Marker&family=Righteous&family=Luckiest+Guy&family=Press+Start+2P&family=Lilita+One&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <!-- Website Metadata & Social Sharing (Open Graph) -->
@@ -8720,12 +8723,24 @@
           <div class="tm-prop-group">
             <label>Font</label>
             <select id="tm-prop-font-family" class="tm-select" onchange="tmUpdateTextFromInputs()">
-              <option value="'Poppins', sans-serif">Poppins (default)</option>
-              <option value="system-ui, sans-serif">System UI</option>
+              <option value="'Century Gothic', sans-serif">Century Gothic (BreaWorlds)</option>
+              <option value="'Poppins', sans-serif">Poppins</option>
+              <option value="Impact, sans-serif">Impact</option>
+              <option value="'Arial Black', sans-serif">Arial Black</option>
+              <option value="'Bebas Neue', sans-serif">Bebas Neue</option>
+              <option value="'Bangers', cursive">Bangers</option>
+              <option value="'Russo One', sans-serif">Russo One</option>
+              <option value="'Bungee', sans-serif">Bungee</option>
+              <option value="'Fredoka', sans-serif">Fredoka</option>
+              <option value="'Permanent Marker', cursive">Permanent Marker</option>
+              <option value="'Righteous', sans-serif">Righteous</option>
+              <option value="'Luckiest Guy', cursive">Luckiest Guy</option>
+              <option value="'Press Start 2P', monospace">Press Start 2P</option>
+              <option value="'Lilita One', sans-serif">Lilita One</option>
+              <option value="'Comic Sans MS', cursive">Comic Sans</option>
               <option value="Georgia, serif">Georgia</option>
               <option value="'Courier New', monospace">Courier</option>
-              <option value="Impact, sans-serif">Impact</option>
-              <option value="'Comic Sans MS', cursive">Comic Sans</option>
+              <option value="system-ui, sans-serif">System UI</option>
             </select>
           </div>
           <div class="tm-prop-group">
@@ -8734,14 +8749,76 @@
               oninput="tmUpdateTextProp('fontSize', this.value)">
           </div>
           <div class="tm-prop-group">
-            <label>Outline size</label>
+            <label>Letter Spacing</label>
+            <input type="range" id="tm-prop-letter-spacing" min="0" max="30" step="0.5" value="0"
+              oninput="tmUpdateTextProp('letterSpacing', this.value)">
+          </div>
+
+          <h4 style="margin-top: 16px;">Text Effects</h4>
+          <div class="tm-prop-group">
+            <label>Outline size (stroke)</label>
             <input type="range" id="tm-prop-outline-size" min="0" max="10" step="0.5"
               oninput="tmUpdateTextProp('outlineSize', this.value)">
+          </div>
+          <div class="tm-prop-group">
+            <label>Text Stroke (CSS)</label>
+            <input type="range" id="tm-prop-text-stroke" min="0" max="8" step="0.5" value="0"
+              oninput="tmUpdateTextProp('textStroke', this.value)">
+          </div>
+          <div class="tm-prop-group">
+            <label>Text Stroke Color</label>
+            <input type="color" id="tm-prop-text-stroke-color" value="#000000"
+              oninput="tmUpdateTextFromInputs()">
           </div>
           <div class="tm-prop-group">
             <label>Shadow size</label>
             <input type="range" id="tm-prop-shadow-size" min="0" max="20" step="1"
               oninput="tmUpdateTextProp('shadowSize', this.value)">
+          </div>
+          <div class="tm-prop-group">
+            <label>Neon Glow</label>
+            <input type="range" id="tm-prop-neon-glow" min="0" max="40" step="1" value="0"
+              oninput="tmUpdateTextProp('neonGlow', this.value)">
+          </div>
+          <div class="tm-prop-group tm-prop-inline">
+            <label><input type="checkbox" id="tm-prop-emboss"
+                onchange="tmUpdateTextProp('emboss', this.checked)"> 3D Emboss Effect</label>
+          </div>
+          <div class="tm-prop-group tm-prop-inline">
+            <label><input type="checkbox" id="tm-prop-italic"
+                onchange="tmUpdateTextProp('italic', this.checked)"> Italic</label>
+          </div>
+          <div class="tm-prop-group">
+            <label>Text Transform</label>
+            <select id="tm-prop-text-transform" class="tm-select" onchange="tmUpdateTextFromInputs()">
+              <option value="none">Normal</option>
+              <option value="uppercase">UPPERCASE</option>
+              <option value="lowercase">lowercase</option>
+              <option value="capitalize">Capitalize</option>
+            </select>
+          </div>
+
+          <h4 style="margin-top: 16px;">Gradient Fill</h4>
+          <div class="tm-prop-group tm-prop-inline">
+            <label><input type="checkbox" id="tm-prop-gradient"
+                onchange="tmUpdateTextProp('gradient', this.checked)"> Enable Gradient</label>
+          </div>
+          <div class="tm-prop-group tm-color-row" id="tm-gradient-colors">
+            <div>
+              <label>Color 1</label>
+              <input type="color" id="tm-prop-gradient-color1" value="#ffffff"
+                oninput="tmUpdateTextFromInputs()">
+            </div>
+            <div>
+              <label>Color 2</label>
+              <input type="color" id="tm-prop-gradient-color2" value="#00b4d8"
+                oninput="tmUpdateTextFromInputs()">
+            </div>
+          </div>
+          <div class="tm-prop-group" id="tm-gradient-angle-group">
+            <label>Gradient Angle</label>
+            <input type="range" id="tm-prop-gradient-angle" min="0" max="360" step="5" value="135"
+              oninput="tmUpdateTextProp('gradientAngle', this.value)">
           </div>
         </div>
 
