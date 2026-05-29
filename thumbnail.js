@@ -4849,9 +4849,10 @@
         if (obj.isTheme && !hasEffects) continue;
 
         // Pre-bake all blocks, items and user-inserted images to prevent html2canvas stretching/cropping due to lack of object-fit support,
-        // and pre-bake characters or text ONLY if they have active filters/effects.
+        // and pre-bake text layers always (due to html2canvas limitations with gradients/outlines/strokes)
+        // and characters ONLY if they have active filters/effects.
         const isBlockOrItem = obj.type === 'block' || obj.type === 'item' || obj.type === 'image';
-        const shouldBake = isBlockOrItem || hasEffects || obj.isTheme;
+        const shouldBake = isBlockOrItem || hasEffects || obj.isTheme || obj.type === 'text';
 
         if (!shouldBake) continue;
 
