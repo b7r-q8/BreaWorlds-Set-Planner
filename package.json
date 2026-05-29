@@ -1,0 +1,16 @@
+{
+  "name": "breaworlds-set-planner",
+  "version": "3.10.0",
+  "scripts": {
+    "build": "node build_assets.js"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@heyputer/puter.js": "^2.3.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.0",
+    "@capacitor/cli": "^6.0.0"
+  }
+}

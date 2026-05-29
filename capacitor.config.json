@@ -1,0 +1,6 @@
+{
+  "appId": "com.breaworlds.planner",
+  "appName": "BW Tools",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}

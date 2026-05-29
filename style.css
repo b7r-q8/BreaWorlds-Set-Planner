@@ -7128,6 +7128,50 @@ body.njc-active #pupil {
 }
 
 /* =========================================
+   APK DOWNLOAD BUTTON (Main Menu)
+   ========================================= */
+.apk-download-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(168, 218, 220, 0.85);
+  background: rgba(168, 218, 220, 0.08);
+  padding: 8px 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(168, 218, 220, 0.25);
+  align-self: center;
+  margin-top: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  z-index: 100;
+}
+
+.apk-download-btn.visible {
+  display: flex;
+  animation: wnFadeIn 0.8s ease forwards;
+}
+
+.apk-download-btn:hover {
+  background: rgba(168, 218, 220, 0.15);
+  border-color: rgba(168, 218, 220, 0.5);
+  color: #a8dadc;
+  box-shadow: 0 0 20px rgba(168, 218, 220, 0.15);
+  transform: translateY(-2px);
+}
+
+.apk-download-btn i,
+.apk-download-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* =========================================
    BUG REPORT MODAL
    ========================================= */
 .bug-overlay {

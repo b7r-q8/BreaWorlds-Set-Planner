@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+www/
+
+# Debug and temporary helper scripts
+_fix_*.py
+_gen_consumables.py
+_revert_pivots.py
+_move*.py
+_diff*.txt
+scratch/
+scratch_diff.txt
+temp_invis.txt
+test_layout.html
+test_neg.js
+script.js_fixed_import.js
+thumbnail_broken_rewrite.js
+thumbnail_restored_from_old.js
+oldthumbnailmaker/

@@ -6914,10 +6914,12 @@ window.addEventListener('load', async () => {
           whatsNewBtn.classList.add('visible');
         }
 
-        // Show "Report Bugs" button with delay
+        // Show "Report Bugs" and "APK Download" buttons with delay
         setTimeout(() => {
           const bugBtn = document.getElementById('report-bugs-btn');
           if (bugBtn) bugBtn.classList.add('visible');
+          const apkBtn = document.getElementById('apk-download-btn');
+          if (apkBtn) apkBtn.classList.add('visible');
         }, 600);
 
         // Auto-show modal if not confirmed yet
@@ -7140,6 +7142,8 @@ window.backToSelection = function () {
 
     const bugBtn = document.getElementById('report-bugs-btn');
     if (bugBtn) bugBtn.classList.add('visible');
+    const apkBtn = document.getElementById('apk-download-btn');
+    if (apkBtn) apkBtn.classList.add('visible');
   }
 };
 
