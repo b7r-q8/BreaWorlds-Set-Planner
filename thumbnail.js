@@ -1865,8 +1865,8 @@
       fillInner.style.textShadow = 'none';
       fillInner.style.webkitTextStroke = '';
       fillInner.style.filter = '';
-      fillEl.style.color = 'transparent';
-      fillEl.style.webkitTextFillColor = 'transparent';
+      fillEl.style.color = '';
+      fillEl.style.webkitTextFillColor = '';
 
       // Build backgrounds
       let fillBg = '';
@@ -1895,7 +1895,7 @@
           fillInner.style.background = '';
           fillInner.classList.remove('tm-text-fill-gradient');
           fillInner.style.color = obj.color || '#ffffff';
-          fillInner.style.webkitTextFillColor = '';
+          fillInner.style.webkitTextFillColor = obj.color || '#ffffff';
         }
       }
 
