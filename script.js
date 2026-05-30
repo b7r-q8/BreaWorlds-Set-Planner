@@ -5150,15 +5150,39 @@ window.downloadFile = async function (dataUrlOrJsonText, filename, mimeType) {
           reader.readAsDataURL(blob);
         });
       }
-      await window.Capacitor.Plugins.Filesystem.writeFile({
-        path: filename,
-        data: data.split(',')[1],
-        directory: 'DOCUMENTS',
-        recursive: true
-      });
-      alert('File saved to device storage: ' + filename);
-      return;
+      // Defensive: try both DOCUMENTS and EXTERNAL directories
+      let saved = false;
+      let errorMsg = '';
+      try {
+        await window.Capacitor.Plugins.Filesystem.writeFile({
+          path: filename,
+          data: data.split(',')[1],
+          directory: 'DOCUMENTS',
+          recursive: true
+        });
+        saved = true;
+      } catch (e1) {
+        errorMsg = e1 && e1.message ? e1.message : e1;
+        try {
+          await window.Capacitor.Plugins.Filesystem.writeFile({
+            path: filename,
+            data: data.split(',')[1],
+            directory: 'EXTERNAL',
+            recursive: true
+          });
+          saved = true;
+        } catch (e2) {
+          errorMsg += '\n' + (e2 && e2.message ? e2.message : e2);
+        }
+      }
+      if (saved) {
+        alert('File saved to device storage: ' + filename + '\nIf you cannot find it, check your Files app or Downloads folder.');
+        return;
+      } else {
+        alert('Failed to save file to device storage. Please check app permissions and storage space.\n' + errorMsg);
+      }
     } catch (e) {
+      alert('Unexpected error during file save. Please check app permissions and storage space.');
       console.warn('Capacitor Filesystem save failed, falling back to browser download:', e);
     }
   }

@@ -1222,7 +1222,8 @@
     let previewUrl = '';
     try {
       if (typeof html2canvas === 'function') {
-        const canvas = await tmGenerateBakedCanvas(0.15);
+        // Use full scale for best quality preview (as in v3.10)
+        const canvas = await tmGenerateBakedCanvas(1.0);
         if (canvas) {
           previewUrl = canvas.toDataURL('image/png');
         }
@@ -1282,7 +1283,8 @@
       let previewUrl = '';
       try {
         if (typeof html2canvas === 'function') {
-          const canvas = await tmGenerateBakedCanvas(0.15);
+          // Use full scale for best quality preview (as in v3.10)
+          const canvas = await tmGenerateBakedCanvas(1.0);
           if (canvas) {
             previewUrl = canvas.toDataURL('image/png');
           }
