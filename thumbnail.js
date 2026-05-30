@@ -1224,7 +1224,7 @@
       if (typeof html2canvas === 'function') {
         const canvas = await tmGenerateBakedCanvas(0.15);
         if (canvas) {
-          previewUrl = canvas.toDataURL('image/jpeg', 0.5);
+          previewUrl = canvas.toDataURL('image/png');
         }
       }
     } catch (e) {
@@ -1284,7 +1284,7 @@
         if (typeof html2canvas === 'function') {
           const canvas = await tmGenerateBakedCanvas(0.15);
           if (canvas) {
-            previewUrl = canvas.toDataURL('image/jpeg', 0.5);
+            previewUrl = canvas.toDataURL('image/png');
           }
         }
       } catch (e) {

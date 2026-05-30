@@ -5112,6 +5112,7 @@ function getTransform(el) {
 
 window.downloadFile = async function (dataUrlOrJsonText, filename, mimeType) {
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.Capacitor;
+  // 1. Try native share (if available)
   if (isMobile && navigator.share) {
     try {
       let file;
@@ -5131,22 +5132,56 @@ window.downloadFile = async function (dataUrlOrJsonText, filename, mimeType) {
         return;
       }
     } catch (e) {
-      console.warn('Native share failed, falling back to browser download:', e);
+      console.warn('Native share failed, falling back to Capacitor/Filesystem/browser download:', e);
     }
   }
-  const link = document.createElement('a');
-  if (dataUrlOrJsonText.startsWith('data:')) {
-    link.href = dataUrlOrJsonText;
-  } else {
-    const blob = new Blob([dataUrlOrJsonText], { type: mimeType || 'text/plain' });
-    link.href = URL.createObjectURL(blob);
+
+  // 2. Try Capacitor Filesystem (for APK/Android)
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
+    try {
+      let data = dataUrlOrJsonText;
+      if (!data.startsWith('data:')) {
+        // Convert to base64
+        const blob = new Blob([data], { type: mimeType || 'application/octet-stream' });
+        data = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      }
+      await window.Capacitor.Plugins.Filesystem.writeFile({
+        path: filename,
+        data: data.split(',')[1],
+        directory: 'DOCUMENTS',
+        recursive: true
+      });
+      alert('File saved to device storage: ' + filename);
+      return;
+    } catch (e) {
+      console.warn('Capacitor Filesystem save failed, falling back to browser download:', e);
+    }
   }
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  if (!dataUrlOrJsonText.startsWith('data:')) {
-    setTimeout(() => URL.revokeObjectURL(link.href), 100);
+
+  // 3. Fallback: Browser download
+  try {
+    const link = document.createElement('a');
+    if (dataUrlOrJsonText.startsWith('data:')) {
+      link.href = dataUrlOrJsonText;
+    } else {
+      const blob = new Blob([dataUrlOrJsonText], { type: mimeType || 'text/plain' });
+      link.href = URL.createObjectURL(blob);
+    }
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    if (!dataUrlOrJsonText.startsWith('data:')) {
+      setTimeout(() => URL.revokeObjectURL(link.href), 100);
+    }
+  } catch (e) {
+    alert('Failed to download or save file. Please check app permissions or try a different browser.');
+    console.error('All download methods failed:', e);
   }
 };
 
