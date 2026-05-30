@@ -13,7 +13,8 @@ const foldersToCopy = [
   'backgrounds', 'badges', 'capes', 'cars', 'display', 'downloadset',
   'eyes', 'faces', 'featured', 'floaties', 'fonts', 'hair', 'hands',
   'hats', 'levels', 'lunar', 'pants', 'pets', 'platforms', 'scarfs',
-  'specials', 'wings', 'worldplanner', 'libs', 'roadmap'
+  'specials', 'wings', 'worldplanner', 'libs', 'roadmap', 'shirts',
+  'shoes', 'rockerbody'
 ];
 
 const filesToCopy = [

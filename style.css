@@ -7084,6 +7084,21 @@ body.njc-active #pupil {
 }
 
 /* =========================================
+   BOTTOM-RIGHT MAIN MENU CONTAINER
+   ========================================= */
+.main-menu-bottom-right {
+  position: fixed;
+  bottom: 25px;
+  right: 25px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  z-index: 100000;
+  pointer-events: auto; /* Ensure clicks pass through correctly */
+}
+
+/* =========================================
    REPORT BUGS BUTTON (Main Menu)
    ========================================= */
 .report-bugs-btn {
@@ -7100,8 +7115,7 @@ body.njc-active #pupil {
   padding: 8px 20px;
   border-radius: 12px;
   border: 1px solid rgba(230, 57, 70, 0.2);
-  align-self: center;
-  margin-top: 12px;
+  margin: 0;
   cursor: pointer;
   transition: all 0.3s ease;
   font-family: inherit;
@@ -7144,8 +7158,7 @@ body.njc-active #pupil {
   padding: 8px 20px;
   border-radius: 12px;
   border: 1px solid rgba(168, 218, 220, 0.25);
-  align-self: center;
-  margin-top: 10px;
+  margin: 0;
   cursor: pointer;
   transition: all 0.3s ease;
   font-family: inherit;

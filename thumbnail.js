@@ -1222,9 +1222,9 @@
     let previewUrl = '';
     try {
       if (typeof html2canvas === 'function') {
-        const canvas = await tmGenerateBakedCanvas(0.5);
+        const canvas = await tmGenerateBakedCanvas(0.15);
         if (canvas) {
-          previewUrl = canvas.toDataURL('image/png');
+          previewUrl = canvas.toDataURL('image/jpeg', 0.5);
         }
       }
     } catch (e) {
@@ -1282,9 +1282,9 @@
       let previewUrl = '';
       try {
         if (typeof html2canvas === 'function') {
-          const canvas = await tmGenerateBakedCanvas(0.5);
+          const canvas = await tmGenerateBakedCanvas(0.15);
           if (canvas) {
-            previewUrl = canvas.toDataURL('image/png');
+            previewUrl = canvas.toDataURL('image/jpeg', 0.5);
           }
         }
       } catch (e) {
@@ -5638,10 +5638,8 @@
       });
 
       if (finalCanvas) {
-        const link = document.createElement('a');
-        link.download = `thumbnail_${Date.now()}.png`;
-        link.href = finalCanvas.toDataURL('image/png');
-        link.click();
+        const url = finalCanvas.toDataURL('image/png');
+        await window.downloadFile(url, `thumbnail_${Date.now()}.png`, 'image/png');
       }
     } catch (e) {
       console.error("Export process failed:", e);

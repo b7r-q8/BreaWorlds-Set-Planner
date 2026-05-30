@@ -5110,6 +5110,46 @@ function getTransform(el) {
   return { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
 }
 
+window.downloadFile = async function (dataUrlOrJsonText, filename, mimeType) {
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.Capacitor;
+  if (isMobile && navigator.share) {
+    try {
+      let file;
+      if (dataUrlOrJsonText.startsWith('data:')) {
+        const blob = await (await fetch(dataUrlOrJsonText)).blob();
+        file = new File([blob], filename, { type: mimeType || 'image/png' });
+      } else {
+        const blob = new Blob([dataUrlOrJsonText], { type: mimeType || 'application/json' });
+        file = new File([blob], filename, { type: mimeType || 'application/json' });
+      }
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: filename,
+          text: `Exported ${filename}`
+        });
+        return;
+      }
+    } catch (e) {
+      console.warn('Native share failed, falling back to browser download:', e);
+    }
+  }
+  const link = document.createElement('a');
+  if (dataUrlOrJsonText.startsWith('data:')) {
+    link.href = dataUrlOrJsonText;
+  } else {
+    const blob = new Blob([dataUrlOrJsonText], { type: mimeType || 'text/plain' });
+    link.href = URL.createObjectURL(blob);
+  }
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  if (!dataUrlOrJsonText.startsWith('data:')) {
+    setTimeout(() => URL.revokeObjectURL(link.href), 100);
+  }
+};
+
 window.downloadSet = async function () {
   const bgModeOption = document.querySelector('[data-group="bgMode"].active');
   const mode = bgModeOption ? bgModeOption.dataset.value : 'transparent';
@@ -5448,12 +5488,7 @@ window.downloadSet = async function () {
 
     // Download
     const dataUrl = canvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.href = dataUrl;
-    link.download = 'character-set.png';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    await window.downloadFile(dataUrl, 'character-set.png', 'image/png');
 
     window.closeDownloadModal();
 
@@ -6918,8 +6953,15 @@ window.addEventListener('load', async () => {
         setTimeout(() => {
           const bugBtn = document.getElementById('report-bugs-btn');
           if (bugBtn) bugBtn.classList.add('visible');
+          const isCapacitor = !!(window.Capacitor || /Capacitor|AndroidWebView/i.test(navigator.userAgent));
           const apkBtn = document.getElementById('apk-download-btn');
-          if (apkBtn) apkBtn.classList.add('visible');
+          if (apkBtn) {
+            if (isCapacitor) {
+              apkBtn.style.setProperty('display', 'none', 'important');
+            } else {
+              apkBtn.classList.add('visible');
+            }
+          }
         }, 600);
 
         // Auto-show modal if not confirmed yet
@@ -7142,8 +7184,15 @@ window.backToSelection = function () {
 
     const bugBtn = document.getElementById('report-bugs-btn');
     if (bugBtn) bugBtn.classList.add('visible');
+    const isCapacitor = !!(window.Capacitor || /Capacitor|AndroidWebView/i.test(navigator.userAgent));
     const apkBtn = document.getElementById('apk-download-btn');
-    if (apkBtn) apkBtn.classList.add('visible');
+    if (apkBtn) {
+      if (isCapacitor) {
+        apkBtn.style.setProperty('display', 'none', 'important');
+      } else {
+        apkBtn.classList.add('visible');
+      }
+    }
   }
 };
 
@@ -8764,15 +8813,9 @@ window.wpClearWorld = function () {
   }
 };
 
-window.wpSaveWorld = function () {
+window.wpSaveWorld = async function () {
   const data = JSON.stringify(wpGrid);
-  const blob = new Blob([data], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'world_plan.json';
-  a.click();
-  URL.revokeObjectURL(url);
+  await window.downloadFile(data, 'world_plan.json', 'application/json');
 };
 
 // VIEW MODE EXIT
@@ -8899,10 +8942,16 @@ function loadWPWorldFromSlot(slotNumber, skipToggle = false) {
          viewport.style.backgroundImage = ''; // Clear inline styles prioritizing
          viewport.style.backgroundColor = 'transparent';
       }
+      if (typeof setupWPBackgrounds === 'function') {
+        setupWPBackgrounds();
+      }
     } else if (data.background && viewport) {
       viewport.style.backgroundImage = data.background;
       viewport.style.backgroundColor = data.backgroundColor || 'transparent';
       wpCurrentTheme = data.themeId || 'bg_forest';
+      if (typeof setupWPBackgrounds === 'function') {
+        setupWPBackgrounds();
+      }
     }
 
     // --- APPLY TILING (critical for dirt/auto-tile blocks) ---
@@ -9025,15 +9074,7 @@ window.exportWPWorldSlot = function(slotNumber) {
   };
 
   const jsonStr = JSON.stringify(exportData);
-  const blob = new Blob([jsonStr], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `bwsp_world_slot${slotNumber}_${Date.now()}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  await window.downloadFile(jsonStr, `bwsp_world_slot${slotNumber}_${Date.now()}.json`, 'application/json');
 };
 
 window.importWPWorldFile = function() {
@@ -9369,10 +9410,7 @@ window.downloadWPWorldPNG = async function (slotNumber) {
   const url = await generateWPWorldExportDataURL(data.grid || [], data.bgGrid || [], data.themeId, background, false);
   if (!url) return;
 
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `world_export_slot${slotNumber}.png`;
-  a.click();
+  await window.downloadFile(url, `world_export_slot${slotNumber}.png`, 'image/png');
 };
 
 async function generateWPWorldPreview() {

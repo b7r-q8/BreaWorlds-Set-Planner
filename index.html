@@ -1125,15 +1125,17 @@
 
       <button class="whats-new-trigger-btn" onclick="initWhatsNewModal()">See What's New</button>
 
-      <button class="report-bugs-btn" id="report-bugs-btn" onclick="openBugReportModal()">
-        <i data-lucide="bug" style="width:16px;height:16px;"></i>
-        <span>Report Bugs</span>
-      </button>
+      <div class="main-menu-bottom-right">
+        <button class="apk-download-btn" id="apk-download-btn" onclick="window.open('https://github.com/b7r-q8/BreaWorlds-Set-Planner/releases/latest/download/BW-Tools.apk', '_blank')">
+          <i data-lucide="download" style="width:16px;height:16px;"></i>
+          <span>Download Android App (.APK)</span>
+        </button>
 
-      <button class="apk-download-btn" id="apk-download-btn" onclick="window.open('https://github.com/b7r-q8/BreaWorlds-Set-Planner/releases/latest/download/BW-Tools.apk', '_blank')">
-        <i data-lucide="download" style="width:16px;height:16px;"></i>
-        <span>Download Android App (.APK)</span>
-      </button>
+        <button class="report-bugs-btn" id="report-bugs-btn" onclick="openBugReportModal()">
+          <i data-lucide="bug" style="width:16px;height:16px;"></i>
+          <span>Report Bugs</span>
+        </button>
+      </div>
 
       <div class="loader-copyright">
         <span>Sprites Copyrighted and Owned by</span>
