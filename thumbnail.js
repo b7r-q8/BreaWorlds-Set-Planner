@@ -1222,10 +1222,10 @@
     let previewUrl = '';
     try {
       if (typeof html2canvas === 'function') {
-        // Use full scale (1.0) for best quality preview, but skip heavy pre-baking loops and compress as JPEG
-        const canvas = await tmGenerateBakedCanvas(1.0, null, true);
+        // Use full scale for best quality preview (as in v3.10)
+        const canvas = await tmGenerateBakedCanvas(1.0);
         if (canvas) {
-          previewUrl = canvas.toDataURL('image/jpeg', 0.85);
+          previewUrl = canvas.toDataURL('image/png');
         }
       }
     } catch (e) {
@@ -1283,10 +1283,10 @@
       let previewUrl = '';
       try {
         if (typeof html2canvas === 'function') {
-          // Use full scale (1.0) for best quality preview, but skip heavy pre-baking loops and compress as JPEG
-          const canvas = await tmGenerateBakedCanvas(1.0, null, true);
+          // Use full scale for best quality preview (as in v3.10)
+          const canvas = await tmGenerateBakedCanvas(1.0);
           if (canvas) {
-            previewUrl = canvas.toDataURL('image/jpeg', 0.85);
+            previewUrl = canvas.toDataURL('image/png');
           }
         }
       } catch (e) {
@@ -4474,7 +4474,7 @@
     console.log(`Resolution switched to ${type} (${width}x${height})`);
   };
 
-  async function tmGenerateBakedCanvas(finalScale, onProgress, isPreview = false) {
+  async function tmGenerateBakedCanvas(finalScale, onProgress) {
     const ws = document.getElementById('tm-workspace');
     if (!ws) return null;
 
@@ -4830,7 +4830,6 @@
       const totalObjects = tmState.objects.length;
 
       for (let i = 0; i < totalObjects; i++) {
-        if (isPreview) continue; // Skip all heavy individual layer baking for fast previews
         const obj = tmState.objects[i];
 
         const blurVal = parseFloat(obj.blur) || 0;
