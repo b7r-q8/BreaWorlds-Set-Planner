@@ -9059,7 +9059,7 @@ function renderWPWorldSlots() {
 
 // --- WORLD TRANSFER (EXPORT / IMPORT) ---
 
-window.exportWPWorldSlot = function(slotNumber) {
+window.exportWPWorldSlot = async function(slotNumber) {
   const dataStr = localStorage.getItem(`wpSaveSlot_${slotNumber}`);
   if (!dataStr) return;
 
