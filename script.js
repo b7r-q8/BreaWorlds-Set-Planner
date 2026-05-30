@@ -5111,8 +5111,41 @@ function getTransform(el) {
 }
 
 window.downloadFile = async function (dataUrlOrJsonText, filename, mimeType) {
+  // 1. Try Capacitor (for native APK/Android app wrapper)
+  if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+    try {
+      const fs = window.Capacitor.Plugins.Filesystem;
+      const share = window.Capacitor.Plugins.Share;
+      if (fs && share) {
+        let base64Data = '';
+        if (dataUrlOrJsonText.startsWith('data:')) {
+          base64Data = dataUrlOrJsonText.split(',')[1];
+        } else {
+          // Convert text data (JSON) to base64 safely
+          base64Data = btoa(unescape(encodeURIComponent(dataUrlOrJsonText)));
+        }
+
+        // Write the file to the app's CACHE directory (requires no runtime permission)
+        const writeResult = await fs.writeFile({
+          path: filename,
+          data: base64Data,
+          directory: 'CACHE'
+        });
+
+        // Open the native system share dialog so user can save/send it
+        await share.share({
+          title: filename,
+          url: writeResult.uri
+        });
+        return; // Success!
+      }
+    } catch (e) {
+      console.warn('Capacitor native share/save failed, falling back to other methods:', e);
+    }
+  }
+
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.Capacitor;
-  // 1. Try native share (if available)
+  // 2. Try native web share (if available in a standard mobile browser)
   if (isMobile && navigator.share) {
     try {
       let file;
@@ -5132,58 +5165,7 @@ window.downloadFile = async function (dataUrlOrJsonText, filename, mimeType) {
         return;
       }
     } catch (e) {
-      console.warn('Native share failed, falling back to Capacitor/Filesystem/browser download:', e);
-    }
-  }
-
-  // 2. Try Capacitor Filesystem (for APK/Android)
-  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
-    try {
-      let data = dataUrlOrJsonText;
-      if (!data.startsWith('data:')) {
-        // Convert to base64
-        const blob = new Blob([data], { type: mimeType || 'application/octet-stream' });
-        data = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-      }
-      // Defensive: try both DOCUMENTS and EXTERNAL directories
-      let saved = false;
-      let errorMsg = '';
-      try {
-        await window.Capacitor.Plugins.Filesystem.writeFile({
-          path: filename,
-          data: data.split(',')[1],
-          directory: 'DOCUMENTS',
-          recursive: true
-        });
-        saved = true;
-      } catch (e1) {
-        errorMsg = e1 && e1.message ? e1.message : e1;
-        try {
-          await window.Capacitor.Plugins.Filesystem.writeFile({
-            path: filename,
-            data: data.split(',')[1],
-            directory: 'EXTERNAL',
-            recursive: true
-          });
-          saved = true;
-        } catch (e2) {
-          errorMsg += '\n' + (e2 && e2.message ? e2.message : e2);
-        }
-      }
-      if (saved) {
-        alert('File saved to device storage: ' + filename + '\nIf you cannot find it, check your Files app or Downloads folder.');
-        return;
-      } else {
-        alert('Failed to save file to device storage. Please check app permissions and storage space.\n' + errorMsg);
-      }
-    } catch (e) {
-      alert('Unexpected error during file save. Please check app permissions and storage space.');
-      console.warn('Capacitor Filesystem save failed, falling back to browser download:', e);
+      console.warn('Web share failed, falling back to browser download:', e);
     }
   }
 
