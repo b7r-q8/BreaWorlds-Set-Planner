@@ -1,18 +1,4 @@
-import re
-
-target_file = 'script.js'
-
-with open(target_file, 'r', encoding='utf-8') as f:
-    content = f.read()
-
-start_marker = "// ==========================================\n// NEW FEATURE: BUG REPORT SYSTEM (FIREBASE CLOUD STORAGE)\n// =========================================="
-end_marker = "// ==========================================\n// NEW FEATURE: PRELOAD BLOCKS LOGIC\n// =========================================="
-
-if start_marker in content and end_marker in content:
-    start_idx = content.find(start_marker)
-    end_idx = content.find(end_marker)
-    
-    new_code = """// ==========================================
+// ==========================================
 // NEW FEATURE: BUG REPORT SYSTEM (FIREBASE CLOUD STORAGE)
 // ==========================================
 const firebaseConfig = {
@@ -37,6 +23,17 @@ if (typeof firebase !== 'undefined') {
 
 let currentBugAttachment = null;
 let isAdminMode = false;
+
+// Persistent unique user ID for bug report ownership
+function getBugReportUserId() {
+  let uid = localStorage.getItem('bug_report_uid');
+  if (!uid) {
+    uid = 'user_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('bug_report_uid', uid);
+  }
+  return uid;
+}
+const bugReportUserId = getBugReportUserId();
 
 // Admin Unlock Function (Called from Console)
 window.enableAdminMode = function(password) {
@@ -179,6 +176,7 @@ window.submitBugReport = async function() {
     title: title,
     description: desc,
     status: 'ongoing',
+    userId: bugReportUserId,
     attachmentDataUrl: currentBugAttachment ? currentBugAttachment.data : null
   };
   
@@ -198,11 +196,13 @@ window.submitBugReport = async function() {
   }
 };
 
-// Load Logic
+// Load Logic — only show the current user's own reports
 window.loadMyBugReports = async function() {
   if (!db) return;
   try {
-    const snapshot = await db.collection('reports').orderBy('timestamp', 'desc').get();
+    const snapshot = await db.collection('reports')
+      .orderBy('timestamp', 'desc')
+      .get();
     
     const ongoingList = document.getElementById('bug-list-ongoing');
     const fixedList = document.getElementById('bug-list-fixed');
@@ -212,6 +212,8 @@ window.loadMyBugReports = async function() {
     
     snapshot.forEach(doc => {
       const r = doc.data();
+      if (r.userId !== bugReportUserId) return; // Client-side filtering
+      
       r.id = doc.id;
       const card = createBugCardHTML(r, false);
       if (r.status === 'fixed') {
@@ -289,7 +291,7 @@ function createBugCardHTML(report, forAdmin) {
         <span class="bug-card-title">${report.title}</span>
         <span class="bug-card-date">${dateStr}</span>
       </div>
-      <div class="bug-card-desc">${report.description.replace(/\\n/g, '<br>')}</div>
+      <div class="bug-card-desc">${report.description.replace(/\n/g, '<br>')}</div>
       ${attachHtml}
       ${actionsHtml}
     </div>
@@ -328,10 +330,47 @@ window.adminDeleteBug = async function(id) {
   } catch(err) { console.error("Error deleting bug: ", err); }
 };
 
-"""
-    new_content = content[:start_idx] + new_code + content[end_idx:]
-    with open(target_file, 'w', encoding='utf-8') as f:
-        f.write(new_content)
-    print("Fixed script.js securely!")
-else:
-    print("Could not find markers.")
+// ==========================================
+// NEW FEATURE: PRELOAD BLOCKS LOGIC
+// ==========================================
+function preloadAllBlocks() {
+  console.log("Starting early pre-fetch of block assets...");
+  fetch('worldplanner/blocks_manifest.json')
+    .then(r => r.json())
+    .then(data => {
+      const manifestCategories = data.manifest.categories;
+      const themeList = data.manifest.themes;
+      const imagesToLoad = [];
+      
+      // Load blocks
+      manifestCategories.forEach(cat => {
+        Object.values(cat.blocks).forEach(blk => {
+          if (blk.src) imagesToLoad.push(blk.src);
+          // Only check first frame to save bandwidth/connections
+          if (blk.framesPath && blk.frameCount > 0) {
+             imagesToLoad.push(`${blk.framesPath}${blk.frameStart || 0}.png`);
+          }
+        });
+      });
+      
+      // Load theme backgrounds
+      if (themeList) {
+        themeList.forEach(t => {
+          if (t.src) imagesToLoad.push(t.src);
+        });
+      }
+      
+      // Create off-screen image elements to force browser cache
+      imagesToLoad.forEach(src => {
+        const img = new Image();
+        img.src = src;
+      });
+      console.log(`Pre-fetching ${imagesToLoad.length} assets.`);
+    })
+    .catch(e => console.warn("Background preloading failed (will load when World Planner opens)", e));
+}
+
+// Start preloading immediately on load
+window.addEventListener('load', () => {
+  preloadAllBlocks();
+});

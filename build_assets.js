@@ -14,16 +14,16 @@ const foldersToCopy = [
   'eyes', 'faces', 'featured', 'floaties', 'fonts', 'hair', 'hands',
   'hats', 'levels', 'lunar', 'pants', 'pets', 'platforms', 'scarfs',
   'specials', 'wings', 'worldplanner', 'libs', 'roadmap', 'shirts',
-  'shoes', 'rockerbody'
+  'shoes', 'rockerbody', 'js', 'assets'
 ];
 
 const filesToCopy = [
-  'index.html', 'style.css', 'script.js', 'thumbnail.js', 'multiplayer.js',
+  'index.html', 'style.css', 'thumbnail.js', 'multiplayer.js',
   'community.css', 'community.html', 'community.js', 'tutorial.css',
   'firebase-config.js', 'new_items.json', 'robots.txt',
   'arm.png', 'base.png', 'baseskate.png', 'body.png', 'facemech.png',
   'feet.png', 'head.png', 'leg.png', 'legskate.png', 'pupil.png',
-  'tm_consumables_manifest.js'
+  'tm_consumables_manifest.js', 'manifest.json', 'sw.js'
 ];
 
 // Copy files
