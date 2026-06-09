@@ -4092,9 +4092,9 @@ body.njc-active #pupil {
 /* GRID BACKGROUND */
 #wp-grid-bg {
   position: absolute;
-  inset: 0;
+  inset: -60px;
   background-image: var(--wp-theme-bg, none);
-  background-size: 100% 100%;
+  background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   z-index: -1;
@@ -11105,4 +11105,172 @@ input, textarea, [contenteditable="true"] {
   transform: scale(0.96);
   transition: transform 0.08s ease;
 }
+
+/* =========================================
+   ADMIN ANALYTICS DASHBOARD
+   ========================================= */
+.bug-admin-stats-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(168, 218, 220, 0.1);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.bug-stats-loader, .bug-stats-error {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: 'Century Gothic', sans-serif;
+  padding: 20px;
+}
+
+.bug-stats-dashboard {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .bug-stats-dashboard {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bug-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.bug-stat-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 12px;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.bug-stat-box:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-2px);
+}
+
+.bug-stat-box-total {
+  background: rgba(168, 218, 220, 0.05);
+  border-color: rgba(168, 218, 220, 0.15);
+}
+
+.bug-stat-title {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+.bug-stat-val {
+  font-size: 22px;
+  font-weight: bold;
+  color: #a8dadc;
+  margin: 4px 0;
+  font-family: 'Russo One', sans-serif;
+}
+
+.bug-stat-sub {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.bug-stats-feed {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  max-height: 220px;
+}
+
+.bug-feed-title {
+  font-size: 12px;
+  font-weight: bold;
+  color: #fb8500;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bug-feed-list {
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+.bug-feed-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.bug-feed-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.bug-activity-row {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.bug-activity-row:last-child {
+  border-bottom: none;
+}
+
+.bug-activity-time {
+  color: rgba(255, 255, 255, 0.3);
+  margin-right: 8px;
+  font-family: monospace;
+}
+
+.bug-activity-user {
+  color: rgba(255, 255, 255, 0.7);
+  flex-grow: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.bug-activity-badge {
+  font-size: 9px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.bug-badge-set {
+  background: rgba(254, 0, 101, 0.15);
+  color: #fe0065;
+  border: 1px solid rgba(254, 0, 101, 0.25);
+}
+
+.bug-badge-world {
+  background: rgba(78, 205, 196, 0.15);
+  color: #4ECDC4;
+  border: 1px solid rgba(78, 205, 196, 0.25);
+}
+
+.bug-badge-fish {
+  background: rgba(255, 230, 109, 0.15);
+  color: #FFE66D;
+  border: 1px solid rgba(255, 230, 109, 0.25);
+}
+
+.bug-badge-thumbnail {
+  background: rgba(167, 139, 250, 0.15);
+  color: #A78BFA;
+  border: 1px solid rgba(167, 139, 250, 0.25);
+}
+
 

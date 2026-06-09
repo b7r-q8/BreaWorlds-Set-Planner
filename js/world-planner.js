@@ -3045,6 +3045,14 @@ function drawWPWorld(timestamp) {
   if (animTick) wpLastAnimTick = now;
   wpDirty = false;
 
+  // Update dynamic parallax theme background (Growtopia style)
+  const gridBg = document.getElementById('wp-grid-bg');
+  if (gridBg) {
+    const shiftX = Math.max(-50, Math.min(50, wpOffsetX * wpZoom * 0.05));
+    const shiftY = Math.max(-50, Math.min(50, wpOffsetY * wpZoom * 0.05));
+    gridBg.style.backgroundPosition = `calc(50% + ${shiftX}px) calc(50% + ${shiftY}px)`;
+  }
+
   // Use CSS width/height for culling logic, but scaled width/height for clearing
   const dpr = window.devicePixelRatio || 1;
   const viewWidth = wpCanvas.width / dpr;

@@ -1,5 +1,5 @@
 // BreaWorlds Tools - Progressive Web App Service Worker (sw.js)
-const CACHE_NAME = 'bw-tools-v3.15.0';
+const CACHE_NAME = 'bw-tools-v3.15.2';
 
 // Core assets to pre-cache immediately on service worker install
 const PRECACHE_ASSETS = [
@@ -15,6 +15,7 @@ const PRECACHE_ASSETS = [
   './tm_consumables_manifest.js',
   './manifest.json',
   './assets/icon.png',
+  './assets/apple-touch-icon.png',
   './arm.png',
   './base.png',
   './baseskate.png',

@@ -7055,6 +7055,9 @@ window.activePlannerType = 'set'; // Track current planner to optimize inactive 
 
 window.selectPlanner = function (type) {
   window.activePlannerType = type;
+  if (typeof window.logModeClick === 'function') {
+    window.logModeClick(type);
+  }
   const wpContainer = document.getElementById("world-planner-container");
   const setContainer = document.getElementById("set-planner-container");
   const fishContainer = document.getElementById("fish-calculator-container");
