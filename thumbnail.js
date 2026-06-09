@@ -1699,6 +1699,7 @@
         vig.style.maskImage = '';
       }
     }
+
     if (contentEl) {
       el.style.opacity = '1';
       el.style.filter = '';
@@ -2636,6 +2637,8 @@
       }
     }
 
+
+
     // Text controls
     const textSec = document.getElementById('tm-text-controls');
     if (textSec) {
@@ -3405,32 +3408,43 @@
       root.dataset.type = 'image';
 
       const img = document.createElement('img');
-      img.src = e.target.result;
       img.draggable = false;
       img.style.width = '100%';
       img.style.height = '100%';
       img.style.objectFit = 'contain';
       img.style.pointerEvents = 'none';
-      root.appendChild(img);
+      img.onload = () => {
+        const natW = img.naturalWidth || 360;
+        const natH = img.naturalHeight || 360;
+        let w = 360;
+        let h = 360;
+        if (natW > natH) {
+          h = Math.round(360 * (natH / natW));
+        } else {
+          w = Math.round(360 * (natW / natH));
+        }
 
-      const center = tmGetLogicalWorkspaceCenter(360, 360);
-      const obj = {
-        id, type: 'image', el: root,
-        x: center.x, y: center.y, width: 360, height: 360,
-        scale: 1, stretchX: 1, stretchY: 1, rotation: 0, opacity: 1,
-        blur: 0, glow: 0, glowColor: '#ffffff',
-        inverted: false, halo: 0, backFade: 0,
-        data: { src: e.target.result },
-        vignetteEnabled: false,
-        vignetteIntensity: 0.55
+        const center = tmGetLogicalWorkspaceCenter(w, h);
+        const obj = {
+          id, type: 'image', el: root,
+          x: center.x, y: center.y, width: w, height: h,
+          scale: 1, stretchX: 1, stretchY: 1, rotation: 0, opacity: 1,
+          blur: 0, glow: 0, glowColor: '#ffffff',
+          inverted: false, halo: 0, backFade: 0,
+          data: { src: e.target.result },
+          vignetteEnabled: false,
+          vignetteIntensity: 0.55
+        };
+
+        ws.appendChild(root);
+        tmState.objects.push(obj);
+        applyTransform(obj);
+        setupDrag(root, obj);
+        tmSelectObject(id);
+        tmRenderLayersPanel();
       };
-
-      ws.appendChild(root);
-      tmState.objects.push(obj);
-      applyTransform(obj);
-      setupDrag(root, obj);
-      tmSelectObject(id);
-      tmRenderLayersPanel();
+      img.src = e.target.result;
+      root.appendChild(img);
     };
     reader.readAsDataURL(file);
     event.target.value = '';
@@ -6064,3 +6078,4 @@
     }
   };
 })();
+

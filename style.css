@@ -7098,6 +7098,62 @@ body.njc-active #pupil {
   pointer-events: auto; /* Ensure clicks pass through correctly */
 }
 
+.main-menu-bottom-left {
+  position: fixed;
+  bottom: 25px;
+  left: 25px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  z-index: 100000;
+  pointer-events: none;
+  animation: wnFadeIn 1.2s ease forwards;
+}
+
+.menu-version-info {
+  font-family: 'Century Gothic', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(168, 218, 220, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.menu-version-number {
+  color: rgba(168, 218, 220, 0.7);
+}
+
+.menu-event-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Century Gothic', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #ff4d6d;
+  background: rgba(255, 77, 109, 0.1);
+  padding: 5px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 77, 109, 0.25);
+  animation: eventPulse 3s ease-in-out infinite;
+}
+
+.menu-event-badge i, .menu-event-badge svg {
+  color: #ff4d6d;
+  fill: #ff4d6d;
+}
+
+@keyframes eventPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(255, 77, 109, 0.15); }
+  50% { box-shadow: 0 0 18px rgba(255, 77, 109, 0.35); }
+}
+
 /* =========================================
    REPORT BUGS BUTTON (Main Menu)
    ========================================= */
@@ -11020,3 +11076,33 @@ body.wp-dragging * {
   -webkit-text-fill-color: transparent !important;
   color: transparent !important;
 }
+
+/* =========================================
+   APP-LIKE FEEL ENHANCEMENTS
+   ========================================= */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: none;
+}
+
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.selection-card:active,
+.tm-tool-btn:active,
+.tm-add-btn:active,
+.tm-res-btn:active,
+.wrench-panel-btn:active,
+.whats-new-trigger-btn:active,
+.report-bugs-btn:active {
+  transform: scale(0.96);
+  transition: transform 0.08s ease;
+}
+

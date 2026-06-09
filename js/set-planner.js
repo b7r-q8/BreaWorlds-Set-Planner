@@ -2382,11 +2382,11 @@ function syncBodyParts() {
         return;
       }
       el.src = src;
+      let shouldHide = false;
       // If ghost is NOT active, ensure the part is visible
       if (!isGhost) {
         // Body parts are never hidden by clothing — same behaviour as color skin variants.
         // Cars (non-skate) hide feet. Skate items hide base.
-        let shouldHide = false;
         if (id === 'feet') {
           const carsLayer = document.getElementById('cars');
           const isSkateItem = carsLayer && carsLayer.style.display === 'block' && carsLayer.src && (carsLayer.src.includes('skate.png') || carsLayer.src.includes('dcirc.png') || carsLayer.src.includes('circ.png'));
@@ -2409,8 +2409,9 @@ function syncBodyParts() {
         }
 
         if (shouldHide) {
-          if (id === 'base') {
+          if (id === 'base' || id === 'arm') {
             // Base must remain in layout to anchor character position
+            // Arm must remain in layout with display=block so thumbnail maker can calculate correct pivot
             el.style.display = 'block';
             el.style.visibility = 'visible';
             el.style.opacity = '0';
@@ -2440,8 +2441,10 @@ function syncBodyParts() {
         }
       }
 
-      // Set opacity based on invis state, but preserve skate-hidden base
+      // Set opacity based on invis state, but preserve skate-hidden base and hidden arm
       if (id === 'base' && isSkate) {
+        el.style.opacity = '0';
+      } else if (id === 'arm' && shouldHide) {
         el.style.opacity = '0';
       } else {
         el.style.opacity = isInvis ? '0' : '1';
@@ -3305,6 +3308,16 @@ function equipItem(element) {
           rightShoeLayer.src = '';
         }
       }
+
+      // If hands, also update back-hands counterpart
+      if (actualLayerName === 'hands') {
+        const backHandsLayer = document.getElementById('back-hands');
+        if (backHandsLayer) {
+          backHandsLayer.style.display = 'none';
+          stopAnimation(backHandsLayer);
+          backHandsLayer.src = '';
+        }
+      }
     }
 
     // 2. Selective Accessory Cleanup (Multi-Layer / Glitch Fix)
@@ -3734,6 +3747,16 @@ function equipItem(element) {
         });
         console.log('Space Suit Pants unequipped - cleared Space Boots & shoes layers');
       }
+
+      // If hands, also update back-hands counterpart
+      if (layerName === 'hands') {
+        const backHandsLayer = document.getElementById('back-hands');
+        if (backHandsLayer) {
+          backHandsLayer.style.display = 'none';
+          stopAnimation(backHandsLayer);
+          backHandsLayer.src = '';
+        }
+      }
       // ================================
 
       // Show corresponding body parts when unequipping items (respecting character state)
@@ -4040,11 +4063,13 @@ function equipItem(element) {
             const outfitRightShoeLayer = document.getElementById('outfitrightshoe');
             if (outfitShoesLayer) { outfitShoesLayer.style.display = 'none'; outfitShoesLayer.src = ''; }
             if (outfitRightShoeLayer) { outfitRightShoeLayer.style.display = 'none'; outfitRightShoeLayer.src = ''; }
-            // Don't restore feet for shirt52 - keep it hidden
-          } else if (layerType === 'pants') {
-            // Don't restore leg for shirt52 - keep it hidden
-          } else if (layerType === 'eyes') {
-            // Don't restore pupil for shirt52 - keep it hidden
+          } else if (layerType === 'hands') {
+            const backHandsLayer = document.getElementById('back-hands');
+            if (backHandsLayer) {
+              backHandsLayer.style.display = 'none';
+              stopAnimation(backHandsLayer);
+              backHandsLayer.src = '';
+            }
           }
         }
       });
@@ -4770,7 +4795,7 @@ window.unequipAll = function (force = false) {
     'hat', 'hair', 'headgears', 'headgearsabove', 'eyes', 'faces',
     'shirts', 'shirtsabove', 'shirtsbehind', 'shirtstop',
     'pants', 'shoes', 'rightshoe', 'outfitshoes', 'outfitrightshoe',
-    'hands', 'capes', 'capesabove', 'wings', 'cars', 'floaties',
+    'hands', 'back-hands', 'capes', 'capesabove', 'wings', 'cars', 'floaties',
     'scarfs', 'backpacks', 'necklaces', 'pets', 'pets-back', 'skin'
   ];
 
@@ -7167,15 +7192,24 @@ window.selectPlanner = function (type) {
   // Fade out loading screen after selection (if not already hidden)
   if (loadingScreen && loadingScreen.style.display !== "none") {
     loadingScreen.classList.add("fade-out");
-    setTimeout(() => {
+    // Clear any previous fade timer to prevent race conditions
+    if (window._loadScreenFadeTimer) clearTimeout(window._loadScreenFadeTimer);
+    window._loadScreenFadeTimer = setTimeout(() => {
       loadingScreen.style.display = "none";
       loadingScreen.classList.remove("fade-out");
+      window._loadScreenFadeTimer = null;
     }, 800);
   }
 };
 
 window.backToSelection = function () {
   window.activePlannerType = 'menu';
+
+  // Cancel any pending fade-out timer from selectPlanner so the menu stays visible
+  if (window._loadScreenFadeTimer) {
+    clearTimeout(window._loadScreenFadeTimer);
+    window._loadScreenFadeTimer = null;
+  }
   const wpContainer = document.getElementById("world-planner-container");
   const setContainer = document.getElementById("set-planner-container");
   const fishContainer = document.getElementById("fish-calculator-container");
