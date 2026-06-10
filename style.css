@@ -4099,7 +4099,8 @@ body.njc-active #pupil {
   background-repeat: no-repeat;
   z-index: -1;
   pointer-events: none;
-  transition: background-image 0.5s ease;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
 }
 
 #worldCanvas {
