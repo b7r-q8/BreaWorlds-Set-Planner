@@ -7009,10 +7009,14 @@ window.addEventListener('load', async () => {
         loaderInitial.style.display = 'none';
         loadingSelection.style.display = 'flex';
 
-        // Show "See What's New" button with matching fade
+        // Show "See What's New" and "Watch Guide" buttons with matching fade
         const whatsNewBtn = document.querySelector('.whats-new-trigger-btn');
         if (whatsNewBtn) {
           whatsNewBtn.classList.add('visible');
+        }
+        const watchVideoBtn = document.querySelector('.watch-video-btn');
+        if (watchVideoBtn) {
+          watchVideoBtn.classList.add('visible');
         }
 
         // Show "Report Bugs" and "APK Download" buttons with delay

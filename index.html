@@ -23,7 +23,7 @@
 
   <meta name="keywords" content="BreaWorlds Tools, BW Tools, BreaWorlds Set Planner, BreaWorlds World Planner">
 
-  <link rel="stylesheet" href="style.css?v=3.15.3">
+  <link rel="stylesheet" href="style.css?v=3.15.5">
   <link rel="stylesheet" href="tutorial.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -123,7 +123,16 @@
 <body oncontextmenu="return false;">
   <!-- SEO Content for Google/Search Engines -->
   <h1 class="seo-header">BreaWorlds Tools</h1>
-  <p class="seo-header">Set Planner and World Designer for BreaWorlds (BW Tools).</p>
+  <!-- VIDEO GUIDE LIGHTBOX MODAL -->
+  <div id="video-guide-overlay" class="video-overlay" style="display: none;" onclick="if(event.target === this) closeVideoModal()">
+    <div class="video-modal">
+      <button class="video-close-btn" onclick="closeVideoModal()">&times;</button>
+      <div class="video-container">
+        <!-- Loaded dynamically on click -->
+      </div>
+    </div>
+  </div>
+
   <!-- WHAT'S NEW MODAL -->
   <div id="whats-new-overlay" class="wn-overlay" style="display: none;">
     <div id="whats-new-modal" class="wn-modal">
@@ -1125,7 +1134,16 @@
 
 
 
-      <button class="whats-new-trigger-btn" onclick="initWhatsNewModal()">See What's New</button>
+      <div class="menu-btn-container">
+        <button class="whats-new-trigger-btn" onclick="initWhatsNewModal()">
+          <i data-lucide="sparkles" style="width:12px;height:12px;vertical-align:middle;margin-right:4px;"></i>
+          <span>See What's New</span>
+        </button>
+        <button class="watch-video-btn" onclick="openVideoModal()">
+          <i data-lucide="play" style="width:12px;height:12px;vertical-align:middle;margin-right:4px;"></i>
+          <span>Watch Guide</span>
+        </button>
+      </div>
 
       <div class="main-menu-bottom-right">
         <button class="report-bugs-btn" id="report-bugs-btn" onclick="openBugReportModal()">
@@ -8975,12 +8993,12 @@
   </div>
 
 </body>
-<script src="js/set-planner.js?v=3.15.3"></script>
-<script src="js/fish-calculator.js?v=3.15.3"></script>
-<script src="js/block-spotlight.js?v=3.15.3"></script>
-<script src="js/world-planner.js?v=3.15.3"></script>
-<script src="js/bug-reporter.js?v=3.15.3"></script>
-<script src="js/main.js?v=3.15.3"></script>
+<script src="js/set-planner.js?v=3.15.5"></script>
+<script src="js/fish-calculator.js?v=3.15.5"></script>
+<script src="js/block-spotlight.js?v=3.15.5"></script>
+<script src="js/world-planner.js?v=3.15.5"></script>
+<script src="js/bug-reporter.js?v=3.15.5"></script>
+<script src="js/main.js?v=3.15.5"></script>
 <script src="tm_consumables_manifest.js?v=1.6.3"></script>
 <script src="thumbnail.js?v=1.6.3"></script>
 

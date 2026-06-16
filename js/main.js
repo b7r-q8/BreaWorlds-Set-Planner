@@ -1,7 +1,7 @@
 // main.js - Application bootloader and Service Worker registration
 console.log("🚀 BreaWorlds Tools: Core modules loaded successfully.");
 
-const APP_VERSION = "3.15.3"; // Increment this when making updates!
+const APP_VERSION = "3.15.5"; // Increment this when making updates!
 
 // Register Progressive Web App Service Worker for Offline support
 if ('serviceWorker' in navigator) {

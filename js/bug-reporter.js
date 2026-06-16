@@ -422,12 +422,16 @@ window.logModeClick = async function(mode) {
   }
 };
 
-window.loadAdminStats = async function() {
+window.adminStatsSelectedDays = 7;
+window.adminStatsHiddenModes = new Set();
+
+window.loadAdminStats = async function(days = 7) {
   if (!db || !isAdminMode) return;
+  window.adminStatsSelectedDays = days;
   const statsCard = document.getElementById('bug-admin-stats-card');
   if (!statsCard) return;
 
-  statsCard.innerHTML = `<div class="bug-stats-loader">Loading live activity...</div>`;
+  statsCard.innerHTML = `<div class="bug-stats-loader">Loading live activity & charts...</div>`;
 
   try {
     // 1. Fetch total visits from CounterAPI
@@ -446,6 +450,7 @@ window.loadAdminStats = async function() {
 
     // 2. Fetch tracked counts from Firestore stats/mode_clicks
     let trackedCounts = {
+      visit: 0,
       set: 0,
       world: 0,
       fish: 0,
@@ -456,6 +461,7 @@ window.loadAdminStats = async function() {
       if (statsDoc.exists) {
         const data = statsDoc.data();
         if (data) {
+          trackedCounts.visit = data.visit || 0;
           trackedCounts.set = data.set || 0;
           trackedCounts.world = data.world || 0;
           trackedCounts.fish = data.fish || 0;
@@ -466,14 +472,26 @@ window.loadAdminStats = async function() {
       console.warn("Failed to fetch Firestore stats doc:", e);
     }
 
-    // 3. Setup real-time listener for recent click activity
+    // 3. Fetch historical data from Firestore (last N days)
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    startDate.setHours(0,0,0,0);
+
+    const historicalSnapshot = await db.collection('click_activity')
+      .where('timestamp', '>=', startDate)
+      .orderBy('timestamp', 'asc')
+      .get();
+      
+    window.adminHistoricalSnapshot = historicalSnapshot;
+
+    // 4. Setup real-time listener for recent click activity
     if (window.wpStatsUnsubscribe) window.wpStatsUnsubscribe();
 
     window.wpStatsUnsubscribe = db.collection('click_activity')
       .orderBy('timestamp', 'desc')
       .limit(15)
-      .onSnapshot(snapshot => {
-        renderStatsUI(totalVisits, trackedCounts, snapshot);
+      .onSnapshot(liveSnapshot => {
+        renderStatsUI(totalVisits, trackedCounts, liveSnapshot, window.adminHistoricalSnapshot, days);
       }, err => {
         console.error("Stats listener failed:", err);
       });
@@ -484,28 +502,114 @@ window.loadAdminStats = async function() {
   }
 };
 
-function renderStatsUI(totalVisits, trackedCounts, snapshot) {
+function renderStatsUI(totalVisits, trackedCounts, liveSnapshot, historicalSnapshot, days) {
   const statsCard = document.getElementById('bug-admin-stats-card');
   if (!statsCard) return;
 
-  // Calculate estimates based on CounterAPI value
-  const estSet = Math.max(0, Math.round(totalVisits * 0.50));
-  const estWorld = Math.max(0, Math.round(totalVisits * 0.30));
-  const estFish = Math.max(0, Math.round(totalVisits * 0.15));
-  const estThumbnail = Math.max(0, Math.round(totalVisits * 0.05));
+  const totalVisitsCount = Math.max(totalVisits, trackedCounts.visit);
 
-  // Total clicks for display (Estimate + Tracked)
-  const totalSet = estSet + trackedCounts.set;
-  const totalWorld = estWorld + trackedCounts.world;
-  const totalFish = estFish + trackedCounts.fish;
-  const totalThumbnail = estThumbnail + trackedCounts.thumbnail;
+  // Group historical data by date
+  const datesArray = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    datesArray.push(d.toLocaleDateString([], { month: '2-digit', day: '2-digit' }));
+  }
+
+  const statsData = {};
+  datesArray.forEach(date => {
+    statsData[date] = { visit: 0, set: 0, world: 0, fish: 0, thumbnail: 0 };
+  });
+
+  if (historicalSnapshot && !historicalSnapshot.empty) {
+    historicalSnapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.timestamp && data.mode) {
+        const dateObj = typeof data.timestamp.toDate === 'function' ? data.timestamp.toDate() : new Date(data.timestamp.seconds * 1000);
+        const dateStr = dateObj.toLocaleDateString([], { month: '2-digit', day: '2-digit' });
+        if (statsData[dateStr] && statsData[dateStr][data.mode] !== undefined) {
+          statsData[dateStr][data.mode]++;
+        }
+      }
+    });
+  }
+
+  // Calculate max value for chart scaling
+  let maxVal = 0;
+  datesArray.forEach(date => {
+    const d = statsData[date];
+    maxVal = Math.max(maxVal, d.visit, d.set, d.world, d.fish, d.thumbnail);
+  });
+  if (maxVal === 0) maxVal = 10;
+  const step = Math.max(1, Math.ceil(maxVal / 4));
+  maxVal = step * 4;
+
+  // Build SVG Grid Lines
+  let gridHtml = '';
+  for (let i = 0; i <= 4; i++) {
+    const ratio = i / 4;
+    const y = 20 + 170 - ratio * 170;
+    const labelVal = Math.round(ratio * maxVal);
+    gridHtml += `
+      <line x1="40" y1="${y}" x2="720" y2="${y}" stroke="rgba(255,255,255,0.05)" stroke-dasharray="4" />
+      <text x="32" y="${y + 3}" fill="rgba(255,255,255,0.4)" font-size="9" font-family="monospace" text-anchor="end">${labelVal}</text>
+    `;
+  }
+
+  // Build SVG X-Axis labels
+  let xAxisHtml = '';
+  datesArray.forEach((date, index) => {
+    const x = 40 + (index / (datesArray.length - 1)) * 680;
+    xAxisHtml += `
+      <text x="${x}" y="212" fill="rgba(255,255,255,0.4)" font-size="9" font-family="monospace" text-anchor="middle">${date}</text>
+      <line x1="${x}" y1="20" x2="${x}" y2="190" stroke="rgba(255,255,255,0.02)" />
+    `;
+  });
+
+  // Build Lines & Dots
+  const modes = ['visit', 'set', 'world', 'fish', 'thumbnail'];
+  const colors = {
+    visit: '#4a90e2',
+    set: '#fe0065',
+    world: '#4ECDC4',
+    fish: '#FFE66D',
+    thumbnail: '#A78BFA'
+  };
+
+  let pathsHtml = '';
+  let dotsHtml = '';
+
+  modes.forEach(mode => {
+    const modeColor = colors[mode];
+    let pathD = '';
+    
+    datesArray.forEach((date, index) => {
+      const val = statsData[date][mode];
+      const x = 40 + (index / (datesArray.length - 1)) * 680;
+      const y = 20 + 170 - (val / maxVal) * 170;
+      
+      if (index === 0) {
+        pathD += `M ${x} ${y}`;
+      } else {
+        pathD += ` L ${x} ${y}`;
+      }
+      
+      dotsHtml += `
+        <circle cx="${x}" cy="${y}" r="4" fill="${modeColor}" stroke="rgba(10,10,26,0.95)" stroke-width="1.5" class="chart-dot mode-${mode}" data-mode="${mode}" data-date="${date}" data-val="${val}" style="cursor: pointer; transition: r 0.1s;" />
+      `;
+    });
+    
+    pathsHtml += `
+      <path d="${pathD}" fill="none" stroke="${modeColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="chart-path mode-${mode}" style="opacity: 0.85; transition: opacity 0.2s;" />
+    `;
+  });
 
   // Build activity feed HTML
   let activityHtml = '';
-  if (snapshot.empty) {
+  if (liveSnapshot.empty) {
     activityHtml = `<div class="bug-stats-empty-activity">No click activity logged yet.</div>`;
   } else {
-    snapshot.forEach(doc => {
+    liveSnapshot.forEach(doc => {
       const data = doc.data();
       let time = 'Just now';
       if (data.timestamp) {
@@ -513,6 +617,7 @@ function renderStatsUI(totalVisits, trackedCounts, snapshot) {
         time = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       }
       const modeLabels = {
+        visit: 'Page Visit',
         set: 'Set Planner',
         world: 'World Planner',
         fish: 'Fish Calc',
@@ -532,33 +637,63 @@ function renderStatsUI(totalVisits, trackedCounts, snapshot) {
   }
 
   statsCard.innerHTML = `
+    <div class="bug-admin-chart-container">
+      <div class="bug-chart-header">
+        <div class="bug-chart-title">
+          <i data-lucide="trending-up" style="width:14px;height:14px;color:#fb8500;"></i>
+          <span>Usage Statistics (Last ${days} Days)</span>
+        </div>
+        <div class="bug-chart-controls">
+          <div class="bug-chart-legend">
+            <span class="legend-item" data-mode="visit"><span class="legend-color-dot legend-color-visit"></span>Visits</span>
+            <span class="legend-item" data-mode="set"><span class="legend-color-dot legend-color-set"></span>Sets</span>
+            <span class="legend-item" data-mode="world"><span class="legend-color-dot legend-color-world"></span>Worlds</span>
+            <span class="legend-item" data-mode="fish"><span class="legend-color-dot legend-color-fish"></span>Fish</span>
+            <span class="legend-item" data-mode="thumbnail"><span class="legend-color-dot legend-color-thumbnail"></span>Thumbs</span>
+          </div>
+          <div class="bug-chart-toggles">
+            <button class="bug-chart-toggle-btn ${days === 7 ? 'active' : ''}" onclick="loadAdminStats(7)">7D</button>
+            <button class="bug-chart-toggle-btn ${days === 14 ? 'active' : ''}" onclick="loadAdminStats(14)">14D</button>
+          </div>
+        </div>
+      </div>
+      
+      <svg id="admin-stats-svg" viewBox="0 0 740 220" width="100%" height="220" style="overflow: visible;">
+        ${gridHtml}
+        ${xAxisHtml}
+        ${pathsHtml}
+        <line id="chart-guide-line" x1="0" y1="20" x2="0" y2="190" stroke="rgba(255,255,255,0.15)" stroke-dasharray="2" style="display: none;" />
+        ${dotsHtml}
+      </svg>
+      <div id="chart-tooltip" class="chart-tooltip"></div>
+    </div>
+
     <div class="bug-stats-dashboard">
-      <!-- Left column: Numbers -->
       <div class="bug-stats-grid">
         <div class="bug-stat-box">
           <div class="bug-stat-title">Set Planner</div>
-          <div class="bug-stat-val">${totalSet.toLocaleString()}</div>
-          <div class="bug-stat-sub">${trackedCounts.set} tracked + ${estSet.toLocaleString()} est.</div>
+          <div class="bug-stat-val">${trackedCounts.set.toLocaleString()}</div>
+          <div class="bug-stat-sub">Lifetime clicks</div>
         </div>
         <div class="bug-stat-box">
           <div class="bug-stat-title">World Planner</div>
-          <div class="bug-stat-val">${totalWorld.toLocaleString()}</div>
-          <div class="bug-stat-sub">${trackedCounts.world} tracked + ${estWorld.toLocaleString()} est.</div>
+          <div class="bug-stat-val">${trackedCounts.world.toLocaleString()}</div>
+          <div class="bug-stat-sub">Lifetime clicks</div>
         </div>
         <div class="bug-stat-box">
           <div class="bug-stat-title">Fish Calculator</div>
-          <div class="bug-stat-val">${totalFish.toLocaleString()}</div>
-          <div class="bug-stat-sub">${trackedCounts.fish} tracked + ${estFish.toLocaleString()} est.</div>
+          <div class="bug-stat-val">${trackedCounts.fish.toLocaleString()}</div>
+          <div class="bug-stat-sub">Lifetime clicks</div>
         </div>
         <div class="bug-stat-box">
           <div class="bug-stat-title">Thumbnail Maker</div>
-          <div class="bug-stat-val">${totalThumbnail.toLocaleString()}</div>
-          <div class="bug-stat-sub">${trackedCounts.thumbnail} tracked + ${estThumbnail.toLocaleString()} est.</div>
+          <div class="bug-stat-val">${trackedCounts.thumbnail.toLocaleString()}</div>
+          <div class="bug-stat-sub">Lifetime clicks</div>
         </div>
         <div class="bug-stat-box bug-stat-box-total" style="grid-column: span 2;">
           <div class="bug-stat-title">Total Site Visits</div>
-          <div class="bug-stat-val">${totalVisits.toLocaleString()}</div>
-          <div class="bug-stat-sub">From counterapi.dev</div>
+          <div class="bug-stat-val">${totalVisitsCount.toLocaleString()}</div>
+          <div class="bug-stat-sub">Firestore: ${trackedCounts.visit.toLocaleString()} | CounterAPI: ${totalVisits.toLocaleString()}</div>
         </div>
         <div class="bug-stat-box bug-stat-box-action" style="grid-column: span 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 12px;">
           <button id="admin-force-reload-btn" onclick="triggerForcedRefresh()" style="background: rgba(220, 53, 69, 0.2); border: 1px solid #dc3545; color: #dc3545; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-family: 'Russo One', sans-serif; font-size: 13px; transition: all 0.2s ease; width: 100%;">
@@ -567,13 +702,142 @@ function renderStatsUI(totalVisits, trackedCounts, snapshot) {
           <div class="bug-stat-sub" style="font-size: 10px; color: rgba(255,255,255,0.4);">Triggers a hard refresh on all open tabs.</div>
         </div>
       </div>
-      <!-- Right column: Recent live activity feed -->
       <div class="bug-stats-feed">
         <div class="bug-feed-title">Recent Live Clicks</div>
         <div class="bug-feed-list">${activityHtml}</div>
       </div>
     </div>
   `;
+
+  initChartListeners(datesArray, statsData, modes, colors);
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function initChartListeners(datesArray, statsData, modes, colors) {
+  const svg = document.getElementById('admin-stats-svg');
+  if (!svg) return;
+
+  const chartWidth = 680;
+  const paddingLeft = 40;
+  const hiddenModes = window.adminStatsHiddenModes || new Set();
+
+  hiddenModes.forEach(mode => {
+    const path = svg.querySelectorAll(`.chart-path.mode-${mode}`);
+    const dots = svg.querySelectorAll(`.chart-dot.mode-${mode}`);
+    path.forEach(p => p.style.opacity = '0');
+    dots.forEach(d => {
+      d.style.opacity = '0';
+      d.style.pointerEvents = 'none';
+    });
+    const legendItem = document.querySelector(`.legend-item[data-mode="${mode}"]`);
+    if (legendItem) legendItem.classList.add('hidden');
+  });
+
+  svg.addEventListener('mousemove', (e) => {
+    const rect = svg.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const chartX = mouseX * (740 / rect.width);
+    
+    let closestIndex = 0;
+    let minDiff = Infinity;
+    
+    datesArray.forEach((date, index) => {
+      const x = paddingLeft + (index / (datesArray.length - 1)) * chartWidth;
+      const diff = Math.abs(chartX - x);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestIndex = index;
+      }
+    });
+    
+    const targetDate = datesArray[closestIndex];
+    const targetData = statsData[targetDate];
+    const x = paddingLeft + (closestIndex / (datesArray.length - 1)) * chartWidth;
+    
+    const guide = document.getElementById('chart-guide-line');
+    if (guide) {
+      guide.setAttribute('x1', x);
+      guide.setAttribute('x2', x);
+      guide.style.display = 'block';
+    }
+    
+    const tooltip = document.getElementById('chart-tooltip');
+    if (tooltip) {
+      tooltip.style.display = 'block';
+      const tooltipRect = tooltip.getBoundingClientRect();
+      let left = e.clientX + 15;
+      let top = e.clientY + 15;
+      if (left + 160 > window.innerWidth) {
+        left = e.clientX - tooltipRect.width - 15;
+      }
+      if (top + 140 > window.innerHeight) {
+        top = e.clientY - tooltipRect.height - 15;
+      }
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${top}px`;
+      
+      const modeLabels = {
+        visit: 'Site Visits',
+        set: 'Set Planner',
+        world: 'World Planner',
+        fish: 'Fish Calc',
+        thumbnail: 'Thumb Maker'
+      };
+      
+      tooltip.innerHTML = `
+        <div style="font-weight: bold; margin-bottom: 6px; color: #fb8500; font-size: 11px; font-family: sans-serif;">Date: ${targetDate}</div>
+        <div style="display:flex; flex-direction:column; gap:4px; font-family: monospace;">
+          ${modes.map(mode => {
+            const isHidden = hiddenModes.has(mode);
+            return `
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:20px; font-size:10px; opacity: ${isHidden ? '0.35' : '1'};">
+                <span style="display:flex; align-items:center; gap:5px; color:rgba(255,255,255,0.7);">
+                  <span style="width:6px; height:6px; background:${colors[mode]}; border-radius:50%;"></span>
+                  ${modeLabels[mode]}
+                </span>
+                <span style="font-weight:bold; color:#fff;">${targetData[mode]}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+  });
+  
+  svg.addEventListener('mouseleave', () => {
+    const guide = document.getElementById('chart-guide-line');
+    if (guide) guide.style.display = 'none';
+    const tooltip = document.getElementById('chart-tooltip');
+    if (tooltip) tooltip.style.display = 'none';
+  });
+
+  document.querySelectorAll('.legend-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const mode = item.getAttribute('data-mode');
+      const path = svg.querySelectorAll(`.chart-path.mode-${mode}`);
+      const dots = svg.querySelectorAll(`.chart-dot.mode-${mode}`);
+      
+      if (hiddenModes.has(mode)) {
+        hiddenModes.delete(mode);
+        item.classList.remove('hidden');
+        path.forEach(p => p.style.opacity = '0.85');
+        dots.forEach(d => {
+          d.style.opacity = '1';
+          d.style.pointerEvents = 'auto';
+        });
+      } else {
+        hiddenModes.add(mode);
+        item.classList.add('hidden');
+        path.forEach(p => p.style.opacity = '0');
+        dots.forEach(d => {
+          d.style.opacity = '0';
+          d.style.pointerEvents = 'none';
+        });
+      }
+      window.adminStatsHiddenModes = hiddenModes;
+    });
+  });
 }
 
 window.triggerForcedRefresh = async function() {
@@ -606,5 +870,53 @@ window.triggerForcedRefresh = async function() {
       btn.disabled = false;
       btn.innerText = originalText;
     }, 2500);
+  }
+};
+
+
+
+// ==========================================
+// AUTO-LOG VISITOR CLICK ONCE PER SESSION
+// ==========================================
+if (typeof db !== 'undefined' && db && !sessionStorage.getItem('counted_visit_firestore')) {
+  window.logModeClick('visit')
+    .then(() => {
+      sessionStorage.setItem('counted_visit_firestore', 'true');
+    })
+    .catch((err) => {
+      console.warn("Failed to log visit to firestore:", err);
+    });
+}
+
+// ==========================================
+// VIDEO GUIDE MODAL CONTROLLERS
+// ==========================================
+window.openVideoModal = function() {
+  const overlay = document.getElementById('video-guide-overlay');
+  if (!overlay) return;
+  
+  if (window.logModeClick) {
+    window.logModeClick('guide').catch(() => {});
+  }
+  
+  const container = overlay.querySelector('.video-container');
+  if (container) {
+    container.innerHTML = `<iframe src="https://www.youtube.com/embed/YYQwq1Yr4fs" title="YouTube video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+  }
+  
+  overlay.style.display = 'flex';
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+};
+
+window.closeVideoModal = function() {
+  const overlay = document.getElementById('video-guide-overlay');
+  if (!overlay) return;
+  
+  overlay.style.display = 'none';
+  const container = overlay.querySelector('.video-container');
+  if (container) {
+    container.innerHTML = '';
   }
 };
