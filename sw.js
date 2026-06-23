@@ -1,5 +1,5 @@
 // BreaWorlds Tools - Progressive Web App Service Worker (sw.js)
-const CACHE_NAME = 'bw-tools-v3.15.6';
+const CACHE_NAME = 'bw-tools-v3.15.7';
 
 // Core assets to pre-cache immediately on service worker install
 const PRECACHE_ASSETS = [
@@ -76,57 +76,83 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request)
-      .then(cachedResponse => {
-        if (cachedResponse) {
-          // Serve static/core assets immediately from cache
-          return cachedResponse;
-        }
+  const url = new URL(event.request.url);
+  // Use Network-First for HTML and CSS files so updates show up immediately on refresh
+  const isNetworkFirst = url.pathname === '/' || 
+                         url.pathname.endsWith('index.html') || 
+                         url.pathname.endsWith('style.css');
 
-        return fetch(event.request).then(response => {
-          // If response is invalid, return it directly
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
-          }
-
-          // DYNAMIC CACHING FOR CUSTOM ASSETS
-          // Cache images (sprites, items, backgrounds) and manifests dynamically on-the-fly
-          const url = event.request.url;
-          const isAsset = url.includes('/hats/') || 
-                          url.includes('/shirts/') || 
-                          url.includes('/shoes/') || 
-                          url.includes('/pants/') || 
-                          url.includes('/wings/') || 
-                          url.includes('/faces/') || 
-                          url.includes('/hair/') || 
-                          url.includes('/hands/') || 
-                          url.includes('/scarfs/') || 
-                          url.includes('/pets/') || 
-                          url.includes('/specials/') || 
-                          url.includes('/capes/') || 
-                          url.includes('/cars/') || 
-                          url.includes('/floaties/') || 
-                          url.includes('/backgrounds/') || 
-                          url.includes('/worldplanner/') || 
-                          url.includes('/badges/') || 
-                          url.includes('/display/') || 
-                          url.includes('/fonts/') || 
-                          url.endsWith('.png') || 
-                          url.endsWith('.json');
-
-          if (isAsset) {
+  if (isNetworkFirst) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response && response.status === 200) {
             const responseToCache = response.clone();
             caches.open(CACHE_NAME).then(cache => {
               cache.put(event.request, responseToCache);
             });
+            return response;
+          }
+          return response;
+        })
+        .catch(() => {
+          // Fallback to cache if network is offline
+          return caches.match(event.request);
+        })
+    );
+  } else {
+    // Cache-First strategy for static assets
+    event.respondWith(
+      caches.match(event.request)
+        .then(cachedResponse => {
+          if (cachedResponse) {
+            // Serve static/core assets immediately from cache
+            return cachedResponse;
           }
 
-          return response;
-        }).catch(err => {
-          console.warn('[Service Worker] Network request failed for:', event.request.url, err);
-          // Return nothing or custom offline fallback if needed
-        });
-      })
-  );
+          return fetch(event.request).then(response => {
+            // If response is invalid, return it directly
+            if (!response || response.status !== 200 || response.type !== 'basic') {
+              return response;
+            }
+
+            // DYNAMIC CACHING FOR CUSTOM ASSETS
+            // Cache images (sprites, items, backgrounds) and manifests dynamically on-the-fly
+            const urlStr = event.request.url;
+            const isAsset = urlStr.includes('/hats/') || 
+                            urlStr.includes('/shirts/') || 
+                            urlStr.includes('/shoes/') || 
+                            urlStr.includes('/pants/') || 
+                            urlStr.includes('/wings/') || 
+                            urlStr.includes('/faces/') || 
+                            urlStr.includes('/hair/') || 
+                            urlStr.includes('/hands/') || 
+                            urlStr.includes('/scarfs/') || 
+                            urlStr.includes('/pets/') || 
+                            urlStr.includes('/specials/') || 
+                            urlStr.includes('/capes/') || 
+                            urlStr.includes('/cars/') || 
+                            urlStr.includes('/floaties/') || 
+                            urlStr.includes('/backgrounds/') || 
+                            urlStr.includes('/worldplanner/') || 
+                            urlStr.includes('/badges/') || 
+                            urlStr.includes('/display/') || 
+                            urlStr.includes('/fonts/') || 
+                            urlStr.endsWith('.png') || 
+                            urlStr.endsWith('.json');
+
+            if (isAsset) {
+              const responseToCache = response.clone();
+              caches.open(CACHE_NAME).then(cache => {
+                cache.put(event.request, responseToCache);
+              });
+            }
+
+            return response;
+          }).catch(err => {
+            console.warn('[Service Worker] Network request failed for:', event.request.url, err);
+          });
+        })
+    );
+  }
 });
