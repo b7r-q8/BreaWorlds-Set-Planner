@@ -123,6 +123,42 @@
 <body oncontextmenu="return false;">
   <!-- SEO Content for Google/Search Engines -->
   <h1 class="seo-header">BreaWorlds Tools</h1>
+
+  <!-- FAREWELL NOTICE MODAL -->
+  <div id="farewell-notice-overlay" class="farewell-overlay">
+    <div class="farewell-modal">
+      <div class="farewell-icon">
+        <i data-lucide="info" style="width:32px;height:32px;"></i>
+      </div>
+      <h2 class="farewell-title">Important Notice</h2>
+      <p class="farewell-text">
+        As of <strong>June 23rd, 2026</strong>, I have officially stepped away from the game for good. 
+        Because of this, <strong>no new items, blocks, or content updates</strong> will be added to this website going forward.
+      </p>
+      <p class="farewell-text">
+        Additionally, the domain will <strong>not be renewed</strong> — meaning this site will eventually go offline once the current registration expires.
+      </p>
+      <p class="farewell-text farewell-thanks">
+        Thank you to everyone who used and supported this project. I hope it served you well while it lasted. ❤️
+      </p>
+      <button class="farewell-dismiss-btn" onclick="dismissFarewellNotice()">I Understand</button>
+    </div>
+  </div>
+
+  <script>
+    function dismissFarewellNotice() {
+      const overlay = document.getElementById('farewell-notice-overlay');
+      overlay.classList.add('farewell-closing');
+      setTimeout(() => { overlay.style.display = 'none'; }, 400);
+      sessionStorage.setItem('farewellDismissed', 'true');
+    }
+    window.addEventListener('DOMContentLoaded', () => {
+      if (sessionStorage.getItem('farewellDismissed') === 'true') {
+        document.getElementById('farewell-notice-overlay').style.display = 'none';
+      }
+    });
+  </script>
+
   <!-- VIDEO GUIDE LIGHTBOX MODAL -->
   <div id="video-guide-overlay" class="video-overlay" style="display: none;" onclick="if(event.target === this) closeVideoModal()">
     <div class="video-modal">
@@ -1139,10 +1175,7 @@
           <i data-lucide="sparkles" style="width:12px;height:12px;vertical-align:middle;margin-right:4px;"></i>
           <span>See What's New</span>
         </button>
-        <button class="watch-video-btn" onclick="openVideoModal()">
-          <i data-lucide="play" style="width:12px;height:12px;vertical-align:middle;margin-right:4px;"></i>
-          <span>Watch Guide</span>
-        </button>
+
       </div>
 
       <div class="main-menu-bottom-right">
@@ -1154,12 +1187,33 @@
 
       <div class="main-menu-bottom-left" id="main-menu-bottom-left">
         <div class="menu-version-info">
-          <span class="menu-version-number">v3.15.0</span>
+          <span class="menu-version-number">v3.15.0 <span style="opacity:0.6;font-size:9px;letter-spacing:0.5px;">(No longer updating)</span></span>
         </div>
-        <div class="menu-event-badge">
-          <i data-lucide="heart" style="width:12px;height:12px;"></i>
-          <span>Valentine's Event</span>
+        <div class="menu-shutdown-countdown" id="shutdown-countdown-badge">
+          <i data-lucide="clock" style="width:12px;height:12px;"></i>
+          <span id="shutdown-countdown-text">Site shuts down in ...</span>
         </div>
+        <script>
+          (function() {
+            const shutdownDate = new Date('2027-01-27T00:00:00');
+            function updateCountdown() {
+              const now = new Date();
+              const diff = shutdownDate - now;
+              if (diff <= 0) {
+                document.getElementById('shutdown-countdown-text').textContent = 'Domain has expired';
+                return;
+              }
+              const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+              const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+              const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+              const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+              document.getElementById('shutdown-countdown-text').textContent = 
+                'Site shuts down in ' + days + 'd ' + hours + 'h ' + minutes + 'm ' + seconds + 's';
+            }
+            updateCountdown();
+            setInterval(updateCountdown, 1000);
+          })();
+        </script>
       </div>
 
       <div class="loader-copyright">
