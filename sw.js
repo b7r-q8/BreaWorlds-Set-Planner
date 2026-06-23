@@ -1,5 +1,5 @@
 // BreaWorlds Tools - Progressive Web App Service Worker (sw.js)
-const CACHE_NAME = 'bw-tools-v3.15.5';
+const CACHE_NAME = 'bw-tools-v3.15.6';
 
 // Core assets to pre-cache immediately on service worker install
 const PRECACHE_ASSETS = [
