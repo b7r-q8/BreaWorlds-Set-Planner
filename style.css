@@ -11342,6 +11342,11 @@ input, textarea, [contenteditable="true"] {
   border-color: rgba(168, 218, 220, 0.15);
 }
 
+.bug-stat-box-notice {
+  background: rgba(251, 133, 0, 0.05);
+  border-color: rgba(251, 133, 0, 0.15);
+}
+
 .bug-stat-title {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.5);
@@ -11453,6 +11458,12 @@ input, textarea, [contenteditable="true"] {
   background: rgba(167, 139, 250, 0.15);
   color: #A78BFA;
   border: 1px solid rgba(167, 139, 250, 0.25);
+}
+
+.bug-badge-notice {
+  background: rgba(251, 133, 0, 0.15);
+  color: #fb8500;
+  border: 1px solid rgba(251, 133, 0, 0.25);
 }
 
 
@@ -11584,6 +11595,7 @@ input, textarea, [contenteditable="true"] {
 .legend-color-world { background: #4ECDC4; }
 .legend-color-fish { background: #FFE66D; }
 .legend-color-thumbnail { background: #A78BFA; }
+.legend-color-notice { background: #fb8500; }
 
 /* =========================================
    FAREWELL NOTICE MODAL

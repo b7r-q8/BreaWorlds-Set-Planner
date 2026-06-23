@@ -151,6 +151,9 @@
       overlay.classList.add('farewell-closing');
       setTimeout(() => { overlay.style.display = 'none'; }, 400);
       sessionStorage.setItem('farewellDismissed', 'true');
+      if (typeof window.logModeClick === 'function') {
+        window.logModeClick('notice');
+      }
     }
     window.addEventListener('DOMContentLoaded', () => {
       if (sessionStorage.getItem('farewellDismissed') === 'true') {

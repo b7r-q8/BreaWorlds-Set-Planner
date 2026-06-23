@@ -454,7 +454,8 @@ window.loadAdminStats = async function(days = 7) {
       set: 0,
       world: 0,
       fish: 0,
-      thumbnail: 0
+      thumbnail: 0,
+      notice: 0
     };
     try {
       const statsDoc = await db.collection('stats').doc('mode_clicks').get();
@@ -466,6 +467,7 @@ window.loadAdminStats = async function(days = 7) {
           trackedCounts.world = data.world || 0;
           trackedCounts.fish = data.fish || 0;
           trackedCounts.thumbnail = data.thumbnail || 0;
+          trackedCounts.notice = data.notice || 0;
         }
       }
     } catch (e) {
@@ -518,7 +520,7 @@ function renderStatsUI(totalVisits, trackedCounts, liveSnapshot, historicalSnaps
 
   const statsData = {};
   datesArray.forEach(date => {
-    statsData[date] = { visit: 0, set: 0, world: 0, fish: 0, thumbnail: 0 };
+    statsData[date] = { visit: 0, set: 0, world: 0, fish: 0, thumbnail: 0, notice: 0 };
   });
 
   if (historicalSnapshot && !historicalSnapshot.empty) {
@@ -538,7 +540,7 @@ function renderStatsUI(totalVisits, trackedCounts, liveSnapshot, historicalSnaps
   let maxVal = 0;
   datesArray.forEach(date => {
     const d = statsData[date];
-    maxVal = Math.max(maxVal, d.visit, d.set, d.world, d.fish, d.thumbnail);
+    maxVal = Math.max(maxVal, d.visit, d.set, d.world, d.fish, d.thumbnail, d.notice);
   });
   if (maxVal === 0) maxVal = 10;
   const step = Math.max(1, Math.ceil(maxVal / 4));
@@ -567,13 +569,14 @@ function renderStatsUI(totalVisits, trackedCounts, liveSnapshot, historicalSnaps
   });
 
   // Build Lines & Dots
-  const modes = ['visit', 'set', 'world', 'fish', 'thumbnail'];
+  const modes = ['visit', 'set', 'world', 'fish', 'thumbnail', 'notice'];
   const colors = {
     visit: '#4a90e2',
     set: '#fe0065',
     world: '#4ECDC4',
     fish: '#FFE66D',
-    thumbnail: '#A78BFA'
+    thumbnail: '#A78BFA',
+    notice: '#fb8500'
   };
 
   let pathsHtml = '';
@@ -621,7 +624,8 @@ function renderStatsUI(totalVisits, trackedCounts, liveSnapshot, historicalSnaps
         set: 'Set Planner',
         world: 'World Planner',
         fish: 'Fish Calc',
-        thumbnail: 'Thumb Maker'
+        thumbnail: 'Thumb Maker',
+        notice: 'Read Notice'
       };
       const modeLabel = modeLabels[data.mode] || data.mode;
       const modeClass = `bug-badge-${data.mode}`;
@@ -650,6 +654,7 @@ function renderStatsUI(totalVisits, trackedCounts, liveSnapshot, historicalSnaps
             <span class="legend-item" data-mode="world"><span class="legend-color-dot legend-color-world"></span>Worlds</span>
             <span class="legend-item" data-mode="fish"><span class="legend-color-dot legend-color-fish"></span>Fish</span>
             <span class="legend-item" data-mode="thumbnail"><span class="legend-color-dot legend-color-thumbnail"></span>Thumbs</span>
+            <span class="legend-item" data-mode="notice"><span class="legend-color-dot legend-color-notice"></span>Notice</span>
           </div>
           <div class="bug-chart-toggles">
             <button class="bug-chart-toggle-btn ${days === 7 ? 'active' : ''}" onclick="loadAdminStats(7)">7D</button>
@@ -690,10 +695,20 @@ function renderStatsUI(totalVisits, trackedCounts, liveSnapshot, historicalSnaps
           <div class="bug-stat-val">${trackedCounts.thumbnail.toLocaleString()}</div>
           <div class="bug-stat-sub">Lifetime clicks</div>
         </div>
-        <div class="bug-stat-box bug-stat-box-total" style="grid-column: span 2;">
+        <div class="bug-stat-box bug-stat-box-total">
           <div class="bug-stat-title">Total Site Visits</div>
           <div class="bug-stat-val">${totalVisitsCount.toLocaleString()}</div>
-          <div class="bug-stat-sub">Firestore: ${trackedCounts.visit.toLocaleString()} | CounterAPI: ${totalVisits.toLocaleString()}</div>
+          <div class="bug-stat-sub">Page views</div>
+        </div>
+        <div class="bug-stat-box bug-stat-box-notice">
+          <div class="bug-stat-title">Notice Read</div>
+          <div class="bug-stat-val">${trackedCounts.notice.toLocaleString()}</div>
+          <div class="bug-stat-sub">"I Understand" clicks</div>
+        </div>
+        <div class="bug-stat-box bug-stat-box-total" style="grid-column: span 2;">
+          <div class="bug-stat-title">Extended Metrics</div>
+          <div class="bug-stat-val" style="font-size:14px;">Firestore: ${trackedCounts.visit.toLocaleString()} | CounterAPI: ${totalVisits.toLocaleString()}</div>
+          <div class="bug-stat-sub">Detailed tracking</div>
         </div>
         <div class="bug-stat-box bug-stat-box-action" style="grid-column: span 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 12px;">
           <button id="admin-force-reload-btn" onclick="triggerForcedRefresh()" style="background: rgba(220, 53, 69, 0.2); border: 1px solid #dc3545; color: #dc3545; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-family: 'Russo One', sans-serif; font-size: 13px; transition: all 0.2s ease; width: 100%;">
